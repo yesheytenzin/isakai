@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE policyconfig PUBLIC
+ "-//freedesktop//DTD PolicyKit Policy Configuration 1.0//EN"
+ "http://www.freedesktop.org/standards/PolicyKit/1/policyconfig.dtd">
+<policyconfig>
+  <vendor>Isakai</vendor>
+  <vendor_url>https://github.com/yesheytenzin/isakai</vendor_url>
+
+  <!-- Narrow account/data allocation, removal, and sandboxed app launch.
+       The CLI asks from the user session; nothing else ever elevates.
+       One action covers all subcommands (allocate/remove/run) — the helper
+       re-validates package, UID range, anchored data dir, and (for run)
+       the java allowlist on every invocation.
+       Install note: the exec.path below MUST be the installed CLI path
+       (/usr/bin/isakai); a mismatched path silently denies authorization. -->
+  <action id="id.isakai.allocate-uid">
+    <description>Manage an isolated app account</description>
+    <message>Authentication is required to manage the isolated app account for $(command_line)</message>
+    <defaults>
+      <allow_any>auth_admin</allow_any>
+      <allow_inactive>auth_admin</allow_inactive>
+      <allow_active>auth_admin</allow_active>
+    </defaults>
+    <annotate key="org.freedesktop.policykit.exec.path">/usr/bin/isakai</annotate>
+    <annotate key="org.freedesktop.policykit.exec.argv1">uid-helper</annotate>
+  </action>
+</policyconfig>
