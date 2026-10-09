@@ -1,0 +1,7 @@
+.{
+    .name = .isakai,
+    .version = "0.0.1",
+    .minimum_zig_version = "0.17.0",
+    .paths = .{""},
+    .fingerprint = 0xafdb529313ab41d4,
+}
