@@ -1,0 +1,329 @@
+{
+ "categories": [
+  {
+   "functions": [
+    {
+     "implemented": true,
+     "name": "open/read/write/close",
+     "via": "std.Io.File"
+    },
+    {
+     "implemented": false,
+     "name": "createFileAtomic (staging writes, O_NOFOLLOW)",
+     "via": "std.Io.Dir"
+    },
+    {
+     "implemented": true,
+     "name": "readFileAlloc with bounded limit",
+     "via": "std.Io.Dir (registry done, APK next)"
+    },
+    {
+     "implemented": true,
+     "name": "createDirPath / createDir (mode 0700 app data)",
+     "via": "std.Io.Dir"
+    },
+    {
+     "implemented": true,
+     "name": "renameAtomic (registry save, snapshot commit)",
+     "via": "std.Io.Dir.renameAbsolute"
+    },
+    {
+     "implemented": true,
+     "name": "deleteTree (uninstall, staging cleanup)",
+     "via": "std.Io.Dir"
+    },
+    {
+     "implemented": true,
+     "name": "setPermissions / chown (data dir ownership)",
+     "via": "std.Io.Dir + uid_helper"
+    },
+    {
+     "implemented": false,
+     "name": "symlink/readlink (runtime dirs, anchored validation)",
+     "via": "std.Io.Dir"
+    }
+   ],
+   "id": "fs",
+   "title": "Filesystem"
+  },
+  {
+   "functions": [
+    {
+     "implemented": true,
+     "name": "posix_spawn / fork+exec JVM (launcher)",
+     "via": "std.process.spawn / Child"
+    },
+    {
+     "implemented": true,
+     "name": "setgroups/setgid/setuid drop to app UID",
+     "via": "libc via uid_helper flow"
+    },
+    {
+     "implemented": true,
+     "name": "waitpid / reap + exit status record",
+     "via": "std.process.Child.wait"
+    },
+    {
+     "implemented": true,
+     "name": "kill / terminate on uninstall-while-running",
+     "via": "src/registry.zig terminatePid/isAlive"
+    },
+    {
+     "implemented": false,
+     "name": "unshare(CLONE_NEWNS) mount namespace for launch",
+     "via": "std.os.linux.unshare"
+    },
+    {
+     "implemented": false,
+     "name": "prctl(PR_SET_NO_NEW_PRIVS) confinement",
+     "via": "std.os.linux.prctl"
+    }
+   ],
+   "id": "process",
+   "title": "Process and credentials"
+  },
+  {
+   "functions": [
+    {
+     "implemented": true,
+     "name": "getpwnam/getpwuid (resolve app user)",
+     "via": "std.process.getUserInfo"
+    },
+    {
+     "implemented": true,
+     "name": "useradd/userdel + chown via pkexec isakai uid-helper",
+     "via": "src/uid_helper.zig (new)"
+    },
+    {
+     "implemented": true,
+     "name": "id.isakai.allocate-uid policy action",
+     "via": "polkit/id.isakai.allocate-uid.policy (staged by build.zig)"
+    }
+   ],
+   "id": "users",
+   "title": "Users and privilege"
+  },
+  {
+   "functions": [
+    {
+     "implemented": true,
+     "name": "connect AF_UNIX to $XDG_RUNTIME_DIR/$WAYLAND_DISPLAY",
+     "via": "std.posix.socket"
+    },
+    {
+     "implemented": true,
+     "name": "wl_display.get_registry + registry.bind",
+     "via": "src/bridge/window.zig (new)"
+    },
+    {
+     "implemented": true,
+     "name": "wl_compositor.create_surface",
+     "via": "src/bridge/window.zig"
+    },
+    {
+     "implemented": true,
+     "name": "wl_shm.create_pool + wl_buffer lifecycle",
+     "via": "src/bridge/window.zig"
+    },
+    {
+     "implemented": true,
+     "name": "xdg_wm_base.get_xdg_surface + toplevel (title/app-id)",
+     "via": "src/bridge/window.zig"
+    },
+    {
+     "implemented": true,
+     "name": "wl_surface.frame callbacks + commit/attach/damage",
+     "via": "src/bridge/window.zig"
+    },
+    {
+     "implemented": true,
+     "name": "xdg_toplevel.configure/close/focused/maximized",
+     "via": "src/bridge/window.zig"
+    },
+    {
+     "implemented": false,
+     "name": "wl_output mode/scale events (display metrics)",
+     "via": "src/bridge/window.zig"
+    },
+    {
+     "implemented": true,
+     "name": "wl_seat capabilities + wl_keyboard/wl_pointer (no touch)",
+     "via": "src/bridge/input.zig (new)"
+    },
+    {
+     "implemented": true,
+     "name": "keymap fd (mmap XKB, host keymap reuse)",
+     "via": "src/bridge/input.zig"
+    },
+    {
+     "implemented": true,
+     "name": "pointer motion/button/axis/enter/leave",
+     "via": "src/bridge/input.zig"
+    },
+    {
+     "implemented": true,
+     "name": "keyboard key/modifiers/enter/leave + repeat info",
+     "via": "src/bridge/input.zig"
+    },
+    {
+     "implemented": false,
+     "name": "wl_data_device clipboard copy/paste (M4)",
+     "via": "src/bridge/input.zig"
+    },
+    {
+     "name": "wl_touch input (M4)",
+     "implemented": false,
+     "via": ""
+    }
+   ],
+   "id": "wayland",
+   "title": "Wayland display and input"
+  },
+  {
+   "functions": [
+    {
+     "implemented": true,
+     "name": "JNI native-method binding (static exports + slot indices)",
+     "via": "src/bridge/jni.zig (new)"
+    },
+    {
+     "implemented": true,
+     "name": "NewDirectByteBuffer for SHM pixel delivery",
+     "via": "src/bridge/jni.zig"
+    },
+    {
+     "implemented": false,
+     "name": "global refs + callbacks: onFrame/onKey/onPointer/onConfigure",
+     "via": "src/bridge/jni.zig"
+    },
+    {
+     "implemented": true,
+     "name": "GetStringUTFChars/Release for bridge string args",
+     "via": "src/bridge/jni.zig"
+    }
+   ],
+   "id": "jni",
+   "title": "JNI bridge (Zig <-> host JVM)"
+  },
+  {
+   "functions": [
+    {
+     "implemented": false,
+     "name": "epoll/kqueue event loop for Wayland + JVM pipes",
+     "via": "std.Io threaded reactor",
+     "note": "superseded by poll pump (nPollInput slices)"
+    },
+    {
+     "implemented": false,
+     "name": "timerfd / monotonic clock for frame pacing",
+     "via": "std.time.Timer",
+     "note": "superseded by poll pump (nPollInput slices)"
+    },
+    {
+     "implemented": false,
+     "name": "eventfd/self-pipe wakeups (input -> Java delivery)",
+     "via": "std.os.linux.eventfd or pipe",
+     "note": "superseded by poll pump (nPollInput slices)"
+    }
+   ],
+   "id": "async",
+   "title": "Event loop and timers"
+  },
+  {
+   "functions": [
+    {
+     "implemented": true,
+     "name": "sha256File (APK signature + artifact hashes)",
+     "via": "std.crypto.hash.sha2"
+    },
+    {
+     "implemented": true,
+     "name": "inflate ZIP entries (APK read)",
+     "via": "std.compress.flate"
+    },
+    {
+     "implemented": true,
+     "name": "parse ZIP central directory + bounds checks",
+     "via": "src/install.zig (new)"
+    },
+    {
+     "implemented": true,
+     "name": "parse APK Signing Block v2 (single-cert verify)",
+     "via": "src/install.zig + std.crypto"
+    },
+    {
+     "implemented": true,
+     "name": "parse binary AndroidManifest.xml + resources.arsc",
+     "via": "src/install.zig (new)"
+    },
+    {
+     "implemented": false,
+     "name": "seccomp-bpf syscall allowlist for app JVM (M5)",
+     "via": "std.os.linux.seccomp"
+    },
+    {
+     "implemented": false,
+     "name": "Landlock ABI fs confinement (M5)",
+     "via": "std.os.linux.landlock"
+    }
+   ],
+   "id": "crypto",
+   "title": "Crypto, compression, confinement"
+  },
+  {
+   "functions": [
+    {
+     "implemented": false,
+     "name": "D-Bus notifications (org.freedesktop.Notifications)",
+     "via": "new M4 client or portal call"
+    },
+    {
+     "implemented": false,
+     "name": "xdg-desktop-portal OpenURI + FileChooser",
+     "via": "D-Bus portal (M4)"
+    },
+    {
+     "implemented": false,
+     "name": "PipeWire audio playback stream",
+     "via": "libpipewire link (M4)"
+    },
+    {
+     "implemented": false,
+     "name": "sqlite3 open/exec for app databases (M4)",
+     "via": "system sqlite or vendored"
+    }
+   ],
+   "id": "desktop",
+   "title": "Desktop integration (M4)"
+  },
+  {
+   "functions": [
+    {
+     "implemented": true,
+     "name": "Environment (HOME, XDG_*, WAYLAND_DISPLAY, ISAKAI_*)",
+     "via": "std.process.Environ.Map (done in CLI)"
+    },
+    {
+     "implemented": true,
+     "name": "Wall clock (installed_at) + monotonic uptime",
+     "via": "std.time.timestamp + Timer"
+    },
+    {
+     "implemented": true,
+     "name": "getdents directory iteration (staging scans)",
+     "via": "raw getdents64 (uid_helper) + Dir.iterate (launch)"
+    },
+    {
+     "implemented": false,
+     "name": "uname/machine (arch record in registry)",
+     "via": "std.Target queries"
+    }
+   ],
+   "id": "env",
+   "title": "Environment, time, misc"
+  }
+ ],
+ "description": "Every Linux/host interface the Zig rewrite must implement, grouped by subsystem. implemented=false means not yet written; flip as code lands. No Android binaries, no Binder, no Bionic anywhere in this surface.",
+ "project": "isakai",
+ "updated": "2026-10-09"
+}
