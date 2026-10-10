@@ -549,8 +549,16 @@ pub fn build(b: *std.Build) void {
     fw.addFileArg(b.path("framework/org/isakai/bridge/IsakaiAudio.java"));
     fw.addFileArg(b.path("framework/org/isakai/bridge/IsakaiDesktop.java"));
     fw.addFileArg(b.path("framework/org/isakai/bridge/IsakaiMedia.java"));
+    fw.addFileArg(b.path("framework/android/webkit/JavascriptInterface.java"));
+    fw.addFileArg(b.path("framework/android/webkit/WebSettings.java"));
+    fw.addFileArg(b.path("framework/android/webkit/WebResourceRequest.java"));
+    fw.addFileArg(b.path("framework/android/webkit/WebResourceError.java"));
+    fw.addFileArg(b.path("framework/android/webkit/WebResourceResponse.java"));
+    fw.addFileArg(b.path("framework/android/webkit/ValueCallback.java"));
+    fw.addFileArg(b.path("framework/android/webkit/CookieManager.java"));
+    fw.addFileArg(b.path("framework/android/webkit/WebViewClient.java"));
+    fw.addFileArg(b.path("framework/android/webkit/WebView.java"));
     fw.addFileArg(b.path("framework/org/isakai/runtime/IsakaiMain.java"));
-    fw.addFileArg(b.path("framework/android/accounts/Account.java"));
     fw.addFileArg(b.path("framework/android/animation/ArgbEvaluator.java"));
     fw.addFileArg(b.path("framework/android/animation/FloatEvaluator.java"));
     fw.addFileArg(b.path("framework/android/animation/StateListAnimator.java"));
