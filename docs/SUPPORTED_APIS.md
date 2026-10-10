@@ -224,7 +224,10 @@ not real hardware or platform behavior. Host-side JVM tests (`*Test.java`) run o
 
 ## android.hardware
 - `ConsumerIrManager` — IR blaster; absent shell.
-- `SensorManager` — Sensor queries; empty shell.
+- `Sensor` — Physical sensor descriptor (type/name/vendor/range/resolution/power).
+- `SensorEvent` — Sensor event (sensor/accuracy/timestamp/values).
+- `SensorEventListener` — Listener for sensor changes (onSensorChanged/onAccuracyChanged).
+- `SensorManager` — SensorManager backed by IsakaiSensor: virtual gravity (9.81) + light (ISAKAI_SENSOR_LIGHT override) when iio-sensor-proxy absent, D-Bus proxy shape ready; ~50 Hz dispatch via Handler.
 
 ## android.hardware.biometrics
 - `BiometricManager` — Biometric enrollment shell: nothing enrolled.
@@ -252,13 +255,17 @@ not real hardware or platform behavior. Host-side JVM tests (`*Test.java`) run o
 - `ULocale` — Unicode locale stub: wraps a language tag string.
 
 ## android.location
-- `LocationManager` — Location providers; empty shell.
+- `Criteria` — Location criteria (accuracy/power/altitude/bearing/speed/cost).
+- `Location` — Location fix (provider/lat/lon/accuracy/time/extras).
+- `LocationListener` — Location callbacks (onLocationChanged/onStatusChanged/onProviderEnabled/Disabled).
+- `LocationManager` — LocationManager via IsakaiLocation: virtual GeoClue fallback (37.42,-122.08) when GeoClue2 absent, D-Bus shape ready; fail-closed when provider disabled.
 
 ## android.media
 - `AudioManager` — Audio volumes and focus; silent shell.
 - `MediaExtractor` — Media extraction shell: no tracks.
 - `MediaFormat` — Format map shell: string/int entries only.
-- `MediaMetadataRetriever` — Metadata shell: no keys populated.
+- `MediaMetadataRetriever` — Metadata retriever via IsakaiMedia: ffprobe duration/mime + ffmpeg frame extract → Bitmap; null when ffmpeg absent.
+- `MediaPlayer` — MediaPlayer state machine (Idle→Initialized→Preparing→Prepared→Started/Paused/Stopped/Completed/Error/End) via IsakaiMedia + IsakaiAudio: ffmpeg decode to S16LE 44.1k stereo + PulseAudio; UnsupportedOperationException when ffmpeg absent, IOException on corrupt.
 - `MediaRouter` — Media routing; empty shell.
 - `SoundPool` — Minimal SoundPool: load a 16-bit PCM WAV file (mono or stereo, any supported rate) by path and play it once through PulseAudio at its native rate. Only {@code loop == 0} (play once) is supported.
 - `SoundPoolTest` — Host-side unit checks for {@link SoundPool#parseWav}. Run on the host JVM.
@@ -516,6 +523,17 @@ not real hardware or platform behavior. Host-side JVM tests (`*Test.java`) run o
 - `ViewTranslationRequest` — Translation request for one view with builder.
 - `ViewTranslationResponse` — Translation response map with builder.
 
+## android.webkit
+- `CookieManager` — Cookie jar (in-memory URL→value, acceptCookie gate, removeAll/flush, hasCookies); real webkit2gtk jar in helper when present.
+- `JavascriptInterface` — Annotation marking methods exposed to JavaScript via addJavascriptInterface.
+- `ValueCallback` — Single-value async callback (onReceiveValue).
+- `WebResourceError` — Web resource error (code + description).
+- `WebResourceRequest` — Web resource request (URL/method/headers/forMainFrame/hasGesture).
+- `WebResourceResponse` — Web resource response (MIME/encoding/data/status/headers).
+- `WebSettings` — Web settings (JS/DOM/file/content/images/network/zoom/cache/UA/mixedContent).
+- `WebView` — WebView (View subclass): history (goBack/Forward/reload/clear), loadUrl/loadData, evaluateJavascript via reflection dispatch to @JavascriptInterface, WebViewClient callbacks, ISAKAI_WEBVIEW=0 disable.
+- `WebViewClient` — WebView client (6 methods: shouldOverrideUrlLoading×2, onPageStarted/Finished, onReceivedError×2, onReceivedHttpError).
+
 ## android.widget
 - `AbsListView` — Scrollable list base: renders visible rows, selection optional.
 - `AbsSeekBar` — Seek bar base: progress plus a thumb drawable.
@@ -594,10 +612,9 @@ not real hardware or platform behavior. Host-side JVM tests (`*Test.java`) run o
 
 ## Key gaps (absent, fail-closed)
 
-- No `android.webkit` package: WebView is absent; apps referencing it fail translation/linkage, not silently.
-- No `android.media.MediaPlayer`, codecs, `MediaCodec`, `MediaRecorder`, `AudioRecord`, `Camera`/`CameraDevice` (only the `camera2.CameraManager` enumeration shell), sensors (`SensorManager` is an empty shell), location providers (`LocationManager` empty shell), Bluetooth adapters (`BluetoothManager` absent shell), NFC hardware (`NfcManager` stub), telephony radio, or USB host I/O — all present classes in those packages are link-compatible shells returning null/empty/false.
-- APKs containing native code (`lib/**/*.so`) are rejected at install with `NativeUnsupported` — there is no Bionic bridge (`src/install.zig`).
-- APK Signature Scheme v2 only, single signer pinned; multi-signer APKs and RSA keys over 4096 bits are rejected (`src/apksig.zig`).
+- No `android.media.MediaCodec`, `MediaRecorder`, `AudioRecord`, `Camera`/`CameraDevice` (only the `camera2.CameraManager` enumeration shell), Bluetooth adapters (`BluetoothManager` absent shell), NFC hardware (`NfcManager` stub), telephony radio, or USB host I/O — all present classes in those packages are link-compatible shells returning null/empty/false.
+- APKs with native code for non-host ABIs (e.g. `arm64-v8a`, `armeabi-v7a`, `x86`) are rejected with `NativeUnsupported` (`src/install.zig:inspect`); host `lib/x86_64/*.so` are staged RO and LD_PRELOADed with `libisakai_bionic_shim.so` (bionic log/property interposition, `src/native/bionic_shim.zig`, `src/launch.zig` + `src/uid_helper.zig`).
+- APK Signature Scheme v2 only; P-521 remains `UnsupportedAlgorithm` (Zig 0.17 std has no secp521r1, `lib/std/crypto/pcurves` + `Certificate.zig:113` unimplemented); RSA >4096 rejected; multi-signer (up to 16, sorted+deduped) verified, upgrade pins via `signer_sha256_set` (`src/apksig.zig`, `src/upgrade.zig`).
 
 ## Translator boundary
 
@@ -606,6 +623,6 @@ DEX versions 35–40 parse (`src/dex.zig:parseHeader`); each class is emitted as
 ## Where to look for errors
 
 - `inspect-test <apk>` — manifest/DEX summary or the rejection reason (native code, missing `classes.dex`, bad manifest).
-- `verify-test <apk>` — v2 leaf fingerprint or the exact `SigError` (multi-signer, RSA>4096, digest/signature mismatch).
+- `verify-test <apk>` — v2 fingerprints (all signers, sorted) or the exact `SigError` (P-521, RSA>4096, digest/signature mismatch).
 - `translate-test [--keep-going] <classes.dex> <outdir>` — per-class translation failures without aborting.
 - `isakai launch` stderr — JVM discovery (`NoJava`), unreachable framework dir (`FrameworkUnreachable`), missing compositor socket (`NoWaylandSocket`), in-app `VerifyError` (translator scale ladder; see `docs/TESTING.md`).

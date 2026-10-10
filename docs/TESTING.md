@@ -66,6 +66,21 @@ ISAKAI_WINDOW=1 zig-out/bin/isakai launch org.isakai.fixture      # windowed
   relative by default) clicks the Button; log shows the click handler
   (M3). `ydotoold` must be running with uinput access.
 
+## 4. Privileged E2E (M6g, environment-gated)
+
+`tools/e2e-privileged.sh` runs the full privileged path — allocate →
+install → windowed launch with `--wayland-sock` bind-mount → verify →
+remove — when passwordless elevation is available. On dev boxes without
+`sudo -n` or installed polkit wrappers it exits 0 with `SKIP` so CI
+doesn't fail; on a privileged runner (e.g. GitHub Actions with
+passwordless sudo) it exercises the real `uid-helper` confinement
+(seccomp/Landlock, mount-ns socket broker, app UID isolation).
+
+```sh
+./tools/e2e-privileged.sh          # SKIP on dev, PASS on privileged CI
+ISAKAI=/usr/bin/isakai WORK=/tmp/w ./tools/e2e-privileged.sh
+```
+
 Real-APK ladder (translator scale): `verify-test <apk>` for signature,
 `translate-test --keep-going <classes.dex> <out>` for per-class
 translation survey. KeePassDroid v2.6.9.2: 11953/11953 translate,

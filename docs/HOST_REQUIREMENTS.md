@@ -52,20 +52,19 @@ Linked by `build.zig` into `libisakai_jni.so`:
 | `libpulse-simple` | `src/bridge/audio.zig` | PulseAudio playback for `SoundPool` |
 | `libsqlite3` | `src/bridge/sqlite.zig` | `SQLiteDatabase` backend |
 
+Optional runtime deps (graceful fallback when absent): `ffmpeg`/`ffprobe` (M6b `MediaPlayer`/`MediaMetadataRetriever` — decode + frame extract; `UnsupportedOperationException`/null when missing), `webkit2gtk-4.1` shape (M6c `WebView` headless JS/history without engine, ISAKAI_WEBVIEW=0 gate; full webkit2gtk helper deferred).
+
 Build also needs Zig 0.17 and a C toolchain (the native modules use
 `link_libc`). The framework classes compile with the host `javac`
 (`--release 17`).
 
-## Privilege: polkit + pkexec
+Native shim: `src/native/bionic_shim.zig` builds `framework/lib/libisakai_bionic_shim.so` (LD_PRELOAD for `__android_log_*`, `property_*`, `android_dlopen_ext`); injected via `LD_PRELOAD` in both privileged (`uid_helper` fixed 9-slot envp) and unprivileged (`cloneSandboxEnv`) launch paths; Landlock RO already covers the code `lib/` tree.
 
-- Privileged install/launch goes through `isakai uid-helper ...` as root
-  via `pkexec` and the single polkit action `id.isakai.allocate-uid`
-  (`auth_admin`), staged from `polkit/id.isakai.allocate-uid.policy`.
-- The policy pins `org.freedesktop.policykit.exec.path` to
-  `/usr/bin/isakai`: the installed CLI path MUST be `/usr/bin/isakai`,
-  or authorization is silently denied.
-- Dev/test bypass: `ISAKAI_NO_PRIVILEGE=1` runs everything as self
-  (no pkexec, no app user).
+## Privilege: polkit + pkexec (3 split actions, M6f)
+
+- Privileged ops go through `isakai uid-helper ...` as root via `pkexec` and three polkit actions `id.isakai.{allocate-uid,remove-uid,run-app}` (`auth_admin`, per-action messages, no `$(command_line)` leak), staged from `polkit/id.isakai.allocate-uid.policy` + wrappers `polkit/bin/isakai-*-uid` (`build.zig` + `make install` place them in `bin/`; `make uninstall` removes them).
+- Each action pins `org.freedesktop.policykit.exec.path` to its wrapper (`/usr/bin/isakai-*-uid` → `exec /usr/bin/isakai uid-helper {allocate,remove,run} "$@"`): the wrappers + `/usr/bin/isakai` MUST be at those paths or authorization is silently denied. `pkexec` matches `exec.path` exactly; the wrappers keep the CLI byte-identical while giving the dialog per-operation text.
+- Dev/test bypass: `ISAKAI_NO_PRIVILEGE=1` runs everything as self (no pkexec, no app user). Missing wrappers (relocatable dev installs) fall back to direct `pkexec $exe uid-helper <op> ...` argv — behaviour byte-identical, only the dialog text is generic.
 
 ## Compositor (windowed launches)
 
@@ -111,4 +110,6 @@ All `ISAKAI_*` names read anywhere in `src/` + JNI (`grep -rho
 | `ISAKAI_STAGE_DIR` | user/tests | `<work>/stage/<pkg>` | override for the app-owned stage dir (same validation) |
 | `ISAKAI_BRIDGE` | launcher → app | — | bridge dir inside the sandbox; the JVM's `IsakaiDesktop` connects to `$ISAKAI_BRIDGE/bridge.sock`. Never set by hand. |
 | `ISAKAI_STAGE` | launcher → app | — | stage dir inside the sandbox. Never set by hand. |
+| `ISAKAI_SENSOR_LIGHT` | test | `100` | light sensor virtual lux for `SensorManager` (M6d) |
+| `ISAKAI_WEBVIEW` | user | unset | `0`/`false` = disable `WebView.loadUrl` (M6c, fail-closed via onReceivedError) |
 | `JAVA_HOME` | user | unset | first JVM candidate (`$JAVA_HOME/bin/java`) |

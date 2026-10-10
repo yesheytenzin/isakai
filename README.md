@@ -4,12 +4,12 @@ Run Android apps as native Linux processes. No Android OS, no container, no
 kernel binder, no runtime bundle download: host JVM + translated DEX +
 reimplemented `android.*` on Wayland.
 
-## Status: M5 in progress
+## Status: M6 complete
 
 `progress.json` is the milestone tracker. M0 (install pipeline), M1 (DEX
 translate + headless run), M2 (Wayland window), M3 (keyboard/pointer input),
-M4 (app services) are complete and gated on this machine. M5 (release:
-packaging, security, upgrades) is current.
+M4 (app services) and M5 (release: packaging, security, upgrades) are complete and gated.
+M6 (remaining gaps: native shim, media, WebView, sensors/location, apksig, polkit, privileged E2E) is complete.
 
 ## Install (clean machine)
 
@@ -31,8 +31,7 @@ isakai launch com.example.app
 
 Notes:
 
-- The polkit policy (`id.isakai.allocate-uid`, `auth_admin`) pins
-  `exec.path` to `/usr/bin/isakai`: install with the default
+- The polkit policy (3 actions `id.isakai.{allocate-uid,remove-uid,run-app}`, `auth_admin`) pins each `exec.path` to its wrapper (`/usr/bin/isakai-*-uid` → `isakai uid-helper {allocate,remove,run}`), with per-action messages and no `$(command_line)` leak: install with the default
   `PREFIX=/usr`. A relocatable dev install is possible with
   `make install PREFIX=... INSTALL_POLICY=0`, but privileged
   install/launch then needs `ISAKAI_FRAMEWORK=<prefix>/share/isakai/framework`
@@ -62,7 +61,7 @@ ISAKAI_WINDOW=1 zig-out/bin/isakai launch org.isakai.fixture  # windowed
 
 `zig build` installs to `zig-out/` (`-p <prefix>` overrides): `bin/isakai`,
 `bin/fixture-apk`, `bin/{inspect,translate,verify}-test`, `framework/*.class`,
-`framework/lib/libisakai_jni.so`, `share/polkit-1/actions/*.policy`.
+`framework/lib/{libisakai_jni,libisakai_bionic_shim}.so`, `share/polkit-1/actions/*.policy`, `bin/isakai-*-uid` wrappers.
 
 ## Usage
 
@@ -99,27 +98,29 @@ verify failed), 2 usage error. Global `--work` overrides `ISAKAI_WORK`.
 - `inspect-test <apk>` — print manifest/DEX summary or the rejection reason.
 - `translate-test [--dump-lines] [--keep-going] <dex> <outdir>` — batch
   DEX→JVM translation; `--keep-going` reports per-class failures.
-- `verify-test <apk>` — print the v2 leaf fingerprint or the `SigError`.
+- `verify-test <apk>` — print all v2 fingerprints (sorted, per-signer) or the `SigError` (P-521/RSA>4096/digest mismatch).
 - `oracle/diff.sh [case...]` — smali corpus → DEX → our translator vs
   dex2jar → execute both, diff stdout. Needs dex-tools at
   `$D2J` (default `/tmp/oracle/dex2jar/dex-tools-v2.4`); see
   `docs/TESTING.md`. `oracle/lines.sh` checks LineNumberTables.
 - `tools/fetch-apksig-vectors.sh` — one-time re-vendor of the AOSP golden
   APKs into `testdata/apksig/` (tests themselves are offline).
+- `tools/e2e-privileged.sh` — privileged install+windowed launch E2E (environment-gated: SKIP without sudo/wrappers, PASS on privileged CI).
 
 ## Layout
 
 - `src/main.zig` — CLI dispatch
-- `src/install.zig` — APK inspect/verify/stage/install/uninstall
-- `src/apksig.zig` — APK Signature Scheme v2 verifier + golden tests
+- `src/install.zig` — APK inspect/verify/stage/install/uninstall (x86_64 .so allow, other ABIs NativeUnsupported)
+- `src/apksig.zig` — APK Signature Scheme v2 verifier + golden tests (multi-signer ≤16, P-521 unsupported)
 - `src/registry.zig` — package registry, state machine, terminatePid
 - `src/dex.zig` — DEX parser
 - `src/translate.zig` — DEX→JVM translator + class writer
 - `src/launch.zig` — install-time translate, JVM discovery, spawn/reap
 - `src/uid_helper.zig` — privileged allocate/remove/runAs
+- `src/native/bionic_shim.zig` — LD_PRELOAD bionic interposition (log/property/dlopen)
 - `src/bridge/` — `window.zig` (Wayland client), `jni.zig` (natives),
-  `xkb.zig` (keymap/keycodes)
-- `framework/` — Java `android.*` subset + `org.isakai` bridge/runtime
+  `xkb.zig` (keymap/keycodes), `audio.zig` (PulseAudio), `desktop.zig`/`dbus.zig`
+- `framework/` — Java `android.*` (media/WebView/hardware/location) + `org.isakai` bridge/runtime
 - `tools/` — fixture builder, debug probes, vector fetch script
 - `oracle/` — differential translator corpus + harnesses
 - `testdata/apksig/` — vendored AOSP v2 golden vectors
@@ -132,7 +133,7 @@ verify failed), 2 usage error. Global `--work` overrides `ISAKAI_WORK`.
 parity) must be green. Design log: `docs/limitations-fix-plan.md`;
 system map: `docs/ARCHITECTURE.md`; test inventory: `docs/TESTING.md`;
 host requirements: `docs/HOST_REQUIREMENTS.md`; supported API list:
-`docs/SUPPORTED_APIS.md`.
+`docs/SUPPORTED_APIS.md`; gap closure plan: `docs/M6-GAPS-PLAN.md`.
 
 ## License
 

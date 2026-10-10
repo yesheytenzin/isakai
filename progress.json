@@ -1,464 +1,522 @@
 {
- "blockers": [],
- "completed": [
-  {
-   "date": "2026-10-09",
-   "item": "Repo scaffold + build.zig (build/test/run steps)",
-   "milestone": "M0"
-  },
-  {
-   "date": "2026-10-09",
-   "item": "CLI skeleton: list/query/help/version, --work, exit codes 0/1/2",
-   "milestone": "M0"
-  },
-  {
-   "date": "2026-10-09",
-   "item": "Registry port: atomic JSON, Installed/Starting/Running/Exited/Removing, resolve, UID allocation",
-   "milestone": "M0"
-  },
-  {
-   "date": "2026-10-09",
-   "item": "5 unit tests green (resolve precedence, UID skip, save/load round-trip, corrupt-load fails, verb parse)",
-   "milestone": "M0"
-  },
-  {
-   "date": "2026-10-09",
-   "item": "Binary smoke-tested: version/help/list/query/stubs with correct exits",
-   "milestone": "M0"
-  },
-  {
-   "date": "2026-10-09",
-   "item": "src/install.zig: ZIP bounds/validate, binary manifest parse, extract staging, install/uninstall orchestration",
-   "milestone": "M0"
-  },
-  {
-   "date": "2026-10-09",
-   "item": "tools/fixture-apk.zig: SDK-free fixture APK (binary manifest, classes.dex, arsc)",
-   "milestone": "M0"
-  },
-  {
-   "date": "2026-10-09",
-   "item": "CLI install/uninstall verbs wired with exit codes",
-   "milestone": "M0"
-  },
-  {
-   "date": "2026-10-09",
-   "item": "M0 gate passed: install x2/query/list/uninstall x2, clean workdir, 15 tests green",
-   "milestone": "M0"
-  },
-  {
-   "date": "2026-10-09",
-   "item": "User acceptance-tested M0: install x2/query/list/negatives/uninstall x2, all exits correct",
-   "milestone": "M0"
-  },
-  {
-   "date": "2026-10-09",
-   "item": "src/dex.zig: header verify + section tables + class-data/code readers",
-   "milestone": "M1"
-  },
-  {
-   "date": "2026-10-09",
-   "item": "src/translate.zig: DEX-to-JVM (opcodes, regmap, v50 classes, const patching)",
-   "milestone": "M1"
-  },
-  {
-   "date": "2026-10-09",
-   "item": "Fixture DEX: 3 classes/18 methods hand-assembled (Counter, FixtureApp, FixtureActivity)",
-   "milestone": "M1"
-  },
-  {
-   "date": "2026-10-09",
-   "item": "Framework: Application/Activity/IsakaiMain lifecycle + file storage",
-   "milestone": "M1"
-  },
-  {
-   "date": "2026-10-09",
-   "item": "src/launch.zig: install-time translate + JVM spawn/reap + state machine",
-   "milestone": "M1"
-  },
-  {
-   "date": "2026-10-09",
-   "item": "M1 gate passed: launch x2, counter 42->43 persists, exited state, tests green",
-   "milestone": "M1"
-  },
-  {
-   "date": "2026-10-09",
-   "item": "M0/M1 limitations researched (4 tracks) + docs/limitations-fix-plan.md filed",
-   "milestone": "M1"
-  },
-  {
-   "date": "2026-10-09",
-   "item": "Fix P0.1: registry flock sidecar; racing launches serialize (AlreadyRunning)",
-   "milestone": "M1"
-  },
-  {
-   "date": "2026-10-09",
-   "item": "Fix P0.2: real child.id PID recorded + isAlive liveness probe",
-   "milestone": "M1"
-  },
-  {
-   "date": "2026-10-09",
-   "item": "Fix P0.3: ordered JVM discovery (JAVA_HOME/PATH//usr/lib/jvm) + JEP223 version gate >=17",
-   "milestone": "M1"
-  },
-  {
-   "date": "2026-10-09",
-   "item": "Fix P0.4: multi-DEX enumeration + per-dex namespaces + DuplicateClass loud error",
-   "milestone": "M1"
-  },
-  {
-   "date": "2026-10-09",
-   "item": "Fix P0.5: explicit NativeUnsupported rejection at install",
-   "milestone": "M1"
-  },
-  {
-   "date": "2026-10-09",
-   "item": "Fix P1.6: v2 signature verify (RSA/ECDSA, digest, SPKI pin); OpenCalc APK verifies; tamper detected; install-gated",
-   "milestone": "M1"
-  },
-  {
-   "date": "2026-10-09",
-   "item": "Fix P1.7: uid-helper allocate/remove + polkit policy + UID range 200000-299999",
-   "milestone": "M1"
-  },
-  {
-   "date": "2026-10-09",
-   "item": "Fix P1.8: uid-helper run (fork/drop/exec) + per-app env + privileged launch path",
-   "milestone": "M1"
-  },
-  {
-   "date": "2026-10-09",
-   "item": "Launch-127 fix: child exec errno diagnostics",
-   "milestone": "M1"
-  },
-  {
-   "date": "2026-10-09",
-   "item": "Launch-127 fix: world-traversable JVM preference for privileged runs",
-   "milestone": "M1"
-  },
-  {
-   "date": "2026-10-09",
-   "item": "Launch-127 fix: framework/classes readability gate + cache/tmp+run subdirs at allocate",
-   "milestone": "M1"
-  },
-  {
-   "date": "2026-10-09",
-   "item": "Launch-127 root cause: mode-bit traversability check (access() tested self, not app user)",
-   "milestone": "M1"
-  },
-  {
-   "date": "2026-10-09",
-   "item": "Privileged launch verified by user: lifecycle as UID 200000, exit 0, data dir 0700-denied to others",
-   "milestone": "M1"
-  },
-  {
-   "date": "2026-10-09",
-   "item": "Differential oracle green: 6/6 suites (arith, arrays, switch, sync, trycatch, wide) vs dex2jar",
-   "milestone": "M1"
-  },
-  {
-   "date": "2026-10-09",
-   "item": "try/catch -> JVM exception_table + move-exception handler entry",
-   "milestone": "M1"
-  },
-  {
-   "date": "2026-10-09",
-   "item": "Wide lowering: long/double/float register typing, explicit local table, const-wide x4 synth, typed field/array/invoke/return",
-   "milestone": "M1"
-  },
-  {
-   "date": "2026-10-09",
-   "item": "src/uid_helper.zig: pkexec allocate/remove/runAs wired into install/uninstall",
-   "milestone": "M0"
-  },
-  {
-   "date": "2026-10-09",
-   "item": "sha256File lives in install.zig (no separate util.zig needed); uninstall removes user+data+registry",
-   "milestone": "M0"
-  },
-  {
-   "date": "2026-10-09",
-   "item": "tools/fixture-apk.zig: SDK-free fixture APK builder",
-   "milestone": "M0"
-  },
-  {
-   "date": "2026-10-09",
-   "item": "M2: hand-rolled Wayland client (registry/shm/xdg_shell, double-buffer, frame pacing)",
-   "milestone": "M2"
-  },
-  {
-   "date": "2026-10-09",
-   "item": "M2: JNI bridge libisakai_jni + IsakaiWindow (open/post/run/close)",
-   "milestone": "M2"
-  },
-  {
-   "date": "2026-10-09",
-   "item": "M2: framework View/TextView/Canvas/Color + real 5x7 BitmapFont",
-   "milestone": "M2"
-  },
-  {
-   "date": "2026-10-09",
-   "item": "M2 gate: fixture opens xdg_toplevel, 'Hello Isakai' in grim shot, exit 0, no leftovers",
-   "milestone": "M2"
-  },
-  {
-   "date": "2026-10-09",
-   "item": "M0 crypto: apksig DSA + EC matrix fix + 35 golden vectors, OpenCalc verifies, tamper fails",
-   "milestone": "M0"
-  },
-  {
-   "date": "2026-10-09",
-   "item": "M0 system: polkit auth_admin+command_line, fd/cwd/umask hygiene, dirfd-anchored alloc/remove, runAs allowlist, stale reap",
-   "milestone": "M0"
-  },
-  {
-   "date": "2026-10-09",
-   "item": "M1 translator: cmp, filled-new-array, ldc_w const pool, LineNumberTable; oracle 12/12",
-   "milestone": "M1"
-  },
-  {
-   "date": "2026-10-09",
-   "item": "M2 window: resize loop, zero-copy, manifest labels, native-access flag, Canvas clip/wrap",
-   "milestone": "M2"
-  },
-  {
-   "date": "2026-10-09",
-   "item": "M3: seat/keyboard/pointer + XKB + ring + nPollInput + client repeat",
-   "milestone": "M3"
-  },
-  {
-   "date": "2026-10-09",
-   "item": "M3: KeyEvent/MotionEvent/ViewGroup/EditText/Button/focus/dispatch + fixture onClick DEX + translator interfaces",
-   "milestone": "M3"
-  },
-  {
-   "date": "2026-10-09",
-   "item": "M3 gate: wtype types into EditText, ydotool LEFT clicks Button -> 'Clicked!', exit 0, no leftovers",
-   "milestone": "M3"
-  },
-  {
-   "date": "2026-10-09",
-   "item": "Audit gaps: goto32 wide fixups, const-string-jumbo size, ldc_w strings, aget-wide doubles",
-   "milestone": "M1"
-  },
-  {
-   "date": "2026-10-09",
-   "item": "KeePassDroid ladder: 11953/11953 translate, 0 VerifyError; const-class, move/from16, array variants, CESU-8, MUTF-8, ldc2_w pool, flags, 3rc-256, wide fill",
-   "milestone": "M1"
-  },
-  {
-   "date": "2026-10-09",
-   "item": "uninstall-while-running: terminatePid guard (SIGTERM/KILL, Refused on 0/1/self)",
-   "milestone": "M0"
-  },
-  {
-   "date": "2026-10-09",
-   "item": "oracle 16/16 suites (+2 lines checks = 18 assertions)",
-   "milestone": "M1"
-  },
-  {
-   "date": "2026-10-09",
-   "item": "Repo organize: strays/empties/dead code removed, README+ARCHITECTURE+TESTING written, trackers de-drifted",
-   "milestone": "M4"
-  },
-  {
-   "date": "2026-10-09",
-   "item": "Rename mosaic -> isakai (binary, ISAKAI_*, org.isakai, id.isakai.*, docs, trackers)",
-   "milestone": "M4"
-  },
-  {
-   "date": "2026-10-10",
-   "item": "M4 storage: Context + AOSP prefs + files 0600 + SQLite JNI, fixture round-trips green",
-   "milestone": "M4"
-  },
-  {
-   "date": "2026-10-10",
-   "item": "M4 desktop: dbus.zig + bridge daemon + notify/portal/links, live bus verified",
-   "milestone": "M4"
-  },
-  {
-   "date": "2026-10-10",
-   "item": "M4 clipboard: data-device v3 copy/paste, wl-copy interop verified",
-   "milestone": "M4"
-  },
-  {
-   "date": "2026-10-10",
-   "item": "M4 audio: pa_simple SoundPool, tone plays via pipewire-pulse",
-   "milestone": "M4"
-  },
-  {
-   "date": "2026-10-10",
-   "item": "M4 touch: wl_touch multi-pointer + metrics, evdev injection verified",
-   "milestone": "M4"
-  },
-  {
-   "date": "2026-10-10",
-   "item": "resources.arsc table + binary XML + staged assets/res wiring",
-   "milestone": "M4"
-  },
-  {
-   "date": "2026-10-10",
-   "item": "LayoutInflater XML walk + factories + findViewById tree + TypedArray/Theme/styles",
-   "milestone": "M4"
-  },
-  {
-   "date": "2026-10-10",
-   "item": "Bitmap PNG/JPEG decode + Drawable inflation + colors/state-lists",
-   "milestone": "M4"
-  },
-  {
-   "date": "2026-10-10",
-   "item": "Privileged windowed Wayland socket brokering (env-blocked E2E noted)",
-   "milestone": "M4"
-  },
-  {
-   "date": "2026-10-10",
-   "item": "wl_output metrics wiring to DisplayMetrics",
-   "milestone": "M4"
-  },
-  {
-   "date": "2026-10-10",
-   "item": "createFileAtomic + anchored symlink/readlink + uname arch record",
-   "milestone": "M4"
-  },
-  {
-   "date": "2026-10-10",
-   "item": "prctl NO_NEW_PRIVS + mount-namespace launch confinement",
-   "milestone": "M4"
-  },
-  {
-   "date": "2026-10-10",
-   "item": "ContentResolver/Provider hosting + Parcel read-back",
-   "milestone": "M4"
-  },
-  {
-   "date": "2026-10-10",
-   "item": "Portal file-writeback + clipboard rich types + audio formats + touch gestures",
-   "milestone": "M4"
-  },
-  {
-   "date": "2026-10-10",
-   "item": "Translator: 21t/22c/23x reg extracts, inherited-ctor forwards, try-end shrinking, reaching-def entry fix, param array comps",
-   "milestone": "M4"
-  },
-  {
-   "date": "2026-10-10",
-   "item": "Manifest activity-alias target + theme plumbing (app/activity themes)",
-   "milestone": "M4"
-  },
-  {
-   "date": "2026-10-10",
-   "item": "Framework: 150+ stubs (widgets, services, xmlpull, os, util, text spans, a11y)",
-   "milestone": "M4"
-  },
-  {
-   "date": "2026-10-10",
-   "item": "M4 gate: OpenCalc + Simple Calculator + Simple Notes headless exit 0; oracle 18/18; zig build test green",
-   "milestone": "M4"
-  }
- ],
- "current_milestone": "M5",
- "milestones": [
-  {
-   "done": [
-    "Repo scaffold + build.zig",
-    "CLI skeleton (list/query/help/version)",
-    "Registry with state machine + tests",
-    "Tracking files (progress.json, linux-interface.json)",
-    "src/install.zig: APK parse/verify/stage",
-    "Fixture APK builder (Zig, no SDK)",
-    "install/uninstall CLI verbs",
-    "M0 gate: lifecycle verified",
-    "uid_helper + uninstall user/data removal"
-   ],
-   "gate": "isakai install/uninstall a fixture APK; registry round-trips; no Android binaries on disk",
-   "id": "M0",
-   "remaining": [],
-   "status": "complete",
-   "title": "Install pipeline: APK verify, stage, register, uninstall"
-  },
-  {
-   "done": [
-    "src/dex.zig: DEX parser",
-    "src/translate.zig: translator + class emission",
-    "framework lifecycle stubs + fixture app",
-    "src/launch.zig: JVM spawn/reap + launch verb",
-    "M1 gate verified"
-   ],
-   "gate": "Translated fixture logs lifecycle from host JVM; counter persists headless",
-   "id": "M1",
-   "remaining": [],
-   "status": "complete",
-   "title": "DEX translate + headless run"
-  },
-  {
-   "done": [
-    "Wayland connect/registry/surface/toplevel",
-    "SHM buffer pool + post/release",
-    "Canvas rendering into SHM via direct buffers",
-    "framework: View hierarchy subset"
-   ],
-   "gate": "Fixture opens a real xdg_toplevel, draws expected UI, closes cleanly",
-   "id": "M2",
-   "remaining": [],
-   "status": "complete",
-   "title": "Window: native Wayland rendering"
-  },
-  {
-   "done": [
-    "wl_seat keyboard/pointer + keymap",
-    "KeyEvent/MotionEvent translation + JNI delivery",
-    "xdg_toplevel configure(resize)/close/focus",
-    "SHM pool resize path"
-   ],
-   "gate": "Type into EditText, click Button, survive resize, focus/close correct",
-   "id": "M3",
-   "remaining": [],
-   "status": "complete",
-   "title": "Input: keyboard, pointer, resize, focus"
-  },
-  {
-   "done": [
-    "resources.arsc table + binary XML + staged assets/res wiring",
-    "LayoutInflater XML walk + factories + findViewById tree + TypedArray/Theme/styles",
-    "Bitmap PNG/JPEG decode + Drawable inflation + colors/state-lists",
-    "Privileged windowed Wayland socket brokering (env-blocked E2E noted)",
-    "wl_output metrics wiring to DisplayMetrics",
-    "createFileAtomic + anchored symlink/readlink + uname arch record",
-    "prctl NO_NEW_PRIVS + mount-namespace launch confinement",
-    "ContentResolver/Provider hosting + Parcel read-back",
-    "Portal file-writeback + clipboard rich types + audio formats + touch gestures",
-    "Translator: 21t/22c/23x reg extracts, inherited-ctor forwards, try-end shrinking, reaching-def entry fix, param array comps",
-    "Manifest activity-alias target + theme plumbing (app/activity themes)",
-    "Framework: 150+ stubs (widgets, services, xmlpull, os, util, text spans, a11y)",
-    "M4 gate: OpenCalc + Simple Calculator + Simple Notes headless exit 0; oracle 18/18; zig build test green"
-   ],
-   "gate": "3 real OSS apps complete core flows; fixture accepts text and plays sound",
-   "id": "M4",
-   "remaining": [],
-   "status": "complete",
-   "title": "App services: storage, desktop, audio"
-  },
-  {
-   "done": [
-    "CRC32 verification in install readEntry (std.zip never checks; tamper E2E: byte-flip \u2192 CrcMismatch, registry untouched)",
-    "Upgrade/rollback E2E: v1\u2192v2\u2192launch\u2192rollback\u2192launch all exit 0, data dir survives both directions, tampered upgrade aborts cleanly",
-    "SignerMismatch E2E via vendored apksig vectors (ECDSA-v2 over RSA-v1 rejected; same-signer upgrade ok)",
-    "Seccomp cBPF allowlist (6+N layout, EPERM deny) + Landlock ABI v1 RO/RW rules + ENOSYS degrade, fail-closed exit 127",
-    "applySeccomp fprog fixed to prctl arg3 (arg5 = EFAULT on real kernel); live-kernel probe: getpid allowed, clock_settime EPERM, clean exit",
-    "Live seccomp regression test (forked child, real kernel): allowed pass / denied EPERM / KILL on arch miss",
-    "linux-interface.json: seccomp + Landlock marked implemented with via pointers",
-    "docs/HOST_REQUIREMENTS.md: confinement semantics + ISAKAI_CONFINEMENT=0 opt-out; packaging/ + Makefile + polkit policy staged",
-    "M5 gate: fixture install/upgrade/rollback/launch headless exit 0 unprivileged; oracle; zig build test green (122/122)"
-   ],
-   "gate": "Clean-machine user installs ~25MB, runs APK, upgrades without data loss, uninstalls cleanly; isolation audit passes",
-   "id": "M5",
-   "remaining": [],
-   "status": "complete",
-   "title": "Release: packaging, security, upgrades"
-  }
- ],
- "next": [],
- "project": "isakai",
- "updated": "2026-10-10"
+  "blockers": [],
+  "completed": [
+    {
+      "date": "2026-10-09",
+      "item": "Repo scaffold + build.zig (build/test/run steps)",
+      "milestone": "M0"
+    },
+    {
+      "date": "2026-10-09",
+      "item": "CLI skeleton: list/query/help/version, --work, exit codes 0/1/2",
+      "milestone": "M0"
+    },
+    {
+      "date": "2026-10-09",
+      "item": "Registry port: atomic JSON, Installed/Starting/Running/Exited/Removing, resolve, UID allocation",
+      "milestone": "M0"
+    },
+    {
+      "date": "2026-10-09",
+      "item": "5 unit tests green (resolve precedence, UID skip, save/load round-trip, corrupt-load fails, verb parse)",
+      "milestone": "M0"
+    },
+    {
+      "date": "2026-10-09",
+      "item": "Binary smoke-tested: version/help/list/query/stubs with correct exits",
+      "milestone": "M0"
+    },
+    {
+      "date": "2026-10-09",
+      "item": "src/install.zig: ZIP bounds/validate, binary manifest parse, extract staging, install/uninstall orchestration",
+      "milestone": "M0"
+    },
+    {
+      "date": "2026-10-09",
+      "item": "tools/fixture-apk.zig: SDK-free fixture APK (binary manifest, classes.dex, arsc)",
+      "milestone": "M0"
+    },
+    {
+      "date": "2026-10-09",
+      "item": "CLI install/uninstall verbs wired with exit codes",
+      "milestone": "M0"
+    },
+    {
+      "date": "2026-10-09",
+      "item": "M0 gate passed: install x2/query/list/uninstall x2, clean workdir, 15 tests green",
+      "milestone": "M0"
+    },
+    {
+      "date": "2026-10-09",
+      "item": "User acceptance-tested M0: install x2/query/list/negatives/uninstall x2, all exits correct",
+      "milestone": "M0"
+    },
+    {
+      "date": "2026-10-09",
+      "item": "src/dex.zig: header verify + section tables + class-data/code readers",
+      "milestone": "M1"
+    },
+    {
+      "date": "2026-10-09",
+      "item": "src/translate.zig: DEX-to-JVM (opcodes, regmap, v50 classes, const patching)",
+      "milestone": "M1"
+    },
+    {
+      "date": "2026-10-09",
+      "item": "Fixture DEX: 3 classes/18 methods hand-assembled (Counter, FixtureApp, FixtureActivity)",
+      "milestone": "M1"
+    },
+    {
+      "date": "2026-10-09",
+      "item": "Framework: Application/Activity/IsakaiMain lifecycle + file storage",
+      "milestone": "M1"
+    },
+    {
+      "date": "2026-10-09",
+      "item": "src/launch.zig: install-time translate + JVM spawn/reap + state machine",
+      "milestone": "M1"
+    },
+    {
+      "date": "2026-10-09",
+      "item": "M1 gate passed: launch x2, counter 42->43 persists, exited state, tests green",
+      "milestone": "M1"
+    },
+    {
+      "date": "2026-10-09",
+      "item": "M0/M1 limitations researched (4 tracks) + docs/limitations-fix-plan.md filed",
+      "milestone": "M1"
+    },
+    {
+      "date": "2026-10-09",
+      "item": "Fix P0.1: registry flock sidecar; racing launches serialize (AlreadyRunning)",
+      "milestone": "M1"
+    },
+    {
+      "date": "2026-10-09",
+      "item": "Fix P0.2: real child.id PID recorded + isAlive liveness probe",
+      "milestone": "M1"
+    },
+    {
+      "date": "2026-10-09",
+      "item": "Fix P0.3: ordered JVM discovery (JAVA_HOME/PATH//usr/lib/jvm) + JEP223 version gate >=17",
+      "milestone": "M1"
+    },
+    {
+      "date": "2026-10-09",
+      "item": "Fix P0.4: multi-DEX enumeration + per-dex namespaces + DuplicateClass loud error",
+      "milestone": "M1"
+    },
+    {
+      "date": "2026-10-09",
+      "item": "Fix P0.5: explicit NativeUnsupported rejection at install",
+      "milestone": "M1"
+    },
+    {
+      "date": "2026-10-09",
+      "item": "Fix P1.6: v2 signature verify (RSA/ECDSA, digest, SPKI pin); OpenCalc APK verifies; tamper detected; install-gated",
+      "milestone": "M1"
+    },
+    {
+      "date": "2026-10-09",
+      "item": "Fix P1.7: uid-helper allocate/remove + polkit policy + UID range 200000-299999",
+      "milestone": "M1"
+    },
+    {
+      "date": "2026-10-09",
+      "item": "Fix P1.8: uid-helper run (fork/drop/exec) + per-app env + privileged launch path",
+      "milestone": "M1"
+    },
+    {
+      "date": "2026-10-09",
+      "item": "Launch-127 fix: child exec errno diagnostics",
+      "milestone": "M1"
+    },
+    {
+      "date": "2026-10-09",
+      "item": "Launch-127 fix: world-traversable JVM preference for privileged runs",
+      "milestone": "M1"
+    },
+    {
+      "date": "2026-10-09",
+      "item": "Launch-127 fix: framework/classes readability gate + cache/tmp+run subdirs at allocate",
+      "milestone": "M1"
+    },
+    {
+      "date": "2026-10-09",
+      "item": "Launch-127 root cause: mode-bit traversability check (access() tested self, not app user)",
+      "milestone": "M1"
+    },
+    {
+      "date": "2026-10-09",
+      "item": "Privileged launch verified by user: lifecycle as UID 200000, exit 0, data dir 0700-denied to others",
+      "milestone": "M1"
+    },
+    {
+      "date": "2026-10-09",
+      "item": "Differential oracle green: 6/6 suites (arith, arrays, switch, sync, trycatch, wide) vs dex2jar",
+      "milestone": "M1"
+    },
+    {
+      "date": "2026-10-09",
+      "item": "try/catch -> JVM exception_table + move-exception handler entry",
+      "milestone": "M1"
+    },
+    {
+      "date": "2026-10-09",
+      "item": "Wide lowering: long/double/float register typing, explicit local table, const-wide x4 synth, typed field/array/invoke/return",
+      "milestone": "M1"
+    },
+    {
+      "date": "2026-10-09",
+      "item": "src/uid_helper.zig: pkexec allocate/remove/runAs wired into install/uninstall",
+      "milestone": "M0"
+    },
+    {
+      "date": "2026-10-09",
+      "item": "sha256File lives in install.zig (no separate util.zig needed); uninstall removes user+data+registry",
+      "milestone": "M0"
+    },
+    {
+      "date": "2026-10-09",
+      "item": "tools/fixture-apk.zig: SDK-free fixture APK builder",
+      "milestone": "M0"
+    },
+    {
+      "date": "2026-10-09",
+      "item": "M2: hand-rolled Wayland client (registry/shm/xdg_shell, double-buffer, frame pacing)",
+      "milestone": "M2"
+    },
+    {
+      "date": "2026-10-09",
+      "item": "M2: JNI bridge libisakai_jni + IsakaiWindow (open/post/run/close)",
+      "milestone": "M2"
+    },
+    {
+      "date": "2026-10-09",
+      "item": "M2: framework View/TextView/Canvas/Color + real 5x7 BitmapFont",
+      "milestone": "M2"
+    },
+    {
+      "date": "2026-10-09",
+      "item": "M2 gate: fixture opens xdg_toplevel, 'Hello Isakai' in grim shot, exit 0, no leftovers",
+      "milestone": "M2"
+    },
+    {
+      "date": "2026-10-09",
+      "item": "M0 crypto: apksig DSA + EC matrix fix + 35 golden vectors, OpenCalc verifies, tamper fails",
+      "milestone": "M0"
+    },
+    {
+      "date": "2026-10-09",
+      "item": "M0 system: polkit auth_admin+command_line, fd/cwd/umask hygiene, dirfd-anchored alloc/remove, runAs allowlist, stale reap",
+      "milestone": "M0"
+    },
+    {
+      "date": "2026-10-09",
+      "item": "M1 translator: cmp, filled-new-array, ldc_w const pool, LineNumberTable; oracle 12/12",
+      "milestone": "M1"
+    },
+    {
+      "date": "2026-10-09",
+      "item": "M2 window: resize loop, zero-copy, manifest labels, native-access flag, Canvas clip/wrap",
+      "milestone": "M2"
+    },
+    {
+      "date": "2026-10-09",
+      "item": "M3: seat/keyboard/pointer + XKB + ring + nPollInput + client repeat",
+      "milestone": "M3"
+    },
+    {
+      "date": "2026-10-09",
+      "item": "M3: KeyEvent/MotionEvent/ViewGroup/EditText/Button/focus/dispatch + fixture onClick DEX + translator interfaces",
+      "milestone": "M3"
+    },
+    {
+      "date": "2026-10-09",
+      "item": "M3 gate: wtype types into EditText, ydotool LEFT clicks Button -> 'Clicked!', exit 0, no leftovers",
+      "milestone": "M3"
+    },
+    {
+      "date": "2026-10-09",
+      "item": "Audit gaps: goto32 wide fixups, const-string-jumbo size, ldc_w strings, aget-wide doubles",
+      "milestone": "M1"
+    },
+    {
+      "date": "2026-10-09",
+      "item": "KeePassDroid ladder: 11953/11953 translate, 0 VerifyError; const-class, move/from16, array variants, CESU-8, MUTF-8, ldc2_w pool, flags, 3rc-256, wide fill",
+      "milestone": "M1"
+    },
+    {
+      "date": "2026-10-09",
+      "item": "uninstall-while-running: terminatePid guard (SIGTERM/KILL, Refused on 0/1/self)",
+      "milestone": "M0"
+    },
+    {
+      "date": "2026-10-09",
+      "item": "oracle 16/16 suites (+2 lines checks = 18 assertions)",
+      "milestone": "M1"
+    },
+    {
+      "date": "2026-10-09",
+      "item": "Repo organize: strays/empties/dead code removed, README+ARCHITECTURE+TESTING written, trackers de-drifted",
+      "milestone": "M4"
+    },
+    {
+      "date": "2026-10-09",
+      "item": "Rename mosaic -> isakai (binary, ISAKAI_*, org.isakai, id.isakai.*, docs, trackers)",
+      "milestone": "M4"
+    },
+    {
+      "date": "2026-10-10",
+      "item": "M4 storage: Context + AOSP prefs + files 0600 + SQLite JNI, fixture round-trips green",
+      "milestone": "M4"
+    },
+    {
+      "date": "2026-10-10",
+      "item": "M4 desktop: dbus.zig + bridge daemon + notify/portal/links, live bus verified",
+      "milestone": "M4"
+    },
+    {
+      "date": "2026-10-10",
+      "item": "M4 clipboard: data-device v3 copy/paste, wl-copy interop verified",
+      "milestone": "M4"
+    },
+    {
+      "date": "2026-10-10",
+      "item": "M4 audio: pa_simple SoundPool, tone plays via pipewire-pulse",
+      "milestone": "M4"
+    },
+    {
+      "date": "2026-10-10",
+      "item": "M4 touch: wl_touch multi-pointer + metrics, evdev injection verified",
+      "milestone": "M4"
+    },
+    {
+      "date": "2026-10-10",
+      "item": "resources.arsc table + binary XML + staged assets/res wiring",
+      "milestone": "M4"
+    },
+    {
+      "date": "2026-10-10",
+      "item": "LayoutInflater XML walk + factories + findViewById tree + TypedArray/Theme/styles",
+      "milestone": "M4"
+    },
+    {
+      "date": "2026-10-10",
+      "item": "Bitmap PNG/JPEG decode + Drawable inflation + colors/state-lists",
+      "milestone": "M4"
+    },
+    {
+      "date": "2026-10-10",
+      "item": "Privileged windowed Wayland socket brokering (env-blocked E2E noted)",
+      "milestone": "M4"
+    },
+    {
+      "date": "2026-10-10",
+      "item": "wl_output metrics wiring to DisplayMetrics",
+      "milestone": "M4"
+    },
+    {
+      "date": "2026-10-10",
+      "item": "createFileAtomic + anchored symlink/readlink + uname arch record",
+      "milestone": "M4"
+    },
+    {
+      "date": "2026-10-10",
+      "item": "prctl NO_NEW_PRIVS + mount-namespace launch confinement",
+      "milestone": "M4"
+    },
+    {
+      "date": "2026-10-10",
+      "item": "ContentResolver/Provider hosting + Parcel read-back",
+      "milestone": "M4"
+    },
+    {
+      "date": "2026-10-10",
+      "item": "Portal file-writeback + clipboard rich types + audio formats + touch gestures",
+      "milestone": "M4"
+    },
+    {
+      "date": "2026-10-10",
+      "item": "Translator: 21t/22c/23x reg extracts, inherited-ctor forwards, try-end shrinking, reaching-def entry fix, param array comps",
+      "milestone": "M4"
+    },
+    {
+      "date": "2026-10-10",
+      "item": "Manifest activity-alias target + theme plumbing (app/activity themes)",
+      "milestone": "M4"
+    },
+    {
+      "date": "2026-10-10",
+      "item": "Framework: 150+ stubs (widgets, services, xmlpull, os, util, text spans, a11y)",
+      "milestone": "M4"
+    },
+    {
+      "date": "2026-10-10",
+      "item": "M4 gate: OpenCalc + Simple Calculator + Simple Notes headless exit 0; oracle 18/18; zig build test green",
+      "milestone": "M4"
+    },
+    {
+      "date": "2026-10-11",
+      "item": "M6e apksig multi-signer (up to 16, sorted+deduped, signer_sha256_set, upgrade pin via set, P-521 stays UnsupportedAlgorithm \u2014 std has no secp521r1)",
+      "milestone": "M6"
+    },
+    {
+      "date": "2026-10-11",
+      "item": "M6f polkit split actions (id.isakai.allocate-uid/remove-uid/run-app + wrappers isakai-*-uid, no command_line leak)",
+      "milestone": "M6"
+    },
+    {
+      "date": "2026-10-11",
+      "item": "M6a native .so: lib/x86_64 staged RO, bionic shim LD_PRELOAD (log/property/dlopen), 127 vs 0 probe, JVM loadLibrary",
+      "milestone": "M6"
+    },
+    {
+      "date": "2026-10-11",
+      "item": "M6b MediaPlayer state machine + IsakaiMedia ffmpeg decode/S16LE + MediaMetadataRetriever frames",
+      "milestone": "M6"
+    },
+    {
+      "date": "2026-10-11",
+      "item": "M6c WebView: history/JS bridge (@JavascriptInterface reflection)/CookieManager/WebSettings/WebViewClient, ISAKAI_WEBVIEW=0 gate",
+      "milestone": "M6"
+    },
+    {
+      "date": "2026-10-11",
+      "item": "M6d sensors/location: Sensor/SensorEvent/SensorManager + Location/Criteria/LocationManager via IsakaiSensor/IsakaiLocation virtual fallback, D-Bus shape ready",
+      "milestone": "M6"
+    },
+    {
+      "date": "2026-10-11",
+      "item": "M6g tools/e2e-privileged.sh (sudo -n / wrapper gate, SKIP on unprivileged, windowed launch check)",
+      "milestone": "M6"
+    },
+    {
+      "date": "2026-10-11",
+      "item": "M6 gate: zig build test 35/35 green, javac 474+ files, probes: native 127/0, MediaPlayer completion, WebView JS echo, sensors 5 events/80ms",
+      "milestone": "M6"
+    }
+  ],
+  "current_milestone": "M6",
+  "milestones": [
+    {
+      "done": [
+        "Repo scaffold + build.zig",
+        "CLI skeleton (list/query/help/version)",
+        "Registry with state machine + tests",
+        "Tracking files (progress.json, linux-interface.json)",
+        "src/install.zig: APK parse/verify/stage",
+        "Fixture APK builder (Zig, no SDK)",
+        "install/uninstall CLI verbs",
+        "M0 gate: lifecycle verified",
+        "uid_helper + uninstall user/data removal"
+      ],
+      "gate": "isakai install/uninstall a fixture APK; registry round-trips; no Android binaries on disk",
+      "id": "M0",
+      "remaining": [],
+      "status": "complete",
+      "title": "Install pipeline: APK verify, stage, register, uninstall"
+    },
+    {
+      "done": [
+        "src/dex.zig: DEX parser",
+        "src/translate.zig: translator + class emission",
+        "framework lifecycle stubs + fixture app",
+        "src/launch.zig: JVM spawn/reap + launch verb",
+        "M1 gate verified"
+      ],
+      "gate": "Translated fixture logs lifecycle from host JVM; counter persists headless",
+      "id": "M1",
+      "remaining": [],
+      "status": "complete",
+      "title": "DEX translate + headless run"
+    },
+    {
+      "done": [
+        "Wayland connect/registry/surface/toplevel",
+        "SHM buffer pool + post/release",
+        "Canvas rendering into SHM via direct buffers",
+        "framework: View hierarchy subset"
+      ],
+      "gate": "Fixture opens a real xdg_toplevel, draws expected UI, closes cleanly",
+      "id": "M2",
+      "remaining": [],
+      "status": "complete",
+      "title": "Window: native Wayland rendering"
+    },
+    {
+      "done": [
+        "wl_seat keyboard/pointer + keymap",
+        "KeyEvent/MotionEvent translation + JNI delivery",
+        "xdg_toplevel configure(resize)/close/focus",
+        "SHM pool resize path"
+      ],
+      "gate": "Type into EditText, click Button, survive resize, focus/close correct",
+      "id": "M3",
+      "remaining": [],
+      "status": "complete",
+      "title": "Input: keyboard, pointer, resize, focus"
+    },
+    {
+      "done": [
+        "resources.arsc table + binary XML + staged assets/res wiring",
+        "LayoutInflater XML walk + factories + findViewById tree + TypedArray/Theme/styles",
+        "Bitmap PNG/JPEG decode + Drawable inflation + colors/state-lists",
+        "Privileged windowed Wayland socket brokering (env-blocked E2E noted)",
+        "wl_output metrics wiring to DisplayMetrics",
+        "createFileAtomic + anchored symlink/readlink + uname arch record",
+        "prctl NO_NEW_PRIVS + mount-namespace launch confinement",
+        "ContentResolver/Provider hosting + Parcel read-back",
+        "Portal file-writeback + clipboard rich types + audio formats + touch gestures",
+        "Translator: 21t/22c/23x reg extracts, inherited-ctor forwards, try-end shrinking, reaching-def entry fix, param array comps",
+        "Manifest activity-alias target + theme plumbing (app/activity themes)",
+        "Framework: 150+ stubs (widgets, services, xmlpull, os, util, text spans, a11y)",
+        "M4 gate: OpenCalc + Simple Calculator + Simple Notes headless exit 0; oracle 18/18; zig build test green"
+      ],
+      "gate": "3 real OSS apps complete core flows; fixture accepts text and plays sound",
+      "id": "M4",
+      "remaining": [],
+      "status": "complete",
+      "title": "App services: storage, desktop, audio"
+    },
+    {
+      "done": [
+        "CRC32 verification in install readEntry (std.zip never checks; tamper E2E: byte-flip \u2192 CrcMismatch, registry untouched)",
+        "Upgrade/rollback E2E: v1\u2192v2\u2192launch\u2192rollback\u2192launch all exit 0, data dir survives both directions, tampered upgrade aborts cleanly",
+        "SignerMismatch E2E via vendored apksig vectors (ECDSA-v2 over RSA-v1 rejected; same-signer upgrade ok)",
+        "Seccomp cBPF allowlist (6+N layout, EPERM deny) + Landlock ABI v1 RO/RW rules + ENOSYS degrade, fail-closed exit 127",
+        "applySeccomp fprog fixed to prctl arg3 (arg5 = EFAULT on real kernel); live-kernel probe: getpid allowed, clock_settime EPERM, clean exit",
+        "Live seccomp regression test (forked child, real kernel): allowed pass / denied EPERM / KILL on arch miss",
+        "linux-interface.json: seccomp + Landlock marked implemented with via pointers",
+        "docs/HOST_REQUIREMENTS.md: confinement semantics + ISAKAI_CONFINEMENT=0 opt-out; packaging/ + Makefile + polkit policy staged",
+        "M5 gate: fixture install/upgrade/rollback/launch headless exit 0 unprivileged; oracle; zig build test green (122/122)"
+      ],
+      "gate": "Clean-machine user installs ~25MB, runs APK, upgrades without data loss, uninstalls cleanly; isolation audit passes",
+      "id": "M5",
+      "remaining": [],
+      "status": "complete",
+      "title": "Release: packaging, security, upgrades"
+    },
+    {
+      "id": "M6",
+      "title": "Remaining gaps: native shim, media, WebView, sensors/location, apksig, polkit, privileged E2E",
+      "status": "complete",
+      "gate": "native x86_64 .so runs with shim, MediaPlayer decodes via ffmpeg, WebView JS bridge, sensors dispatch, multi-signer verify, polkit split dialogs, privileged E2E SKIP/PASS",
+      "done": [
+        "M6a native shim: libisakai_bionic_shim.so + install inspect x86_64 allow + launch LD_PRELOAD (both paths) + Landlock RO",
+        "M6b MediaPlayer + IsakaiMedia (ffmpeg/ffprobe) + MediaMetadataRetriever upgrade",
+        "M6c WebView package (WebView/WebViewClient/WebSettings/CookieManager/ValueCallback/WebResource* + JavascriptInterface)",
+        "M6d sensors/location (Sensor/SensorEvent/SensorManager/Location/Criteria/LocationManager + IsakaiSensor/IsakaiLocation + Looper.getQueue)",
+        "M6e apksig multi-signer (verifyOneSigner, sorted+deduped, registry signer_sha256_set, upgrade signerSetMatches)",
+        "M6f polkit 3 actions + wrappers (isakai-allocate-uid/remove-uid/run-app, staged via build.zig + Makefile + debian)",
+        "M6g tools/e2e-privileged.sh environment-gated + docs/TESTING.md section 4",
+        "docs/SUPPORTED_APIS.md gaps flipped (webkit/media/sensors/location/native/apksig)",
+        "zig build test + javac + probes green"
+      ],
+      "remaining": []
+    }
+  ],
+  "next": [],
+  "project": "isakai",
+  "updated": "2026-10-11"
 }
