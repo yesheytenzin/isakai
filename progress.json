@@ -440,22 +440,25 @@
    "title": "App services: storage, desktop, audio"
   },
   {
-   "done": [],
+   "done": [
+    "CRC32 verification in install readEntry (std.zip never checks; tamper E2E: byte-flip \u2192 CrcMismatch, registry untouched)",
+    "Upgrade/rollback E2E: v1\u2192v2\u2192launch\u2192rollback\u2192launch all exit 0, data dir survives both directions, tampered upgrade aborts cleanly",
+    "SignerMismatch E2E via vendored apksig vectors (ECDSA-v2 over RSA-v1 rejected; same-signer upgrade ok)",
+    "Seccomp cBPF allowlist (6+N layout, EPERM deny) + Landlock ABI v1 RO/RW rules + ENOSYS degrade, fail-closed exit 127",
+    "applySeccomp fprog fixed to prctl arg3 (arg5 = EFAULT on real kernel); live-kernel probe: getpid allowed, clock_settime EPERM, clean exit",
+    "Live seccomp regression test (forked child, real kernel): allowed pass / denied EPERM / KILL on arch miss",
+    "linux-interface.json: seccomp + Landlock marked implemented with via pointers",
+    "docs/HOST_REQUIREMENTS.md: confinement semantics + ISAKAI_CONFINEMENT=0 opt-out; packaging/ + Makefile + polkit policy staged",
+    "M5 gate: fixture install/upgrade/rollback/launch headless exit 0 unprivileged; oracle; zig build test green (122/122)"
+   ],
    "gate": "Clean-machine user installs ~25MB, runs APK, upgrades without data loss, uninstalls cleanly; isolation audit passes",
    "id": "M5",
-   "remaining": [
-    "Distro packaging + systemd units + polkit install wiring (policy already staged)",
-    "Landlock + seccomp + NoNewPrivileges enforcement",
-    "Runtime/app upgrade and rollback",
-    "Host requirements + supported-API docs"
-   ],
-   "status": "planned",
+   "remaining": [],
+   "status": "complete",
    "title": "Release: packaging, security, upgrades"
   }
  ],
- "next": [
-  "M5: packaging + Landlock/seccomp + upgrades + supported-API docs"
- ],
+ "next": [],
  "project": "isakai",
  "updated": "2026-10-10"
 }

@@ -477,10 +477,13 @@ pub fn resolveWaylandSocket(gpa: std.mem.Allocator, env: *const std.process.Envi
 }
 
 /// Build the `uid-helper run` argv head (everything through `--`):
-/// `exe uid-helper run <pkg> <uid> <data> <work> [--wayland-sock S] --`.
-/// The flag appears only when `wayland_sock` is non-null (privileged
-/// windowed with a resolved compositor socket); unprivileged and headless
-/// runs keep the historical argv byte-identical. All items borrowed.
+/// `exe uid-helper run <pkg> <uid> <data> <work> [--wayland-sock S]
+/// [--framework F] --`.
+/// The wayland flag appears only when `wayland_sock` is non-null
+/// (privileged windowed with a resolved compositor socket); the
+/// framework flag only when `framework_dir` is non-null (privileged
+/// Landlock confinement needs the read-only tree). Unprivileged and
+/// headless runs keep the historical argv byte-identical. All borrowed.
 pub fn helperRunHead(
     gpa: std.mem.Allocator,
     exe: []const u8,
@@ -489,12 +492,16 @@ pub fn helperRunHead(
     data_dir: []const u8,
     work: []const u8,
     wayland_sock: ?[]const u8,
+    framework_dir: ?[]const u8,
 ) !std.ArrayListUnmanaged([]const u8) {
     var argv: std.ArrayListUnmanaged([]const u8) = .empty;
     errdefer argv.deinit(gpa);
     try argv.appendSlice(gpa, &.{ exe, "uid-helper", "run", pkg_name, uid_s, data_dir, work });
     if (wayland_sock) |s| {
         try argv.appendSlice(gpa, &.{ "--wayland-sock", s });
+    }
+    if (framework_dir) |f| {
+        try argv.appendSlice(gpa, &.{ "--framework", f });
     }
     try argv.append(gpa, "--");
     return argv;
@@ -563,7 +570,10 @@ fn linuxKill(pid: std.posix.pid_t, sig: u8) void {
 /// output streams to the caller's terminal. `wayland_sock` is the resolved
 /// compositor socket (privileged windowed only); it becomes a discrete
 /// `--wayland-sock <abs>` flag before `--` so the helper can bind-mount it
-/// into the app runtime dir. Null keeps the historical argv byte-identical.
+/// into the app runtime dir. `framework_dir` is the read-only framework
+/// tree (privileged runs only): it becomes `--framework <abs>` so the
+/// helper can Landlock-confine the child. Null keeps the historical argv
+/// byte-identical.
 fn spawnViaHelper(
     io: std.Io,
     gpa: std.mem.Allocator,
@@ -573,6 +583,7 @@ fn spawnViaHelper(
     work: []const u8,
     jvm_argv: []const []const u8,
     wayland_sock: ?[]const u8,
+    framework_dir: ?[]const u8,
 ) !std.process.Child {
     const uid_s = try std.fmt.allocPrint(gpa, "{d}", .{pkg.uid});
     defer gpa.free(uid_s);
@@ -582,7 +593,7 @@ fn spawnViaHelper(
     if (!noninteractive) {
         // pkexec if present, else fall back to sudo -n on spawn failure.
         try argv.append(gpa, "/usr/bin/pkexec");
-        var head = try helperRunHead(gpa, exe, pkg.name, uid_s, pkg.data_dir, work, wayland_sock);
+        var head = try helperRunHead(gpa, exe, pkg.name, uid_s, pkg.data_dir, work, wayland_sock, framework_dir);
         defer head.deinit(gpa);
         try argv.appendSlice(gpa, head.items);
         try argv.appendSlice(gpa, jvm_argv);
@@ -591,7 +602,7 @@ fn spawnViaHelper(
                 argv.clearRetainingCapacity();
                 try argv.append(gpa, "/usr/bin/sudo");
                 try argv.append(gpa, "-n");
-                var head2 = try helperRunHead(gpa, exe, pkg.name, uid_s, pkg.data_dir, work, wayland_sock);
+                var head2 = try helperRunHead(gpa, exe, pkg.name, uid_s, pkg.data_dir, work, wayland_sock, framework_dir);
                 defer head2.deinit(gpa);
                 try argv.appendSlice(gpa, head2.items);
                 try argv.appendSlice(gpa, jvm_argv);
@@ -602,7 +613,7 @@ fn spawnViaHelper(
     }
     try argv.append(gpa, "/usr/bin/sudo");
     try argv.append(gpa, "-n");
-    var head = try helperRunHead(gpa, exe, pkg.name, uid_s, pkg.data_dir, work, wayland_sock);
+    var head = try helperRunHead(gpa, exe, pkg.name, uid_s, pkg.data_dir, work, wayland_sock, framework_dir);
     defer head.deinit(gpa);
     try argv.appendSlice(gpa, head.items);
     try argv.appendSlice(gpa, jvm_argv);
@@ -780,7 +791,7 @@ pub fn launch(
             return err;
         };
     } else {
-        child = spawnViaHelper(io, gpa, &child_env, exe, &pkg, work, jvm_argv, wayland_sock) catch |err| {
+        child = spawnViaHelper(io, gpa, &child_env, exe, &pkg, work, jvm_argv, wayland_sock, framework_dir) catch |err| {
             rollbackToInstalled(&reg, io, gpa, work, pkg);
             lock.release();
             return err;
@@ -987,7 +998,7 @@ test "helperRunHead: no flag without socket, discrete flag with socket" {
     const gpa = std.testing.allocator;
     // Headless/unprivileged shape: byte-identical to the historical argv.
     {
-        var head = try helperRunHead(gpa, "isakai", "com.foo", "200001", "/data", "/work", null);
+        var head = try helperRunHead(gpa, "isakai", "com.foo", "200001", "/data", "/work", null, null);
         defer head.deinit(gpa);
         const want = [_][]const u8{ "isakai", "uid-helper", "run", "com.foo", "200001", "/data", "/work", "--" };
         try std.testing.expectEqual(want.len, head.items.len);
@@ -995,9 +1006,17 @@ test "helperRunHead: no flag without socket, discrete flag with socket" {
     }
     // Privileged windowed: one discrete flag pair before `--`, nothing else.
     {
-        var head = try helperRunHead(gpa, "isakai", "com.foo", "200001", "/data", "/work", "/run/user/1000/wayland-1");
+        var head = try helperRunHead(gpa, "isakai", "com.foo", "200001", "/data", "/work", "/run/user/1000/wayland-1", null);
         defer head.deinit(gpa);
         const want = [_][]const u8{ "isakai", "uid-helper", "run", "com.foo", "200001", "/data", "/work", "--wayland-sock", "/run/user/1000/wayland-1", "--" };
+        try std.testing.expectEqual(want.len, head.items.len);
+        for (want, head.items) |w, h| try std.testing.expectEqualStrings(w, h);
+    }
+    // Privileged with confinement: framework tree passed for Landlock.
+    {
+        var head = try helperRunHead(gpa, "isakai", "com.foo", "200001", "/data", "/work", null, "/usr/share/isakai/framework");
+        defer head.deinit(gpa);
+        const want = [_][]const u8{ "isakai", "uid-helper", "run", "com.foo", "200001", "/data", "/work", "--framework", "/usr/share/isakai/framework", "--" };
         try std.testing.expectEqual(want.len, head.items.len);
         for (want, head.items) |w, h| try std.testing.expectEqualStrings(w, h);
     }

@@ -1,0 +1,10 @@
+#!/usr/bin/make -f
+# Debian build: `make build` stages ReleaseSafe artifacts into zig-out/
+# (bin/*, framework/, share/polkit-1/actions/); debian/isakai.install
+# maps them to FHS paths. dh_strip handles the 25MB installed-size gate.
+
+%:
+	dh $@
+
+override_dh_auto_build:
+	make build

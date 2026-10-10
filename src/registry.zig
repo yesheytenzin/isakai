@@ -73,6 +73,10 @@ pub const Package = struct {
     uid: u32,
     data_dir: []const u8,
     apk: []const u8,
+    /// Previous code dir kept for one generation so `upgrade` can be
+    /// rolled back. Null when there is no previous generation; absent in
+    /// registries written before upgrades landed (defaults to null).
+    prev_apk: ?[]const u8 = null,
     installed_at: u64,
     state: AppState = .installed,
     signer_sha256: ?[]const u8 = null,
@@ -245,6 +249,7 @@ pub const Registry = struct {
             pkg.data_dir = try alloc.dupe(u8, pkg.data_dir);
             pkg.apk = try alloc.dupe(u8, pkg.apk);
             if (pkg.signer_sha256) |s| pkg.signer_sha256 = try alloc.dupe(u8, s);
+            if (pkg.prev_apk) |p| pkg.prev_apk = try alloc.dupe(u8, p);
             pkg.arch = try alloc.dupe(u8, pkg.arch);
             try self.packages.put(alloc, name, pkg);
         }
@@ -295,6 +300,7 @@ pub const Registry = struct {
         pkg.data_dir = try alloc.dupe(u8, package.data_dir);
         pkg.apk = try alloc.dupe(u8, package.apk);
         if (pkg.signer_sha256) |s| pkg.signer_sha256 = try alloc.dupe(u8, s);
+        if (pkg.prev_apk) |p| pkg.prev_apk = try alloc.dupe(u8, p);
         pkg.arch = try alloc.dupe(u8, package.arch);
         try self.packages.put(alloc, name, pkg);
     }
@@ -713,4 +719,45 @@ test "old registry without arch loads as empty arch" {
     var loaded = try Registry.loadChecked(io, gpa, t.work);
     defer loaded.deinit();
     try std.testing.expectEqualStrings("", loaded.get("org.example.old").?.arch);
+}
+
+test "prev_apk round-trips; legacy registries load as null" {
+    const gpa = std.testing.allocator;
+    const io = std.testing.io;
+    var t = try tmpWorkDir(io, gpa);
+    defer t.tmp.cleanup();
+    defer gpa.free(t.work);
+
+    var reg = Registry.init(gpa);
+    defer reg.deinit();
+    try reg.add(.{
+        .name = "org.example.app",
+        .uid = 5000,
+        .data_dir = "/tmp/data",
+        .apk = "/tmp/new",
+        .installed_at = 2,
+        .signer_sha256 = "ab12",
+        .prev_apk = "/tmp/old",
+    });
+    try reg.save(io, gpa, t.work);
+
+    var loaded = try Registry.loadChecked(io, gpa, t.work);
+    defer loaded.deinit();
+    const pkg = loaded.get("org.example.app").?;
+    try std.testing.expectEqualStrings("/tmp/new", pkg.apk);
+    try std.testing.expectEqualStrings("/tmp/old", pkg.prev_apk.?);
+    try std.testing.expectEqualStrings("ab12", pkg.signer_sha256.?);
+
+    // Registries written before upgrades landed carry no prev_apk field.
+    const path = try std.fmt.allocPrint(gpa, "{s}/registry.json", .{t.work});
+    defer gpa.free(path);
+    const legacy =
+        \\{"org.example.old":{"name":"org.example.old","uid":5000,"data_dir":"/tmp/o","apk":"/tmp/o.apk","installed_at":1,"state":{"status":"installed"}}}
+    ;
+    try Registry.writeAtomic(io, gpa, path, legacy, 0o644);
+    var reloaded = try Registry.loadChecked(io, gpa, t.work);
+    defer reloaded.deinit();
+    const old = reloaded.get("org.example.old").?;
+    try std.testing.expect(old.prev_apk == null);
+    try std.testing.expectEqualStrings("", old.arch);
 }

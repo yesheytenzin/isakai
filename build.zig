@@ -52,15 +52,31 @@ pub fn build(b: *std.Build) void {
         .target = target,
         .optimize = optimize,
     });
-    install_mod.addImport("uid_helper", helper_mod);
+    const confine_mod = b.createModule(.{
+        .root_source_file = b.path("src/confine.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    helper_mod.addImport("confine", confine_mod);
+    const upgrade_mod = b.createModule(.{
+        .root_source_file = b.path("src/upgrade.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    upgrade_mod.addImport("registry", registry_mod);
+    upgrade_mod.addImport("install", install_mod);
+    upgrade_mod.addImport("apksig", apksig_mod);
+    upgrade_mod.addImport("launch", launch_mod);
     helper_mod.addImport("registry", registry_mod);
+    install_mod.addImport("uid_helper", helper_mod);
     const isakai_mod = b.createModule(.{
         .root_source_file = b.path("src/main.zig"),
         .target = target,
         .optimize = optimize,
     });
-    isakai_mod.addImport("install", install_mod);
+    isakai_mod.addImport("upgrade", upgrade_mod);
     isakai_mod.addImport("registry", registry_mod);
+    isakai_mod.addImport("install", install_mod);
     isakai_mod.addImport("launch", launch_mod);
     isakai_mod.addImport("uid_helper", helper_mod);
     const exe = b.addExecutable(.{
@@ -662,7 +678,7 @@ const fw_install = b.addInstallDirectory(.{
     // `zig build test` (all unit tests; xkb runs on its hermetic fake
     // backend; jni needs a live JVM so it stays out of this loop).
     const test_step = b.step("test", "Run unit tests");
-    for ([_]*std.Build.Module{ isakai_mod, registry_mod, arsc_mod, install_mod, dex_mod, translate_mod, launch_mod, apksig_mod, helper_mod, window_mod, xkb_mod, audio_mod, dbus_mod, desktop_mod, bridge_mod }) |mod| {
+    for ([_]*std.Build.Module{ isakai_mod, registry_mod, arsc_mod, install_mod, dex_mod, translate_mod, launch_mod, apksig_mod, helper_mod, upgrade_mod, confine_mod, window_mod, xkb_mod, audio_mod, dbus_mod, desktop_mod, bridge_mod }) |mod| {
         const unit_tests = b.addTest(.{ .root_module = mod });
         const run_tests = b.addRunArtifact(unit_tests);
         test_step.dependOn(&run_tests.step);

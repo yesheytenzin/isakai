@@ -480,6 +480,8 @@ pub fn runAs(
     work: []const u8,
     cmd: []const [:0]const u8,
     wayland_sock: ?[]const u8,
+    framework_dir: ?[]const u8,
+    confinement_disabled: bool,
     err_writer: *std.Io.Writer,
 ) !u8 {
     const linux = std.os.linux;
@@ -550,7 +552,7 @@ pub fn runAs(
     if (pid == 0) {
         // Child: confine, drop privileges, set env, exec. Async-signal-safe
         // only; on any failure _exit(127) — never return to the caller.
-        childMain(uid, data_dir, work, package, cmd, wayland_sock);
+        childMain(uid, data_dir, work, package, cmd, wayland_sock, framework_dir, confinement_disabled);
     }
     // Parent: wait and translate status.
     while (true) {
@@ -639,7 +641,10 @@ pub fn isStreamSocket(path: []const u8) bool {
     return stx.mode & linux.S.IFMT == linux.S.IFSOCK;
 }
 
-fn childMain(uid: u32, data_dir: []const u8, work: []const u8, package: []const u8, cmd: []const [:0]const u8, wayland_sock: ?[]const u8) noreturn {
+fn childMain(uid: u32, data_dir: []const u8, work: []const u8, package: []const u8, cmd: []const [:0]const u8, wayland_sock: ?[]const u8, framework_dir: ?[]const u8, confinement_disabled: bool) noreturn {
+    // Aliased so the confinement block reads naturally: the staged code
+    // dir IS the registry's apk/code_dir field (<work>/code/<pkg>/<digest>).
+    const package_code_dir = package;
     const linux = std.os.linux;
     // 0. Close every fd >= 3 (no descriptor leaks into the app). Prefer
     // close_range(3, ~0, 0); fall back to a bounded loop when ENOSYS.
@@ -655,6 +660,40 @@ fn childMain(uid: u32, data_dir: []const u8, work: []const u8, package: []const 
     // propagation is slave/private so later bind mounts never escape to
     // the host. Fail-closed with a stderr diagnostic; _exit(127).
     confineChild();
+    // -1b. Kernel confinement: Landlock fs rules + seccomp syscall
+    // allowlist. Still root, still pre-drop (needs setresuid etc. later,
+    // which are in the seccomp allowlist). RO trees: the JVM binary's
+    // tree, the staged code dir (classes + resources.arsc), and the
+    // framework (when the launcher passed --framework). RW: data_dir.
+    // Fail-closed: any hard error _exit(127) with a stderr diagnostic;
+    // missing kernel support degrades with a warning (UID isolation and
+    // NNP still hold).
+    {
+        const confine = @import("confine.zig");
+        var ro_buf: [3][]const u8 = undefined;
+        var n_ro: usize = 0;
+        // JVM tree: dirname of the (absolute, validated) java path.
+        if (std.mem.lastIndexOfScalar(u8, cmd[0], '/')) |slash| {
+            if (slash > 0) {
+                ro_buf[n_ro] = cmd[0][0..slash];
+                n_ro += 1;
+            }
+        }
+        ro_buf[n_ro] = package_code_dir;
+        n_ro += 1;
+        if (framework_dir) |f| {
+            ro_buf[n_ro] = f;
+            n_ro += 1;
+        }
+        confine.confineAndRestrict(data_dir, ro_buf[0..n_ro], confinement_disabled) catch |err| {
+            const prefix = "uid-helper run: confinement failed: ";
+            _ = linux.write(linux.STDERR_FILENO, prefix, prefix.len);
+            const ename = @errorName(err);
+            _ = linux.write(linux.STDERR_FILENO, ename.ptr, ename.len);
+            _ = linux.write(linux.STDERR_FILENO, "\n", 1);
+            linux.exit(127);
+        };
+    }
     // 0b. Wayland brokering: bind-mount the compositor socket onto
     // <data_dir>/run/<basename> (regular-file 0600 target) inside the
     // private mount ns, still root pre-drop. Fail-closed: _exit(127).

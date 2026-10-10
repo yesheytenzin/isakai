@@ -108,6 +108,7 @@ pub const ApkError = error{
     InvalidBinaryXml,
     DuplicateStringPool,
     InvalidElement,
+    CrcMismatch,
     InvalidAttributes,
     DuplicateAttribute,
     ResourceRefUnsupported,
@@ -264,6 +265,11 @@ pub fn readEntry(
         entry.extractTo(&stream, &aw.interface) catch return error.Truncated;
         try aw.finish();
         if (out.items.len != entry.uncompressed_size) return error.SizeMismatch;
+        // std.zip.extractTo never verifies the CRC32 (verify_checksums is
+        // a TODO); do it here so corrupt APK data fails install/upgrade
+        // instead of staging silently-corrupted bytes.
+        const crc = std.hash.Crc32.hash(out.items);
+        if (crc != entry.crc32) return error.CrcMismatch;
         return out.toOwnedSlice(gpa) catch return error.OutOfMemory;
     }
 }

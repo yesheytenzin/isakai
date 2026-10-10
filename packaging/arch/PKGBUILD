@@ -1,0 +1,34 @@
+# Maintainer: Isakai contributors <https://github.com/yesheytenzin/isakai>
+pkgname=isakai-git
+pkgver=0.0.1.r0.5aa72f5
+pkgrel=1
+pkgdesc='Run Android apps as native Linux processes (DEX->JVM translation on Wayland)'
+arch=('x86_64')
+url='https://github.com/yesheytenzin/isakai'
+license=('GPL-3.0-or-later')
+makedepends=('zig' 'jdk-openjdk' 'libxkbcommon' 'pulseaudio' 'sqlite')
+depends=('jdk-openjdk' 'polkit' 'libxkbcommon' 'pulseaudio' 'sqlite')
+provides=('isakai')
+conflicts=('isakai')
+source=("git+${url}.git")
+sha256sums=('SKIP')
+
+pkgver() {
+  cd "$srcdir/isakai"
+  printf 'r%s.%s' "$(git rev-list --count HEAD)" "$(git rev-parse --short HEAD)"
+}
+
+build() {
+  cd "$srcdir/isakai"
+  make build
+}
+
+check() {
+  cd "$srcdir/isakai"
+  make test
+}
+
+package() {
+  cd "$srcdir/isakai"
+  make install DESTDIR="$pkgdir" PREFIX=/usr
+}

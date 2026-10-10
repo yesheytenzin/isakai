@@ -258,14 +258,14 @@
      "via": "src/install.zig (new)"
     },
     {
-     "implemented": false,
+     "implemented": true,
      "name": "seccomp-bpf syscall allowlist for app JVM (M5)",
-     "via": "std.os.linux.seccomp"
+     "via": "src/confine.zig (cBPF via prctl(PR_SET_SECCOMP); EPERM deny)"
     },
     {
-     "implemented": false,
+     "implemented": true,
      "name": "Landlock ABI fs confinement (M5)",
-     "via": "std.os.linux.landlock"
+     "via": "src/confine.zig raw syscalls 444-446 (ABI v1)"
     }
    ],
    "id": "crypto",

@@ -7,11 +7,14 @@ const std = @import("std");
 const registry = @import("registry");
 const install = @import("install");
 const launch = @import("launch");
+const upgrade = @import("upgrade");
 const uid_helper = @import("uid_helper");
 const version = "0.0.1";
 
 const Verb = enum {
     install,
+    upgrade,
+    rollback,
     uninstall,
     launch,
     query,
@@ -23,6 +26,8 @@ const Verb = enum {
 
 fn parseVerb(arg: []const u8) ?Verb {
     if (std.mem.eql(u8, arg, "install")) return .install;
+    if (std.mem.eql(u8, arg, "upgrade")) return .upgrade;
+    if (std.mem.eql(u8, arg, "rollback")) return .rollback;
     if (std.mem.eql(u8, arg, "uninstall")) return .uninstall;
     if (std.mem.eql(u8, arg, "launch")) return .launch;
     if (std.mem.eql(u8, arg, "query")) return .query;
@@ -42,6 +47,8 @@ fn printHelp(out: *std.Io.Writer) !void {
         \\
         \\verbs:
         \\  install <apk>        verify, stage and register an app
+        \\  upgrade <apk>        verify and switch an installed app to a new build
+        \\  rollback <package>   revert an upgrade to the previous build
         \\  uninstall <package>  remove an app and its data
         \\  launch <package>     start an app
         \\  query <package>      show an app's state
@@ -152,6 +159,50 @@ fn cmdInstall(
     return 0;
 }
 
+fn cmdUpgrade(
+    init: std.process.Init,
+    out: *std.Io.Writer,
+    err_writer: *std.Io.Writer,
+    work: []const u8,
+    apk_path: []const u8,
+) !u8 {
+    const io = init.io;
+    const gpa = init.gpa;
+    const result = upgrade.upgrade(io, gpa, init.environ_map, work, apk_path) catch |err| {
+        try err_writer.print("upgrade failed: {t}\n", .{err});
+        return 1;
+    };
+    defer gpa.free(result.package);
+    defer gpa.free(result.code_dir);
+    defer gpa.free(result.prev_code_dir);
+    try out.print("upgraded {s}\n  code: {s}\n  prev: {s}\n", .{
+        result.package, result.code_dir, result.prev_code_dir,
+    });
+    return 0;
+}
+
+fn cmdRollback(
+    init: std.process.Init,
+    out: *std.Io.Writer,
+    err_writer: *std.Io.Writer,
+    work: []const u8,
+    selector: []const u8,
+) !u8 {
+    const io = init.io;
+    const gpa = init.gpa;
+    const result = upgrade.rollback(io, gpa, work, selector) catch |err| {
+        try err_writer.print("rollback failed: {t}\n", .{err});
+        return 1;
+    };
+    defer gpa.free(result.package);
+    defer gpa.free(result.code_dir);
+    defer gpa.free(result.prev_code_dir);
+    try out.print("rolled back {s}\n  code: {s}\n  prev: {s}\n", .{
+        result.package, result.code_dir, result.prev_code_dir,
+    });
+    return 0;
+}
+
 fn cmdUninstall(
     init: std.process.Init,
     out: *std.Io.Writer,
@@ -185,10 +236,18 @@ fn cmdLaunch(
     const resolved = resolveExe(init);
     defer if (resolved.owned) |e| gpa.free(e);
     const exe = resolved.exe;
-    // Framework location: ISAKAI_FRAMEWORK, else <work>/../framework.
+    // Framework location: ISAKAI_FRAMEWORK, else <work>/../framework
+    // (dev layout), else /usr/share/isakai/framework (distro install).
     var fw_buf: [4096]u8 = undefined;
     const fw_default = std.fmt.bufPrint(&fw_buf, "{s}/../framework", .{work}) catch work;
-    const fw = init.environ_map.get("ISAKAI_FRAMEWORK") orelse fw_default;
+    var fw: []const u8 = fw_default;
+    if (init.environ_map.get("ISAKAI_FRAMEWORK")) |env_fw| {
+        fw = env_fw;
+    } else {
+        std.Io.Dir.cwd().access(io, fw_default, .{}) catch {
+            fw = "/usr/share/isakai/framework";
+        };
+    }
     const result = launch.launch(io, gpa, init.environ_map, exe, work, selector, fw) catch |err| {
         try err_writer.print("launch failed: {t}\n", .{err});
         return 1;
@@ -237,7 +296,8 @@ fn cmdUidHelper(
 }
 
 /// uid-helper run: fork, drop to the app user, exec the command.
-/// Argv: isakai uid-helper run <package> <uid> <data-dir> <work> [--wayland-sock <abs-path>] -- <exe> <args...>
+/// Argv: isakai uid-helper run <package> <uid> <data-dir> <work>
+///       [--wayland-sock <abs-path>] [--framework <abs-dir>] -- <exe> <args...>
 /// Must be root. Never returns on success (child execs, parent waits).
 fn cmdUidHelperRun(
     init: std.process.Init,
@@ -247,22 +307,30 @@ fn cmdUidHelperRun(
     const io = init.io;
     _ = io;
     if (try requireRoot(err_writer)) |code| return code;
-    // rest[0]=run rest[1]=package rest[2]=uid rest[3]=data-dir rest[4]=work [rest[5]=--wayland-sock rest[6]=path] rest[N]=-- rest[N+1..]=cmd
+    // rest[0]=run rest[1]=package rest[2]=uid rest[3]=data-dir rest[4]=work
+    // [rest[5]=--wayland-sock rest[6]=path] [rest[7]=--framework rest[8]=dir]
+    // rest[N]=-- rest[N+1..]=cmd
     var wayland_sock: ?[]const u8 = null;
+    var framework_dir: ?[]const u8 = null;
     var sep: usize = 5;
     if (rest.len > 6 and std.mem.eql(u8, rest[5], "--wayland-sock")) {
         wayland_sock = rest[6];
         sep = 7;
     }
+    if (rest.len > sep + 2 and std.mem.eql(u8, rest[sep], "--framework")) {
+        framework_dir = rest[sep + 1];
+        sep += 2;
+    }
     if (rest.len < sep + 2 or !std.mem.eql(u8, rest[sep], "--")) {
-        try err_writer.writeAll("usage: isakai uid-helper run <package> <uid> <data-dir> <work> [--wayland-sock <path>] -- <exe> [args...]\n");
+        try err_writer.writeAll("usage: isakai uid-helper run <package> <uid> <data-dir> <work> [--wayland-sock <path>] [--framework <dir>] -- <exe> [args...]\n");
         return 2;
     }
     const uid = std.fmt.parseInt(u32, rest[2], 10) catch {
         try err_writer.writeAll("uid-helper run: bad uid\n");
         return 2;
     };
-    return uid_helper.runAs(rest[1], uid, rest[3], rest[4], rest[sep + 1 ..], wayland_sock, err_writer);
+    const confinement_disabled = std.mem.eql(u8, init.environ_map.get("ISAKAI_CONFINEMENT") orelse "", "0");
+    return uid_helper.runAs(rest[1], uid, rest[3], rest[4], rest[sep + 1 ..], wayland_sock, framework_dir, confinement_disabled, err_writer);
 }
 
 pub fn main(init: std.process.Init) !u8 {
@@ -349,6 +417,20 @@ pub fn main(init: std.process.Init) !u8 {
             }
             return cmdInstall(init, out, err_writer, work_dir, rest[0]);
         },
+        .upgrade => {
+            if (rest.len < 1) {
+                try err_writer.writeAll("usage: isakai upgrade <apk>\n");
+                return 2;
+            }
+            return cmdUpgrade(init, out, err_writer, work_dir, rest[0]);
+        },
+        .rollback => {
+            if (rest.len < 1) {
+                try err_writer.writeAll("usage: isakai rollback <package>\n");
+                return 2;
+            }
+            return cmdRollback(init, out, err_writer, work_dir, rest[0]);
+        },
         .uninstall => {
             if (rest.len < 1) {
                 try err_writer.writeAll("usage: isakai uninstall <package>\n");
@@ -383,6 +465,8 @@ pub fn main(init: std.process.Init) !u8 {
 
 test "parseVerb" {
     try std.testing.expectEqual(Verb.install, parseVerb("install").?);
+    try std.testing.expectEqual(Verb.upgrade, parseVerb("upgrade").?);
+    try std.testing.expectEqual(Verb.rollback, parseVerb("rollback").?);
     try std.testing.expectEqual(Verb.list, parseVerb("list").?);
     try std.testing.expectEqual(Verb.help, parseVerb("--help").?);
     try std.testing.expectEqual(Verb.version, parseVerb("-V").?);

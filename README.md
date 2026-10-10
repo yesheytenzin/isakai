@@ -4,13 +4,50 @@ Run Android apps as native Linux processes. No Android OS, no container, no
 kernel binder, no runtime bundle download: host JVM + translated DEX +
 reimplemented `android.*` on Wayland.
 
-## Status: M3 complete, M4 in progress
+## Status: M5 in progress
 
 `progress.json` is the milestone tracker. M0 (install pipeline), M1 (DEX
-translate + headless run), M2 (Wayland window), M3 (keyboard/pointer input)
-are complete and gated on this machine. M4 (app services) is current.
+translate + headless run), M2 (Wayland window), M3 (keyboard/pointer input),
+M4 (app services) are complete and gated on this machine. M5 (release:
+packaging, security, upgrades) is current.
 
-## Quickstart
+## Install (clean machine)
+
+Host requirements: Linux x86_64, Zig 0.17 + a C toolchain, JDK 17+
+(`javac` to build, `java` to run), and the JNI system libraries
+`libxkbcommon`, `pulseaudio` (`libpulse-simple`), `sqlite3` — plus
+`polkit`/`pkexec` for privileged app isolation. Full detail:
+`docs/HOST_REQUIREMENTS.md`.
+
+```sh
+git clone https://github.com/yesheytenzin/isakai && cd isakai
+make build            # ReleaseSafe binaries + framework + policy (zig-out/)
+make test             # unit tests
+sudo make install     # /usr/bin/isakai, /usr/bin/isakai-dbus-bridge,
+                      # /usr/share/isakai/framework, polkit policy
+isakai install app.apk
+isakai launch com.example.app
+```
+
+Notes:
+
+- The polkit policy (`id.isakai.allocate-uid`, `auth_admin`) pins
+  `exec.path` to `/usr/bin/isakai`: install with the default
+  `PREFIX=/usr`. A relocatable dev install is possible with
+  `make install PREFIX=... INSTALL_POLICY=0`, but privileged
+  install/launch then needs `ISAKAI_FRAMEWORK=<prefix>/share/isakai/framework`
+  and `ISAKAI_NO_PRIVILEGE=1` (same env vars as the Quickstart below).
+  Launch falls back to `/usr/share/isakai/framework` when neither
+  `ISAKAI_FRAMEWORK` nor `<work>/../framework` exists.
+- Windowed launches need a Wayland compositor (`WAYLAND_DISPLAY` +
+  `XDG_RUNTIME_DIR`); headless needs none.
+- Uninstall the packaging: `sudo make uninstall`. Remove an app and its
+  data: `isakai uninstall <package>`.
+- Distro packages: `packaging/arch/PKGBUILD` (`isakai-git`) and
+  `packaging/debian/` (`control` + `rules`, debhelper compat 13) both
+  install the same FHS layout as `make install`.
+
+## Quickstart (dev)
 
 ```sh
 zig build                                    # CLI + JNI lib + framework classes
@@ -47,7 +84,7 @@ verify failed), 2 usage error. Global `--work` overrides `ISAKAI_WORK`.
 | Variable | Default | Meaning |
 |---|---|---|
 | `ISAKAI_WORK` | `~/.local/share/isakai` | registry + staged code + app data |
-| `ISAKAI_FRAMEWORK` | `<work>/../framework` | compiled `android.*` + `libisakai_jni.so` (dev: `zig-out/framework`) |
+| `ISAKAI_FRAMEWORK` | `<work>/../framework`, then `/usr/share/isakai/framework` | compiled `android.*` + `libisakai_jni.so` (dev: `zig-out/framework`) |
 | `ISAKAI_WINDOW` | unset | `1` = windowed launch, else headless |
 | `ISAKAI_NO_PRIVILEGE` | unset | `1` = run as self, skip pkexec (dev/test) |
 | `ISAKAI_NONINTERACTIVE` | unset | `1` = `sudo -n` instead of pkexec prompts |
@@ -87,13 +124,15 @@ verify failed), 2 usage error. Global `--work` overrides `ISAKAI_WORK`.
 - `oracle/` — differential translator corpus + harnesses
 - `testdata/apksig/` — vendored AOSP v2 golden vectors
 - `polkit/` — privilege policy source (staged by the build)
-- `docs/` — fix plan, testing guide, architecture
+- `docs/` — fix plan, testing guide, architecture, host requirements, supported APIs
 
 ## Development
 
 `zig build test` (all unit tests) and `./oracle/diff.sh` (translator
 parity) must be green. Design log: `docs/limitations-fix-plan.md`;
-system map: `docs/ARCHITECTURE.md`; test inventory: `docs/TESTING.md`.
+system map: `docs/ARCHITECTURE.md`; test inventory: `docs/TESTING.md`;
+host requirements: `docs/HOST_REQUIREMENTS.md`; supported API list:
+`docs/SUPPORTED_APIS.md`.
 
 ## License
 

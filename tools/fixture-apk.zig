@@ -3,7 +3,7 @@
 //! Builds a minimal fixture APK without the Android SDK: a ZIP with a binary
 //! AndroidManifest.xml, a tiny classes.dex, and nothing else.
 //!
-//! Usage: fixture-apk <output.apk> [package]
+//! Usage: fixture-apk <output.apk> [package] [versionCode]
 //! Default package: org.isakai.fixture.
 
 const std = @import("std");
@@ -37,7 +37,7 @@ fn writePoolString(w: *std.Io.Writer, s: []const u8) !void {
 }
 
 /// Build a binary AndroidManifest.xml for package/app/activity.
-fn buildManifest(gpa: std.mem.Allocator, package: []const u8) ![]u8 {
+fn buildManifest(gpa: std.mem.Allocator, package: []const u8, version_code: u32) ![]u8 {
     var out: std.ArrayListUnmanaged(u8) = .empty;
     errdefer out.deinit(gpa);
     // Assemble in memory via a fixed writer over a large buffer first.
@@ -225,7 +225,7 @@ fn buildManifest(gpa: std.mem.Allocator, package: []const u8) ![]u8 {
     // <manifest package=... versionCode=1 versionName="1.0">
     try writeStart(w, 1, NONE, S.manifest, &.{
         .{ .ns = NONE, .name = S.package_attr, .raw = S.package_val, .typ = 3, .val = S.package_val },
-        .{ .ns = S.android_ns, .name = S.version_code, .raw = NONE, .typ = 0x10, .val = 1 },
+        .{ .ns = S.android_ns, .name = S.version_code, .raw = NONE, .typ = 0x10, .val = version_code },
         .{ .ns = S.android_ns, .name = S.version_name, .raw = S.version_name_val, .typ = 3, .val = S.version_name_val },
     });
     // <uses-sdk minSdkVersion=23 targetSdkVersion=33>
@@ -1461,13 +1461,14 @@ pub fn main(init: std.process.Init) !u8 {
     const arena = init.arena.allocator();
     const argv = try init.minimal.args.toSlice(arena);
     if (argv.len < 2) {
-        std.debug.print("usage: fixture-apk <output.apk> [package]\n", .{});
+        std.debug.print("usage: fixture-apk <output.apk> [package] [versionCode]\n", .{});
         return 2;
     }
     const out_path: []const u8 = argv[1];
     const package: []const u8 = if (argv.len > 2) argv[2] else default_package;
+    const version_code: u32 = if (argv.len > 3) (std.fmt.parseInt(u32, argv[3], 10) catch 1) else 1;
 
-    const manifest = try buildManifest(arena, package);
+    const manifest = try buildManifest(arena, package, version_code);
     const dex = try buildDex(arena);
     const tone = try buildToneWav(arena);
     const arsc_bytes = try buildArsc(arena);
