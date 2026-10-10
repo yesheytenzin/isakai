@@ -1,7 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 package android.media;
 
-/** Metadata shell: no keys populated. */
+import android.graphics.Bitmap;
+import android.util.Log;
+import java.io.File;
+import org.isakai.bridge.IsakaiMedia;
+
+/** Metadata retriever backed by host ffprobe/ffmpeg. */
 public class MediaMetadataRetriever implements AutoCloseable {
     public static final int METADATA_KEY_TITLE = 7;
     public static final int METADATA_KEY_ARTIST = 2;
@@ -14,8 +19,49 @@ public class MediaMetadataRetriever implements AutoCloseable {
     public static final int OPTION_NEXT_SYNC = 1;
     public static final int OPTION_CLOSEST_SYNC = 2;
     public static final int OPTION_CLOSEST = 3;
-    public void setDataSource(String path) { }
-    public String extractMetadata(int keyCode) { return null; }
-    public void release() { }
+
+    private String path;
+
+    public void setDataSource(String path) {
+        if (path == null) throw new IllegalArgumentException("path == null");
+        this.path = path;
+    }
+
+    public void setDataSource(java.io.FileDescriptor fd) {
+        throw new UnsupportedOperationException("FileDescriptor not supported");
+    }
+
+    public String extractMetadata(int keyCode) {
+        if (path == null) return null;
+        switch (keyCode) {
+            case METADATA_KEY_DURATION: {
+                long us = IsakaiMedia.probeDurationUs(path);
+                if (us < 0) return null;
+                return String.valueOf(us / 1000);
+            }
+            case METADATA_KEY_MIMETYPE:
+                return IsakaiMedia.probeMime(path);
+            default:
+                return null;
+        }
+    }
+
+    public Bitmap getFrameAtTime(long timeUs) {
+        return getFrameAtTime(timeUs, OPTION_CLOSEST_SYNC);
+    }
+
+    public Bitmap getFrameAtTime(long timeUs, int option) {
+        if (path == null) throw new IllegalStateException("no data source");
+        if (!IsakaiMedia.hasFfmpeg()) return null;
+        try {
+            return IsakaiMedia.getFrameAtTime(path, timeUs);
+        } catch (Exception e) {
+            Log.w("MediaMetadataRetriever", "getFrameAtTime failed: " + e.getMessage());
+            return null;
+        }
+    }
+
+    public byte[] getEmbeddedPicture() { return null; }
+    public void release() { path = null; }
     @Override public void close() { release(); }
 }

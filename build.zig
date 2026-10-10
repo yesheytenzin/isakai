@@ -544,9 +544,11 @@ pub fn build(b: *std.Build) void {
     fw.addFileArg(b.path("framework/android/app/NotificationChannel.java"));
     fw.addFileArg(b.path("framework/android/app/NotificationManager.java"));
     fw.addFileArg(b.path("framework/android/media/SoundPool.java"));
+    fw.addFileArg(b.path("framework/android/media/MediaPlayer.java"));
     fw.addFileArg(b.path("framework/org/isakai/bridge/IsakaiWindow.java"));
     fw.addFileArg(b.path("framework/org/isakai/bridge/IsakaiAudio.java"));
     fw.addFileArg(b.path("framework/org/isakai/bridge/IsakaiDesktop.java"));
+    fw.addFileArg(b.path("framework/org/isakai/bridge/IsakaiMedia.java"));
     fw.addFileArg(b.path("framework/org/isakai/runtime/IsakaiMain.java"));
     fw.addFileArg(b.path("framework/android/accounts/Account.java"));
     fw.addFileArg(b.path("framework/android/animation/ArgbEvaluator.java"));
@@ -579,8 +581,6 @@ pub fn build(b: *std.Build) void {
     fw.addFileArg(b.path("framework/android/media/MediaExtractor.java"));
     fw.addFileArg(b.path("framework/android/media/MediaFormat.java"));
     fw.addFileArg(b.path("framework/android/media/MediaMetadataRetriever.java"));
-    fw.addFileArg(b.path("framework/android/os/Binder.java"));
-    fw.addFileArg(b.path("framework/android/os/OperationCanceledException.java"));
     fw.addFileArg(b.path("framework/android/os/StrictMode.java"));
     fw.addFileArg(b.path("framework/android/security/identity/IdentityCredential.java"));
     fw.addFileArg(b.path("framework/android/security/identity/PresentationSession.java"));
