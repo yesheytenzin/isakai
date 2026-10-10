@@ -20,4 +20,12 @@ public class Looper {
     public Thread getThread() {
         return Thread.currentThread();
     }
+
+    public MessageQueue getQueue() {
+        return new MessageQueue();
+    }
+
+    public static class MessageQueue {
+        public boolean isIdle() { return true; }
+    }
 }
