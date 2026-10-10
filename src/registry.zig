@@ -80,6 +80,11 @@ pub const Package = struct {
     installed_at: u64,
     state: AppState = .installed,
     signer_sha256: ?[]const u8 = null,
+    /// All verified v2 signer leaf-cert fingerprints (sorted, deduped).
+    /// M6e multi-signer: the full identity set is pinned; upgrades require
+    /// the new APK's set to match exactly. Absent/empty = single-signer
+    /// registry (use `signer_sha256`) or pre-M6e entry.
+    signer_sha256_set: []const []const u8 = &.{},
     launch_id: u64 = 0,
     /// Host machine arch recorded at install (uname -m, e.g. "x86_64").
     /// Defaults to "" for entries written before arch capture landed;
@@ -249,6 +254,11 @@ pub const Registry = struct {
             pkg.data_dir = try alloc.dupe(u8, pkg.data_dir);
             pkg.apk = try alloc.dupe(u8, pkg.apk);
             if (pkg.signer_sha256) |s| pkg.signer_sha256 = try alloc.dupe(u8, s);
+            if (pkg.signer_sha256_set.len > 0) {
+                const set = try alloc.alloc([]const u8, pkg.signer_sha256_set.len);
+                for (pkg.signer_sha256_set, 0..) |s, i| set[i] = try alloc.dupe(u8, s);
+                pkg.signer_sha256_set = set;
+            }
             if (pkg.prev_apk) |p| pkg.prev_apk = try alloc.dupe(u8, p);
             pkg.arch = try alloc.dupe(u8, pkg.arch);
             try self.packages.put(alloc, name, pkg);
@@ -300,6 +310,11 @@ pub const Registry = struct {
         pkg.data_dir = try alloc.dupe(u8, package.data_dir);
         pkg.apk = try alloc.dupe(u8, package.apk);
         if (pkg.signer_sha256) |s| pkg.signer_sha256 = try alloc.dupe(u8, s);
+        if (pkg.signer_sha256_set.len > 0) {
+            const set = try alloc.alloc([]const u8, pkg.signer_sha256_set.len);
+            for (pkg.signer_sha256_set, 0..) |s, i| set[i] = try alloc.dupe(u8, s);
+            pkg.signer_sha256_set = set;
+        }
         if (pkg.prev_apk) |p| pkg.prev_apk = try alloc.dupe(u8, p);
         pkg.arch = try alloc.dupe(u8, package.arch);
         try self.packages.put(alloc, name, pkg);

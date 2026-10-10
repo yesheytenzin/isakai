@@ -442,7 +442,25 @@ pub fn invoke(
             var argv: std.ArrayListUnmanaged([]const u8) = .empty;
             defer argv.deinit(gpa);
             argv.append(gpa, "/usr/bin/pkexec") catch return error.OutOfMemory;
-            argv.appendSlice(gpa, helper_argv) catch return error.OutOfMemory;
+            // M6f: prefer the per-operation wrapper (matches the split
+            // policy actions' exec.path → per-operation dialog text).
+            const op_wrapper = if (std.mem.eql(u8, subcommand, "allocate"))
+                "/usr/bin/isakai-allocate-uid"
+            else
+                "/usr/bin/isakai-remove-uid";
+            if (hasExe(io, op_wrapper)) {
+                argv.append(gpa, op_wrapper) catch return error.OutOfMemory;
+                // Wrapper re-inserts the subcommand; skip it here.
+                argv.append(gpa, package) catch return error.OutOfMemory;
+                argv.append(gpa, uid_s) catch return error.OutOfMemory;
+                argv.append(gpa, data_dir) catch return error.OutOfMemory;
+                argv.append(gpa, work) catch return error.OutOfMemory;
+                runCmd(io, argv.items) catch return error.HelperFailed;
+                return;
+            }
+            argv.append(gpa, helper_argv[0]) catch return error.OutOfMemory;
+            argv.append(gpa, helper_argv[1]) catch return error.OutOfMemory;
+            argv.appendSlice(gpa, helper_argv[2..]) catch return error.OutOfMemory;
             runCmd(io, argv.items) catch return error.HelperFailed;
             return;
         }
@@ -748,6 +766,16 @@ fn childMain(uid: u32, data_dir: []const u8, work: []const u8, package: []const 
     if (wayland_base) |base| {
         _ = std.fmt.bufPrint(&wdisplay_buf, "WAYLAND_DISPLAY={s}\x00", .{base}) catch linux.exit(127);
     }
+    // M6a: LD_PRELOAD the bionic shim so NDK app .so files that call
+    // bionic-only symbols (__android_log_*, property_*) resolve. The shim
+    // lives in framework/lib — only inject when the framework was passed
+    // (privileged runs with a real framework dir).
+    var preload_buf: [4352]u8 = undefined;
+    var has_preload = false;
+    if (framework_dir) |f| {
+        _ = std.fmt.bufPrint(&preload_buf, "LD_PRELOAD={s}/lib/libisakai_bionic_shim.so\x00", .{f}) catch linux.exit(127);
+        has_preload = true;
+    }
     const env_base: [6]?[*:0]const u8 = .{
         @ptrCast(&tmpdir_buf),
         @ptrCast(&rundir_buf),
@@ -756,11 +784,15 @@ fn childMain(uid: u32, data_dir: []const u8, work: []const u8, package: []const 
         @ptrCast(&bridge_buf),
         @ptrCast(&stage_buf),
     };
-    var envp_buf: [8]?[*:0]const u8 = .{ null, null, null, null, null, null, null, null };
+    var envp_buf: [9]?[*:0]const u8 = .{ null, null, null, null, null, null, null, null, null };
     for (env_base, 0..) |e, i| envp_buf[i] = e;
     var nenv: usize = env_base.len;
     if (wayland_base != null) {
         envp_buf[nenv] = @ptrCast(&wdisplay_buf);
+        nenv += 1;
+    }
+    if (has_preload) {
+        envp_buf[nenv] = @ptrCast(&preload_buf);
         nenv += 1;
     }
     envp_buf[nenv] = null;

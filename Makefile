@@ -41,6 +41,9 @@ endif
 	zig build -Doptimize=ReleaseSafe --prefix $(STAGE)
 	install -D -m755 $(STAGE)/bin/isakai $(DESTDIR)$(PREFIX)/bin/isakai
 	install -D -m755 $(STAGE)/bin/isakai-dbus-bridge $(DESTDIR)$(PREFIX)/bin/isakai-dbus-bridge
+	install -D -m755 $(STAGE)/bin/isakai-allocate-uid $(DESTDIR)$(PREFIX)/bin/isakai-allocate-uid
+	install -D -m755 $(STAGE)/bin/isakai-remove-uid $(DESTDIR)$(PREFIX)/bin/isakai-remove-uid
+	install -D -m755 $(STAGE)/bin/isakai-run-app $(DESTDIR)$(PREFIX)/bin/isakai-run-app
 	mkdir -p $(DESTDIR)$(PREFIX)/share/isakai
 	cp -r $(STAGE)/framework $(DESTDIR)$(PREFIX)/share/isakai/framework
 ifeq ($(INSTALL_POLICY),1)
@@ -49,6 +52,7 @@ endif
 
 uninstall:
 	rm -f $(DESTDIR)$(PREFIX)/bin/isakai $(DESTDIR)$(PREFIX)/bin/isakai-dbus-bridge
+	rm -f $(DESTDIR)$(PREFIX)/bin/isakai-allocate-uid $(DESTDIR)$(PREFIX)/bin/isakai-remove-uid $(DESTDIR)$(PREFIX)/bin/isakai-run-app
 	rm -rf $(DESTDIR)$(PREFIX)/share/isakai
 	rm -f $(DESTDIR)/usr/share/polkit-1/actions/id.isakai.allocate-uid.policy
 

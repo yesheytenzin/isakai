@@ -1,0 +1,4 @@
+#!/bin/sh
+# M6f polkit wrapper: pkexec targets this path so the dialog maps to the
+# allocate action. Re-validates nothing itself; the helper does.
+exec /usr/bin/isakai uid-helper allocate "$@"

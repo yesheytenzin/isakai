@@ -1,4 +1,7 @@
 zig-out/bin/isakai usr/bin
 zig-out/bin/isakai-dbus-bridge usr/bin
+zig-out/bin/isakai-allocate-uid usr/bin
+zig-out/bin/isakai-remove-uid usr/bin
+zig-out/bin/isakai-run-app usr/bin
 zig-out/framework usr/share/isakai
 zig-out/share/polkit-1/actions/id.isakai.allocate-uid.policy usr/share/polkit-1/actions

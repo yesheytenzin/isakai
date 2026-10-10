@@ -565,6 +565,17 @@ fn linuxKill(pid: std.posix.pid_t, sig: u8) void {
     _ = linux.kill(pid, SIG.term());
 }
 
+/// M6f: per-operation pkexec wrapper installed by `make install`; matches
+/// the id.isakai.run-app policy action's exec.path. When absent (dev
+/// relocatable installs with INSTALL_POLICY=0) launch falls back to the
+/// direct `pkexec <exe> uid-helper run ...` argv.
+const run_wrapper = "/usr/bin/isakai-run-app";
+
+fn hasRunWrapper(io: std.Io) bool {
+    std.Io.Dir.cwd().access(io, run_wrapper, .{ .execute = true }) catch return false;
+    return true;
+}
+
 /// Spawn the JVM as the app user: elevate `isakai uid-helper run ...`
 /// via pkexec (or sudo -n when noninteractive). Stdio inherits so app
 /// output streams to the caller's terminal. `wayland_sock` is the resolved
@@ -595,6 +606,27 @@ fn spawnViaHelper(
         try argv.append(gpa, "/usr/bin/pkexec");
         var head = try helperRunHead(gpa, exe, pkg.name, uid_s, pkg.data_dir, work, wayland_sock, framework_dir);
         defer head.deinit(gpa);
+        // M6f: prefer the per-operation run wrapper (matches the
+        // id.isakai.run-app policy action's exec.path → its own dialog
+        // text). Wrapper re-inserts "uid-helper run" after the package.
+        if (hasRunWrapper(io)) {
+            try argv.append(gpa, run_wrapper);
+            try argv.append(gpa, pkg.name);
+            try argv.append(gpa, uid_s);
+            try argv.append(gpa, pkg.data_dir);
+            try argv.append(gpa, work);
+            if (wayland_sock) |s| {
+                try argv.append(gpa, "--wayland-sock");
+                try argv.append(gpa, s);
+            }
+            if (framework_dir) |f| {
+                try argv.append(gpa, "--framework");
+                try argv.append(gpa, f);
+            }
+            try argv.append(gpa, "--");
+            try argv.appendSlice(gpa, jvm_argv);
+            return spawnInherit(io, argv.items);
+        }
         try argv.appendSlice(gpa, head.items);
         try argv.appendSlice(gpa, jvm_argv);
         return spawnInherit(io, argv.items) catch |err| switch (err) {
@@ -732,7 +764,12 @@ pub fn launch(
             return error.NoWaylandSocket;
         }
     }
-    const lib_path = try std.fmt.allocPrint(gpa, "-Djava.library.path={s}/lib", .{framework_dir});
+    // M6a: app-native libs. The JVM's own dlopen does the loading.
+    const lib_path = try std.fmt.allocPrint(
+        gpa,
+        "-Djava.library.path={s}/lib:{s}/lib/x86_64:{s}/lib",
+        .{ framework_dir, pkg.apk, pkg.apk },
+    );
     defer gpa.free(lib_path);
     const windowed_prop = if (windowed) "-Disakai.windowed=true" else "-Disakai.windowed=false";
     const jvm_argv = try buildJvmArgv(gpa, java, lib_path, windowed_prop, cp, pkg.data_dir, app_arg, act_arg, pkg.name, title_arg, pkg.apk, app_theme_arg, act_theme_arg);
@@ -781,8 +818,27 @@ pub fn launch(
     // Privileged children get a minimal env from runAs anyway.
     var child_env = try cloneSandboxEnv(gpa, env, bridge_dir, stage_dir);
     defer child_env.deinit();
-    // Privileged path: run the JVM as the app user via the helper.
-    // ISAKAI_NO_PRIVILEGE=1 runs it directly as ourselves (dev/test).
+    // M6a: LD_PRELOAD the bionic shim so NDK app .so files that call
+    // bionic-only symbols (__android_log_*, property_*) resolve. The
+    // shim lives in framework/lib; only inject when it exists (dev
+    // installs without a built framework skip it harmlessly).
+    {
+        const shim = try std.fmt.allocPrint(gpa, "{s}/lib/libisakai_bionic_shim.so", .{framework_dir});
+        defer gpa.free(shim);
+        const exists = blk: {
+            std.Io.Dir.cwd().access(io, shim, .{}) catch break :blk false;
+            break :blk true;
+        };
+        if (exists) {
+            if (child_env.get("LD_PRELOAD")) |prev| {
+                const merged = try std.fmt.allocPrint(gpa, "{s}:{s}", .{ shim, prev });
+                defer gpa.free(merged);
+                try child_env.put("LD_PRELOAD", merged);
+            } else {
+                try child_env.put("LD_PRELOAD", shim);
+            }
+        }
+    }
     var child: std.process.Child = undefined;
     if (no_priv) {
         child = spawnWithEnv(io, jvm_argv, &child_env) catch |err| {

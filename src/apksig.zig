@@ -676,24 +676,63 @@ fn freeSigner(gpa: std.mem.Allocator, s: *Signer) void {
     gpa.free(s.certs);
 }
 
-/// Verify a v2 block. Returns the leaf-cert SHA-256 fingerprint (lowercase
-/// hex) of the single signer. Multi-signer APKs are rejected (Isakai pins
-/// one identity per app, same as the old apksigner --print-certs rule).
+/// Verify a v2 block. Returns the SHA-256 fingerprints (lowercase hex) of
+/// ALL signers' leaf certs, sorted. Per upstream Android semantics every
+/// signer must verify; install pins the whole set.
 pub fn verifyV2(
     gpa: std.mem.Allocator,
     apk: []const u8,
     v2block: []const u8,
     block: SigningBlock,
     eocd: Eocd,
-) SigError![]u8 {
+) SigError![][]u8 {
     // v2 value = LP(signers blob); blob = back-to-back LP(signer).
-    // Isakai pins a single identity: exactly one signer required.
+    // Every signer is verified (upstream semantics); the returned set is
+    // the identity a registry pins for upgrade continuity.
     var pos: usize = 0;
     const blob = try readLP(v2block, &pos);
     if (pos != v2block.len) return error.BadLengthPrefix;
+    var fps: std.ArrayListUnmanaged([]u8) = .empty;
+    errdefer {
+        for (fps.items) |f| gpa.free(f);
+        fps.deinit(gpa);
+    }
     var bpos: usize = 0;
-    const signer_raw = try readLP(blob, &bpos);
-    if (bpos != blob.len) return error.SignerFailed; // multi-signer
+    while (bpos < blob.len) {
+        const signer_raw = try readLP(blob, &bpos);
+        const fp = try verifyOneSigner(gpa, apk, signer_raw, block, eocd);
+        try fps.append(gpa, fp);
+        if (fps.items.len > 16) return error.SignerFailed;
+    }
+    if (fps.items.len == 0) return error.SignerFailed;
+    // Deterministic order: sort + dedup (two signers may share a cert).
+    std.mem.sort([]u8, fps.items, {}, struct {
+        fn lt(_: void, a: []u8, b: []u8) bool {
+            return std.mem.order(u8, a, b) == .lt;
+        }
+    }.lt);
+    var w: usize = 0;
+    for (fps.items, 0..) |f, i| {
+        if (i == 0 or !std.mem.eql(u8, f, fps.items[w - 1])) {
+            fps.items[w] = f;
+            w += 1;
+        } else {
+            gpa.free(f);
+        }
+    }
+    fps.items.len = w;
+    return fps.toOwnedSlice(gpa) catch return error.OutOfMemory;
+}
+
+/// Verify one signer blob (the pre-M6e verifyV2 body, factored out so the
+/// multi-signer loop above can call it per signer).
+fn verifyOneSigner(
+    gpa: std.mem.Allocator,
+    apk: []const u8,
+    signer_raw: []const u8,
+    block: SigningBlock,
+    eocd: Eocd,
+) SigError![]u8 {
     var signer = try parseSigner(gpa, signer_raw);
     defer freeSigner(gpa, &signer);
 
@@ -791,7 +830,7 @@ pub fn verifyV2(
 }
 
 /// Top-level: verify an APK file's v2 signature. Returns leaf fingerprint.
-pub fn verifyApk(io: std.Io, gpa: std.mem.Allocator, apk_path: []const u8) SigError![]u8 {
+pub fn verifyApk(io: std.Io, gpa: std.mem.Allocator, apk_path: []const u8) SigError![][]u8 {
     const data = std.Io.Dir.cwd().readFileAlloc(io, apk_path, gpa, .limited(1024 * 1024 * 1024)) catch return error.Truncated;
     defer gpa.free(data);
     return verifyBytes(gpa, data);
@@ -812,7 +851,10 @@ test "v2 golden vectors" {
         file: []const u8,
         // null fingerprint = negative case; err must be set.
         fingerprint: ?[]const u8,
-        err: ?anyerror,
+        // When non-null: expected fingerprint SET (sorted, deduped) instead
+        // of the single `fingerprint` value.
+        fingerprints: ?[]const []const u8 = null,
+        err: ?anyerror = null,
     };
     const cases = [_]Case{
         // Positives.
@@ -847,9 +889,13 @@ test "v2 golden vectors" {
         .{ .file = "v2-only-apk-sig-block-size-mismatch.apk", .fingerprint = null, .err = error.BlockSizeMismatch },
         .{ .file = "v2-only-wrong-apk-sig-block-magic.apk", .fingerprint = null, .err = error.NoSigningBlock },
         .{ .file = "v2-only-with-rsa-pkcs1-sha256-1024-cert-not-der.apk", .fingerprint = null, .err = error.CertParseFailed },
-        // Multi-signer: Isakai pins one identity (documented divergence
-        // from upstream, which verifies every signer).
-        .{ .file = "v2-only-two-signers.apk", .fingerprint = null, .err = error.SignerFailed },
+        // Multi-signer: M6e verifies every signer (upstream semantics);
+        // the set is sorted+deduped. Fingerprints below = the two leaf
+        // certs of this vendored vector (verified via apksig probe).
+        .{ .file = "v2-only-two-signers.apk", .fingerprint = null, .fingerprints = &.{
+            "6a8b96e278e58f62cfe3584022cec1d0527fcb85a9e5d2e1694eb0405be5b599",
+            "fb5dbd3c669af9fc236c6991e6387b7f11ff0590997f22d0f5c74ff40e04fca8",
+        }, .err = null },
         // Stripped v2 block: no recognizable signing block remains.
         .{ .file = "v2-stripped.apk", .fingerprint = null, .err = error.NoSigningBlock },
         // Unsupported crypto: kept rejections, surfaced distinctly.
@@ -862,14 +908,35 @@ test "v2 golden vectors" {
     inline for (cases) |c| {
         const bytes = @embedFile("testdata/apksig/" ++ c.file);
         const result = verifyBytes(gpa, bytes);
-        if (c.fingerprint) |want| {
+        if (c.fingerprints) |wants| {
             const got = result catch |err| {
                 std.debug.print("golden {s}: unexpected error {t}\n", .{ c.file, err });
                 return err;
             };
-            defer gpa.free(got);
-            try std.testing.expectEqualStrings(want, got);
+            defer {
+                for (got) |f| gpa.free(f);
+                gpa.free(got);
+            }
+            try std.testing.expectEqual(wants.len, got.len);
+            for (wants, got) |want, f| {
+                try std.testing.expectEqualStrings(want, f);
+            }
+        } else if (c.fingerprint) |want| {
+            const got = result catch |err| {
+                std.debug.print("golden {s}: unexpected error {t}\n", .{ c.file, err });
+                return err;
+            };
+            try std.testing.expectEqual(@as(usize, 1), got.len);
+            defer {
+                for (got) |f| gpa.free(f);
+                gpa.free(got);
+            }
+            try std.testing.expectEqualStrings(want, got[0]);
         } else {
+            if (result catch null) |got| {
+                for (got) |f| gpa.free(f);
+                gpa.free(got);
+            }
             try std.testing.expectError(c.err.?, result);
         }
     }
@@ -877,7 +944,7 @@ test "v2 golden vectors" {
 
 // Pure-bytes verify pipeline shared by verifyApk and the golden test:
 // EOCD -> signing block -> v2 pair -> verifyV2.
-fn verifyBytes(gpa: std.mem.Allocator, bytes: []const u8) SigError![]u8 {
+fn verifyBytes(gpa: std.mem.Allocator, bytes: []const u8) SigError![][]u8 {
     const eocd = try findEocd(bytes);
     const block = try locateBlock(bytes, eocd);
     const maybe_v2 = try findPair(bytes, block, v2_id);

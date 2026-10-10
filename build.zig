@@ -153,6 +153,22 @@ pub fn build(b: *std.Build) void {
     });
     const jni_install = b.addInstallFile(jni_lib.getEmittedBin(), "framework/lib/libisakai_jni.so");
     b.getInstallStep().dependOn(&jni_install.step);
+    // M6a bionic shim: LD_PRELOADed into the JVM so NDK-built app .so
+    // files resolve bionic-only symbols (__android_log_*, property_*,
+    // android_dlopen_ext) against this library. See src/native/bionic_shim.zig.
+    const shim_mod = b.createModule(.{
+        .root_source_file = b.path("src/native/bionic_shim.zig"),
+        .target = target,
+        .optimize = optimize,
+        .link_libc = true,
+    });
+    const shim_lib = b.addLibrary(.{
+        .linkage = .dynamic,
+        .name = "isakai_bionic_shim",
+        .root_module = shim_mod,
+    });
+    const shim_install = b.addInstallFile(shim_lib.getEmittedBin(), "framework/lib/libisakai_bionic_shim.so");
+    b.getInstallStep().dependOn(&shim_install.step);
     // Framework: compile android.* + IsakaiMain with the host javac.
     const fw = b.addSystemCommand(&.{
         "javac", "--release", "17", "-d",
@@ -616,8 +632,16 @@ const fw_install = b.addInstallDirectory(.{
     // share/polkit-1/actions/. Installed under the prefix so `zig build`
     // stays relocatable; the distro install must place the .policy next to
     // the other actions with exec.path=/usr/bin/isakai (see the policy).
+    // M6f: the policy now pins per-operation wrappers (isakai-allocate-uid
+    // etc.); they are staged alongside for `make install` to place in bin/.
     const policy_install = b.addInstallFile(b.path("polkit/id.isakai.allocate-uid.policy"), "share/polkit-1/actions/id.isakai.allocate-uid.policy");
     b.getInstallStep().dependOn(&policy_install.step);
+    const wrapper_names = [_][]const u8{ "isakai-allocate-uid", "isakai-remove-uid", "isakai-run-app" };
+    for (wrapper_names) |wrapper| {
+        const p = std.fmt.allocPrint(b.allocator, "polkit/bin/{s}", .{wrapper}) catch @panic("OOM");
+        const wrapper_install = b.addInstallFile(b.path(p), b.fmt("bin/{s}", .{wrapper}));
+        b.getInstallStep().dependOn(&wrapper_install.step);
+    }
     const fixture_mod = b.createModule(.{
         .root_source_file = b.path("tools/fixture-apk.zig"),
         .target = target,

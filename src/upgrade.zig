@@ -22,6 +22,26 @@ pub fn signerMatches(stored: ?[]const u8, fresh: ?[]const u8) bool {
     return std.mem.eql(u8, stored.?, fresh.?);
 }
 
+/// M6e continuity: the new APK's verified signer set must equal the
+/// pinned set. Falls back to the legacy single-fp pin for pre-M6e
+/// entries (stored set empty): fresh set must be exactly that one fp.
+/// Unsigned upgrades (ISAKAI_ALLOW_UNSIGNED) only pass when the stored
+/// entry is also unsigned — same fail-closed rule as before.
+pub fn signerSetMatches(pkg: registry.Package, fresh: []const []const u8) bool {
+    const stored = pkg.signer_sha256_set;
+    if (stored.len == 0) {
+        // Legacy entry: pin lives in signer_sha256 (or null = unsigned).
+        if (pkg.signer_sha256 == null and fresh.len == 0) return true;
+        if (pkg.signer_sha256 == null or fresh.len != 1) return false;
+        return std.mem.eql(u8, pkg.signer_sha256.?, fresh[0]);
+    }
+    if (stored.len != fresh.len) return false;
+    for (stored, fresh) |s, f| {
+        if (!std.mem.eql(u8, s, f)) return false;
+    }
+    return true;
+}
+
 pub const UpgradeResult = struct {
     package: []const u8,
     uid: u32,
@@ -48,7 +68,7 @@ pub fn upgrade(
 ) anyerror!UpgradeResult {
     var m = try install.inspect(io, gpa, apk_path);
     defer install.freeManifest(gpa, &m);
-    const fingerprint: ?[]u8 = apksig.verifyApk(io, gpa, apk_path) catch |err| blk: {
+    const fingerprints: ?[][]u8 = apksig.verifyApk(io, gpa, apk_path) catch |err| blk: {
         if (registry.envFlag(env, "ISAKAI_ALLOW_UNSIGNED")) {
             std.log.warn("upgrading with unsigned APK (ISAKAI_ALLOW_UNSIGNED=1)", .{});
             break :blk null;
@@ -56,7 +76,10 @@ pub fn upgrade(
         return err;
     };
     defer {
-        if (fingerprint) |f| gpa.free(f);
+        if (fingerprints) |fs| {
+            for (fs) |f| gpa.free(f);
+            gpa.free(fs);
+        }
     }
 
     var lock = try registry.Registry.Lock.acquire(io, gpa, work, true);
@@ -64,7 +87,7 @@ pub fn upgrade(
     var reg = try registry.Registry.loadChecked(io, gpa, work);
     defer reg.deinit();
     const pkg = reg.get(m.package) orelse return error.NotInstalled;
-    if (!signerMatches(pkg.signer_sha256, fingerprint)) return error.SignerMismatch;
+    if (!signerSetMatches(pkg, fingerprints orelse &.{})) return error.SignerMismatch;
 
     const digest = try install.sha256File(io, gpa, apk_path);
     defer gpa.free(digest);
@@ -103,7 +126,10 @@ pub fn upgrade(
     var next = pkg;
     next.apk = code_dir; // reg.add dupes into its arena
     next.prev_apk = prev_code_dir; // ditto
-    next.signer_sha256 = fingerprint; // ditto (or null)
+    if (fingerprints) |fs| {
+        next.signer_sha256 = if (fs.len > 0) fs[0] else null; // ditto (or null)
+        next.signer_sha256_set = fs; // ditto (dupes every element)
+    }
     next.installed_at = install.nowSeconds(io);
     try reg.updateState(io, gpa, work, next);
 

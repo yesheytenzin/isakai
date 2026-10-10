@@ -760,9 +760,12 @@ pub fn inspect(
         }
     }
     if (!has_dex) return error.NoClassesDex;
-    // P0.5: native code has no execution path yet (no Bionic bridge).
-    // Reject loudly rather than installing an app that dies at launch.
-    if (native) return error.NativeUnsupported;
+    // M6a: native libs for the host ABI (lib/x86_64) are supported via the
+    // JVM's own dlopen + the bionic shim (src/native.zig). Any other ABI
+    // (arm64-v8a, armeabi-v7a, x86, mips...) still has no execution path:
+    // reject loudly rather than installing an app that dies at launch
+    // (ARM execution is M7, see docs/M7-ARM-PLAN.md).
+    if (native and !x86) return error.NativeUnsupported;
     const bytes = try readEntry(io, gpa, apk_path, "AndroidManifest.xml", max_manifest);
     defer gpa.free(bytes);
     return parseManifest(gpa, bytes);
@@ -867,15 +870,18 @@ pub fn install(
 ) anyerror!InstallResult {
     var m = try inspect(io, gpa, apk_path);
     defer freeManifest(gpa, &m);
-    const fingerprint = apksig.verifyApk(io, gpa, apk_path) catch |err| {
+    const fingerprints = apksig.verifyApk(io, gpa, apk_path) catch |err| {
         if (allowUnsigned(env)) {
             std.log.warn("installing unsigned APK (ISAKAI_ALLOW_UNSIGNED=1)", .{});
-            return installInner(io, gpa, env, exe, work, apk_path, &m, null);
+            return installInner(io, gpa, env, exe, work, apk_path, &m, &.{});
         }
         return err;
     };
-    defer gpa.free(fingerprint);
-    return installInner(io, gpa, env, exe, work, apk_path, &m, fingerprint);
+    defer {
+        for (fingerprints) |f| gpa.free(f);
+        gpa.free(fingerprints);
+    }
+    return installInner(io, gpa, env, exe, work, apk_path, &m, fingerprints);
 }
 
 fn allowUnsigned(env: *const std.process.Environ.Map) bool {
@@ -891,7 +897,7 @@ fn installInner(
     work: []const u8,
     apk_path: []const u8,
     m: *Manifest,
-    fingerprint: ?[]const u8,
+    fingerprints: []const []const u8,
 ) anyerror!InstallResult {
     var lock = try registry.Registry.Lock.acquire(io, gpa, work, true);
     defer lock.release();
@@ -950,7 +956,8 @@ fn installInner(
         .data_dir = data_dir,
         .apk = code_dir,
         .installed_at = nowSeconds(io),
-        .signer_sha256 = fingerprint, // reg.add dupes into its arena
+        .signer_sha256 = if (fingerprints.len > 0) fingerprints[0] else null, // reg.add dupes into its arena
+        .signer_sha256_set = fingerprints, // ditto (dupes every element)
     });
     try reg.save(io, gpa, work);
 
