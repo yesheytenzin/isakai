@@ -228,8 +228,8 @@ Gate: OpenCalc + Simple Calculator + Simple Notes complete headless
 
 - v1 JAR verification — never; fail closed, modern APKs only.
 - StackMapTable native emitter — v50 is safe; ASM oracle if ever needed.
-- Landlock/seccomp — M5 (raw-syscall shim + JVM syscall enumeration).
-- Replace/upgrade flow — after uid-helper (needs cert continuity design).
+- Landlock/seccomp — LANDED 2026-10-10 (M5: confine.zig, live-kernel verified).
+- Replace/upgrade flow — LANDED 2026-10-10 (M5: upgrade/rollback + signer continuity via vendored vectors).
 - Annotations beyond LineNumberTable — line numbers landed; annotations next.
 - ECDSA P-521 curve — zero real-world keys; explicit `UnsupportedAlgorithm`
   with golden rejection tests; revisit only for 100% coverage.
@@ -245,8 +245,11 @@ Gate: OpenCalc + Simple Calculator + Simple Notes complete headless
 - Async event loop (epoll/timerfd/eventfd) + JNI upcall callbacks —
   superseded by the poll pump (nPollInput slices); no benefit to switching.
 - resources.arsc parsing — LANDED 2026-10-10 (M4).
-- Privileged windowed runs (Wayland socket brokering) — LANDED 2026-10-10,
-  E2E unverified (see above).
+- Privileged windowed runs (Wayland socket brokering) — LANDED 2026-10-10;
+  unprivileged windowed E2E verified 2026-10-10 (real Wayland surface:
+  Hyprland client class `org.isakai.fixture`, pixel screenshot). The
+  privileged variant (helper bind-mount path) stays E2E-unverified on
+  this machine (no passwordless elevation).
 
 
 ## Dependency order
