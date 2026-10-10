@@ -1,12 +1,16 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 package android.app;
 
+import android.content.ClipboardManager;
+import android.content.Intent;
 import android.graphics.Canvas;
 import android.graphics.Color;
+import android.net.Uri;
 import android.view.KeyEvent;
 import android.view.MotionEvent;
 import android.view.View;
 import java.nio.ByteBuffer;
+import org.isakai.bridge.IsakaiDesktop;
 import org.isakai.bridge.IsakaiWindow;
 
 /**
@@ -15,19 +19,347 @@ import org.isakai.bridge.IsakaiWindow;
  * onStop/onDestroy in order; runWindowed additionally posts the content
  * view to a Wayland toplevel.
  */
-public class Activity {
+public class Activity extends android.content.Context implements android.view.Window.Callback {
     private Application application;
     private boolean created;
     private View contentView;
     private boolean backPressed;
     private boolean windowFocused;
+    /** Result code for a successful startActivityForResult round-trip. */
+    public static final int RESULT_OK = -1;
+    /** Result code for a cancelled startActivityForResult round-trip. */
+    public static final int RESULT_CANCELED = 0;
+    // Pending file-picker: request/handle from startActivityForResult, resolved by pollDesktopResults.
+    private int pendingFileRequestCode = -1;
+    private long pendingFileReq = 0;
+    private boolean pendingFileSave = false;
+    // Window-bound clipboard manager (re-bound on each runWindowed open).
+    private ClipboardManager clipboardManager = new ClipboardManager(null);
+    private final android.content.ContentResolver contentResolver = new android.content.ContentResolver() {};
+    // Touch staging: kind-7 headers + kind-8 rows may split across
+    // native batches; accumulate rows until the header's count arrives.
+    private int touchHeaderRaw = -1;
+    private int touchHeaderCount = 0;
+    private long touchHeaderTime = 0;
+    private long gestureDownTime = 0;
+    private final java.util.ArrayList<Float> touchXs = new java.util.ArrayList<Float>();
+    private final java.util.ArrayList<Float> touchYs = new java.util.ArrayList<Float>();
+    private final java.util.ArrayList<Integer> touchIds = new java.util.ArrayList<Integer>();
+    /** Storage surface: delegate to the attached Application's Context. */
+    private android.content.Context storage() {
+        if (application == null) throw new IllegalStateException("activity not attached");
+        return application;
+    }
 
     public void attach(Application application) {
         this.application = application;
+        super.attach(application.getDataDirString());
+        super.attachPackage(application.getPackageName());
     }
 
     public Application getApplication() {
         return application;
+    }
+
+    /**
+     * Headless single-threaded run: the caller already is the UI thread
+     * (no Looper dispatch exists yet), so run immediately.
+     */
+    public void runOnUiThread(Runnable action) {
+        if (action != null) action.run();
+    }
+
+    public void registerActivityLifecycleCallbacks(
+            Application.ActivityLifecycleCallbacks callback) {
+        if (application != null) application.registerActivityLifecycleCallbacks(callback);
+    }
+
+    public void unregisterActivityLifecycleCallbacks(
+            Application.ActivityLifecycleCallbacks callback) {
+        if (application != null) application.unregisterActivityLifecycleCallbacks(callback);
+    }
+
+    @Override
+    public android.content.res.Resources getResources() {
+        return application == null
+                ? android.content.res.Resources.getSystem()
+                : application.getResources();
+    }
+
+    @Override
+    public java.io.File getFilesDir() {
+        return storage().getFilesDir();
+    }
+
+    @Override
+    public java.io.File getCacheDir() {
+        return storage().getCacheDir();
+    }
+
+    @Override
+    public java.io.File getCodeCacheDir() {
+        return storage().getCodeCacheDir();
+    }
+
+    @Override
+    public java.io.File getNoBackupFilesDir() {
+        return storage().getNoBackupFilesDir();
+    }
+
+    @Override
+    public java.io.File getDataDir() {
+        return storage().getDataDir();
+    }
+
+    @Override
+    public java.io.File getDir(String name, int mode) {
+        return storage().getDir(name, mode);
+    }
+
+    @Override
+    public java.io.File getFileStreamPath(String name) {
+        return storage().getFileStreamPath(name);
+    }
+
+    @Override
+    public java.io.File getSharedPrefsFile(String name) {
+        return storage().getSharedPrefsFile(name);
+    }
+
+    @Override
+    public java.io.File getDatabasePath(String name) {
+        return storage().getDatabasePath(name);
+    }
+
+    @Override
+    public String[] fileList() {
+        return storage().fileList();
+    }
+
+    @Override
+    public String[] databaseList() {
+        return storage().databaseList();
+    }
+
+    @Override
+    public boolean deleteFile(String name) {
+        return storage().deleteFile(name);
+    }
+
+    @Override
+    public boolean deleteDatabase(String name) {
+        return storage().deleteDatabase(name);
+    }
+
+    @Override
+    public java.io.FileInputStream openFileInput(String name) throws java.io.IOException {
+        return storage().openFileInput(name);
+    }
+
+    @Override
+    public java.io.FileOutputStream openFileOutput(String name, int mode) throws java.io.IOException {
+        return storage().openFileOutput(name, mode);
+    }
+
+    @Override
+    public android.content.SharedPreferences getSharedPreferences(String name, int mode) {
+        return storage().getSharedPreferences(name, mode);
+    }
+
+    /** Convenience: activity-private prefs (MODE_PRIVATE). */
+    public android.content.SharedPreferences getPreferences(int mode) {
+        return getSharedPreferences(getClass().getSimpleName(), mode);
+    }
+
+    @Override
+    public void drainQueuedWork() {
+        storage().drainQueuedWork();
+    }
+
+    /**
+     * Service lookup: {@code CLIPBOARD_SERVICE} returns the window-bound
+     * clipboard manager; misses fall through to the attached Application,
+     * then the Context default (layout inflater and future services).
+     */
+    @Override
+    public Object getSystemService(String name) {
+        if (ClipboardManager.CLIPBOARD_SERVICE.equals(name)) return clipboardManager;
+        if (application != null) {
+            Object svc = application.getSystemService(name);
+            if (svc != null) return svc;
+        }
+        return super.getSystemService(name);
+    }
+
+    /** In-process content resolver bound to the provider registry. */
+    @Override
+    public android.content.ContentResolver getContentResolver() {
+        return contentResolver;
+    }
+
+    /** Result hook for startActivityForResult file picks; empty default. */
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {}
+
+    /** Notification action tap hook; {@code key} is the Builder action key. */
+    protected void onNotificationAction(long platId, String key) {}
+
+    /** Launch an intent: VIEW opens the Uri, pickers delegate (CREATE yields a writable file). */
+    public void startActivity(Intent intent) {
+        if (intent == null) return;
+        String action = intent.getAction();
+        if (Intent.ACTION_GET_CONTENT.equals(action) || Intent.ACTION_OPEN_DOCUMENT.equals(action)
+                || Intent.ACTION_CREATE_DOCUMENT.equals(action)) {
+            startActivityForResult(intent, -1);
+            return;
+        }
+        if (Intent.ACTION_VIEW.equals(action)) {
+            Uri data = intent.getData();
+            if (data == null) return;
+            String scheme = data.getScheme();
+            if (scheme == null
+                    || scheme.equals("http") || scheme.equals("https")
+                    || scheme.equals("content") || scheme.equals("file")) {
+                try {
+                    IsakaiDesktop.openUri(data.toString());
+                } catch (UnsatisfiedLinkError e) {
+                    // Headless/no-bridge run: startActivity is a no-op.
+                } catch (IllegalStateException e) {
+                    // Headless/no-bridge run: startActivity is a no-op.
+                }
+            }
+        }
+    }
+
+    /** Launch a file picker; VIEW behaves like {@link #startActivity}. */
+    public void startActivityForResult(Intent intent, int requestCode) {
+        if (intent == null) return;
+        String action = intent.getAction();
+        if (Intent.ACTION_VIEW.equals(action)) {
+            startActivity(intent);
+            return;
+        }
+        boolean save = Intent.ACTION_CREATE_DOCUMENT.equals(action);
+        if (!Intent.ACTION_GET_CONTENT.equals(action) && !Intent.ACTION_OPEN_DOCUMENT.equals(action)
+                && !save) {
+            return;
+        }
+        String title = intent.getStringExtra(Intent.EXTRA_TITLE);
+        if (title == null) title = getDataDirString();
+        // Headless/no-bridge save: the openFile throw below routes to
+        // the files/-backed fallback; the bridge path yields a staged
+        // (app-uid owned, writable) path instead.
+        try {
+            long req = IsakaiDesktop.openFile(title);
+            pendingFileRequestCode = requestCode;
+            pendingFileReq = req;
+            pendingFileSave = save;
+        } catch (UnsatisfiedLinkError e) {
+            if (save) {
+                deliverSaveFallback(requestCode, title);
+            }
+            // Headless/no-bridge run: no picker, no pending request.
+        } catch (IllegalStateException e) {
+            if (save) {
+                deliverSaveFallback(requestCode, title);
+            }
+            // Headless/no-bridge run: no picker, no pending request.
+        }
+    }
+
+    /**
+     * No-bridge save fallback: create {@code title} (or {@code "save.bin"})
+     * under files/ and deliver its file:// Uri as RESULT_OK. Fail-closed:
+     * when creation fails, deliver RESULT_CANCELED.
+     */
+    private void deliverSaveFallback(int requestCode, String title) {
+        String name = title == null || title.isEmpty() ? "save.bin" : new java.io.File(title).getName();
+        if (name.isEmpty()) name = "save.bin";
+        try {
+            java.io.File f = getFileStreamPath(name);
+            java.io.File parent = f.getParentFile();
+            if (parent != null) parent.mkdirs();
+            if (!f.exists() && !f.createNewFile()) {
+                onActivityResult(requestCode, RESULT_CANCELED, null);
+                return;
+            }
+            Intent data = new Intent();
+            data.setData(Uri.parse("file://" + f.getAbsolutePath()));
+            onActivityResult(requestCode, RESULT_OK, data);
+        } catch (Exception e) {
+            onActivityResult(requestCode, RESULT_CANCELED, null);
+        }
+    }
+
+    /**
+     * Save-mode writeback: the staged path is app-uid owned; ensure the
+     * file exists and is writable. Null when it cannot be made
+     * writable (fail-closed: caller delivers a dataless RESULT_OK).
+     */
+    private static String ensureWritableStaged(String path) {
+        try {
+            java.io.File f = new java.io.File(path);
+            java.io.File parent = f.getParentFile();
+            if (parent != null) parent.mkdirs();
+            if (!f.exists() && !f.createNewFile()) return null;
+            if (!f.canWrite()) return null;
+            return path;
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    /** Drain one desktop event batch: file results, action taps, close requests. */
+    private void pollDesktopResults() {
+        int[] batch = new int[8 * 8];
+        int n;
+        try {
+            n = IsakaiDesktop.poll(batch);
+        } catch (UnsatisfiedLinkError e) {
+            return;
+        } catch (IllegalStateException e) {
+            return;
+        }
+        if (n <= 0) return;
+        for (int i = 0; i < n; i++) {
+            int base = i * 8;
+            int kind = batch[base];
+            if (kind == 12) {
+                long req = IsakaiDesktop.join(batch[base + 1], batch[base + 2]);
+                int status = batch[base + 3];
+                if (req != pendingFileReq || pendingFileReq == 0) {
+                    IsakaiDesktop.closeReq(req);
+                    continue;
+                }
+                int code = pendingFileRequestCode;
+                boolean save = pendingFileSave;
+                pendingFileRequestCode = -1;
+                pendingFileReq = 0;
+                pendingFileSave = false;
+                if (status == 1) {
+                    String path = IsakaiDesktop.fileResult(req);
+                    Intent data = new Intent();
+                    if (path != null && path.length() > 0) {
+                        if (save) path = ensureWritableStaged(path);
+                        if (path != null) data.setData(Uri.parse("file://" + path));
+                    }
+                    IsakaiDesktop.closeReq(req);
+                    onActivityResult(code, RESULT_OK, data);
+                } else if (status == -1) {
+                    IsakaiDesktop.closeReq(req);
+                    onActivityResult(code, RESULT_CANCELED, null);
+                } else {
+                    IsakaiDesktop.closeReq(req);
+                }
+            } else if (kind == 11) {
+                long platId = IsakaiDesktop.join(batch[base + 1], batch[base + 2]);
+                int slot = batch[base + 3];
+                String key = IsakaiDesktop.actionKey(slot);
+                if (key != null) onNotificationAction(platId, key);
+            } else if (kind == 10) {
+                long req = IsakaiDesktop.join(batch[base + 1], batch[base + 2]);
+                IsakaiDesktop.closeReq(req);
+            }
+        }
     }
 
     public void setContentView(View view) {
@@ -38,26 +370,176 @@ public class Activity {
         return contentView;
     }
 
-    protected void onCreate() {}
+    protected void onCreate() {
+        onCreate(null);
+    }
+
+    protected void onCreate(android.os.Bundle savedInstanceState) {}
 
     protected void onStart() {}
 
     protected void onResume() {}
 
-    protected void onPause() {}
+    protected void onPause() {
+        drainQueuedWork();
+    }
 
-    protected void onStop() {}
+    protected void onStop() {
+        drainQueuedWork();
+    }
 
-    protected void onDestroy() {}
+    protected void onDestroy() {
+        drainQueuedWork();
+    }
 
     /** Stub: fired on keyboard/pointer focus loss. No pause semantics. */
-    protected void onWindowFocusChanged(boolean hasFocus) {}
+    @Override
+    public void onWindowFocusChanged(boolean hasFocus) {
+        windowFocused = hasFocus;
+    }
+
+    /** Headless: options menu unsupported; request is a no-op. */
+    public void invalidateOptionsMenu() {}
 
     /** Default BACK handling: request loop exit. */
-    protected void onBackPressed() {
+    public void onBackPressed() {
         backPressed = true;
     }
 
+    private Intent launchIntent = new Intent();
+    private boolean finishing;
+
+    public Intent getIntent() {
+        return launchIntent;
+    }
+
+
+    public void setIntent(Intent intent) {
+        this.launchIntent = intent;
+    }
+
+    protected void onNewIntent(Intent intent) {
+        setIntent(intent);
+    }
+
+    public void finish() {
+        finishing = true;
+        backPressed = true;
+    }
+
+    public void finishAffinity() {
+        finish();
+    }
+
+    public boolean isFinishing() {
+        return finishing;
+    }
+
+    public boolean isChangingConfigurations() {
+        return false;
+    }
+
+    public boolean isChild() {
+        return false;
+    }
+
+    public android.app.ActionBar getActionBar() {
+        return null;
+    }
+
+    private final HeadlessWindow headlessWindow = new HeadlessWindow();
+
+    public android.view.Window getWindow() {
+        if (headlessWindow.getCallback() == null) headlessWindow.setCallback(this);
+        return headlessWindow;
+    }
+
+    private final FragmentManager fragmentManager = new FragmentManager();
+
+    public FragmentManager getFragmentManager() {
+        return fragmentManager;
+    }
+
+    private int themeRes;
+    private int manifestActTheme;
+
+    public void setTheme(int resid) {
+        themeRes = resid;
+    }
+
+    /** Manifest base themes (application via Context, then activity); setTheme layers above. */
+    public void attachTheme(int appTheme, int actTheme) {
+        super.attachTheme(appTheme);
+        manifestActTheme = actTheme;
+    }
+
+    public void setShowWhenLocked(boolean showWhenLocked) {}
+
+    public void setTurnScreenOn(boolean turnScreenOn) {}
+
+    public void setInheritShowWhenLocked(boolean inheritShowWhenLocked) {}
+
+
+    @Override
+    public android.content.res.Resources.Theme getTheme() {
+        android.content.res.Resources.Theme theme = super.getTheme();
+        if (manifestActTheme != 0) theme.applyStyle(manifestActTheme, true);
+        if (themeRes != 0) theme.applyStyle(themeRes, true);
+        return theme;
+    }
+
+
+    public android.view.MenuInflater getMenuInflater() {
+        return new android.view.MenuInflater(this);
+    }
+
+    public android.view.LayoutInflater getLayoutInflater() {
+        return android.view.LayoutInflater.from(this);
+    }
+
+    public android.window.OnBackInvokedDispatcher getOnBackInvokedDispatcher() {
+        return null;
+    }
+
+    public android.content.ComponentName getComponentName() {
+        return new android.content.ComponentName(getPackageName(), getClass().getName());
+    }
+
+    public CharSequence getTitle() {
+        return "";
+    }
+
+    public void setTitle(CharSequence title) {}
+
+    public Object getLastNonConfigurationInstance() {
+        return null;
+    }
+
+    public boolean navigateUpTo(Intent upIntent) {
+        return false;
+    }
+
+    public void closeOptionsMenu() {}
+
+    public void onCreateContextMenu(android.view.ContextMenu menu, android.view.View v,
+            android.view.ContextMenu.ContextMenuInfo menuInfo) {}
+
+    public android.view.View onCreateView(String name, android.content.Context context,
+            android.util.AttributeSet attrs) {
+        return null;
+    }
+
+    public android.view.View onCreateView(android.view.View parent, String name,
+            android.content.Context context, android.util.AttributeSet attrs) {
+        return null;
+    }
+
+    public void onConfigurationChanged(android.content.res.Configuration newConfig) {}
+
+    public void onMultiWindowModeChanged(boolean isInMultiWindowMode,
+            android.content.res.Configuration newConfig) {}
+
+    public void dump(String prefix, java.io.FileDescriptor fd, java.io.PrintWriter writer, String[] args) {}
     /** Drive the full headless lifecycle. Returns after onDestroy. */
     public final void runHeadless() {
         if (created) throw new IllegalStateException("activity already ran");
@@ -68,6 +550,7 @@ public class Activity {
         onPause();
         onStop();
         onDestroy();
+        drainQueuedWork();
     }
 
     /** Key dispatch: content view first, then onKeyDown/onKeyUp. */
@@ -102,6 +585,105 @@ public class Activity {
         return false;
     }
 
+    // android.view.Window.Callback: Activity is the window's initial
+    // callback (real PhoneWindow wiring); AppCompat replaces it.
+    @Override
+    public boolean dispatchKeyShortcutEvent(KeyEvent event) {
+        return false;
+    }
+
+    @Override
+    public boolean dispatchTrackballEvent(MotionEvent event) {
+        return false;
+    }
+
+    @Override
+    public boolean dispatchGenericMotionEvent(MotionEvent event) {
+        return false;
+    }
+
+    @Override
+    public boolean dispatchPopulateAccessibilityEvent(
+            android.view.accessibility.AccessibilityEvent event) {
+        return false;
+    }
+
+    @Override
+    public View onCreatePanelView(int featureId) {
+        return null;
+    }
+
+    @Override
+    public boolean onCreatePanelMenu(int featureId, android.view.Menu menu) {
+        return false;
+    }
+
+    @Override
+    public boolean onPreparePanel(int featureId, View view, android.view.Menu menu) {
+        return false;
+    }
+
+    @Override
+    public boolean onMenuOpened(int featureId, android.view.Menu menu) {
+        return false;
+    }
+
+    @Override
+    public void onPanelClosed(int featureId, android.view.Menu menu) {}
+
+    @Override
+    public boolean onMenuItemSelected(int featureId, android.view.MenuItem item) {
+        return false;
+    }
+
+    @Override
+    public void onWindowAttributesChanged(android.view.WindowManager.LayoutParams attrs) {}
+
+    @Override
+    public void onContentChanged() {}
+
+    @Override
+    public void onAttachedToWindow() {}
+
+    @Override
+    public void onDetachedFromWindow() {}
+
+    @Override
+    public void onPointerCaptureChanged(boolean hasCapture) {}
+
+    @Override
+    public boolean onSearchRequested() {
+        return false;
+    }
+
+    @Override
+    public boolean onSearchRequested(android.view.SearchEvent searchEvent) {
+        return false;
+    }
+
+    @Override
+    public android.view.ActionMode onWindowStartingActionMode(android.view.ActionMode.Callback callback) {
+        return null;
+    }
+
+    @Override
+    public android.view.ActionMode onWindowStartingActionMode(
+            android.view.ActionMode.Callback callback, int type) {
+        return null;
+    }
+
+    @Override
+    public void onActionModeStarted(android.view.ActionMode mode) {}
+
+    @Override
+    public void onActionModeFinished(android.view.ActionMode mode) {}
+
+    @Override
+    public void onProvideKeyboardShortcuts(
+            java.util.List<android.view.KeyboardShortcutGroup> data,
+            android.view.Menu menu,
+            int deviceId) {}
+
     /**
      * Drive the windowed lifecycle: onCreate..onResume, render the content
      * view into a Wayland window, dispatch until close, BACK, or the
@@ -128,6 +710,7 @@ public class Activity {
         try {
             View root = contentView != null ? contentView : new View();
             IsakaiWindow.Window window = IsakaiWindow.Window.open(title, packageName, 640, 480);
+            clipboardManager = new ClipboardManager(window);
             try {
                 backPressed = false;
                 windowFocused = true;
@@ -142,6 +725,7 @@ public class Activity {
                 }
                 drawFrame(window, root, width, height);
                 int[] batch = new int[8 * 32];
+                int[] metrics = new int[8];
                 while (true) {
                     long now = System.currentTimeMillis();
                     if (now >= deadline || backPressed) break;
@@ -160,6 +744,7 @@ public class Activity {
                         if (n <= 0) break;
                         dispatchBatch(root, batch, n);
                     }
+                    pollDesktopResults();
                     if (r == 0 || backPressed) break;
                     long resize = window.pollSize();
                     if (resize != 0) {
@@ -169,6 +754,14 @@ public class Activity {
                         root.isDirtyAndClear();
                     } else if (root.isDirtyAndClear()) {
                         drawFrame(window, root, width, height);
+                    }
+                    // Per-slice DisplayMetrics poll: fresh int[8] updates
+                    // the system Resources snapshot for getResources().
+                    try {
+                        if (window.pollMetrics(metrics) == 1) applyMetrics(metrics);
+                    } catch (IllegalStateException e) {
+                        r = 0;
+                        break;
                     }
                 }
                 // Loop-exit bookkeeping for subclasses/tests.
@@ -182,6 +775,7 @@ public class Activity {
             onPause();
             onStop();
             onDestroy();
+            drainQueuedWork();
         }
     }
 
@@ -242,6 +836,29 @@ public class Activity {
                     }
                     break;
                 }
+                case 7: {
+                    // Clipboard selection hint uses count == 0 (owned by
+                    // the clipboard manager); touch headers carry >= 1.
+                    if (batch[base + 2] == 0) {
+                        clipboardManager.onSelectionChanged(batch[base + 1]);
+                        break;
+                    }
+                    touchHeaderRaw = batch[base + 1];
+                    touchHeaderCount = batch[base + 2];
+                    touchHeaderTime = packTime(batch[base + 3], batch[base + 4]);
+                    touchXs.clear();
+                    touchYs.clear();
+                    touchIds.clear();
+                    break;
+                }
+                case 8: {
+                    if (touchHeaderCount <= 0) break;
+                    touchIds.add(batch[base + 1]);
+                    touchXs.add(Float.intBitsToFloat(batch[base + 2]));
+                    touchYs.add(Float.intBitsToFloat(batch[base + 3]));
+                    if (touchIds.size() >= touchHeaderCount) emitTouch();
+                    break;
+                }
                 default:
                     break;
             }
@@ -250,6 +867,35 @@ public class Activity {
 
     private static long packTime(int lo, int hi) {
         return ((long) hi << 32) | (lo & 0xFFFFFFFFL);
+    }
+
+    /** Build one MotionEvent from staged kind-7/8 rows and dispatch it. */
+    private void emitTouch() {
+        int n = touchIds.size();
+        float[] xs = new float[n];
+        float[] ys = new float[n];
+        int[] ids = new int[n];
+        for (int i = 0; i < n; i++) {
+            xs[i] = touchXs.get(i);
+            ys[i] = touchYs.get(i);
+            ids[i] = touchIds.get(i);
+        }
+        int masked = touchHeaderRaw & MotionEvent.ACTION_MASK;
+        if (masked == MotionEvent.ACTION_DOWN) gestureDownTime = touchHeaderTime;
+        MotionEvent event = MotionEvent.obtain(
+                touchHeaderRaw, xs, ys, ids, 0, touchHeaderTime, gestureDownTime);
+        touchHeaderRaw = -1;
+        touchHeaderCount = 0;
+        touchXs.clear();
+        touchYs.clear();
+        touchIds.clear();
+        dispatchTouchEvent(event);
+    }
+
+    /** Apply a fresh int[8] metrics snapshot to the system Resources. */
+    private static void applyMetrics(int[] m) {
+        android.content.res.Resources r = android.content.res.Resources.getSystem();
+        r.setMetrics(m[0], m[1], m[2], m[3] / 1000.0f, m[4] / 1000.0f, m[5] / 1000.0f, m[6] / 1000.0f);
     }
 
     /** Lay out the root at w×h, draw into a fresh Canvas, present it. */

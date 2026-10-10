@@ -23,10 +23,148 @@ public class TextView extends View {
         super();
     }
 
+    public TextView(android.content.Context context) {
+        super(context);
+    }
+
+    public TextView(android.content.Context context, android.util.AttributeSet attrs) {
+        super(context, attrs);
+    }
+
+    public TextView(android.content.Context context, android.util.AttributeSet attrs, int defStyleAttr) {
+        super(context, attrs, defStyleAttr);
+    }
+
+    public void setTextSize(int unit, float size) {
+        setTextSize((int) size);
+    }
+
+    public void setTextColor(android.content.res.ColorStateList colors) {
+        if (colors != null) setTextColor(colors.getDefaultColor());
+    }
+
+    public android.text.TextPaint getPaint() {
+        android.text.TextPaint paint = new android.text.TextPaint();
+        paint.setColor(textColor);
+        paint.setTextSize(textSize);
+        return paint;
+    }
+
+    public void setPaintFlags(int flags) {}
+    public int getPaintFlags() { return 0; }
+
+    public void setAllCaps(boolean allCaps) {}
+    public void setSingleLine(boolean singleLine) {}
+    public void setSingleLine() { setSingleLine(true); }
+    public void setLines(int lines) {}
+    public void setMaxLines(int maxLines) {}
+    public int getMaxLines() { return Integer.MAX_VALUE; }
+    public void setMinLines(int minLines) {}
+    public void setMinWidth(int minPixels) {}
+    public void setMaxWidth(int maxPixels) {}
+    public void setMinHeight(int minPixels) {}
+    public void setMaxHeight(int maxPixels) {}
+    public void setMinEms(int minEms) {}
+    public void setMaxEms(int maxEms) {}
+    public void setEms(int ems) {}
+    public void setWidth(int pixels) {}
+    public void setHeight(int pixels) {}
+    public void setEllipsize(android.text.TextUtils.TruncateAt where) {}
+    public void setGravity(int gravity) {}
+    public int getGravity() { return 0; }
+    public void setLineSpacing(float add, float mult) {}
+    public void setIncludeFontPadding(boolean include) {}
+    public void setCompoundDrawables(android.graphics.drawable.Drawable l,
+            android.graphics.drawable.Drawable t, android.graphics.drawable.Drawable r,
+            android.graphics.drawable.Drawable b) {}
+    public void setCompoundDrawablesWithIntrinsicBounds(int l, int t, int r, int b) {}
+    public void setCompoundDrawablesWithIntrinsicBounds(android.graphics.drawable.Drawable l,
+            android.graphics.drawable.Drawable t, android.graphics.drawable.Drawable r,
+            android.graphics.drawable.Drawable b) {}
+    public void setCompoundDrawablesRelative(android.graphics.drawable.Drawable s,
+            android.graphics.drawable.Drawable t, android.graphics.drawable.Drawable e,
+            android.graphics.drawable.Drawable b) {}
+    public void setCompoundDrawablesRelativeWithIntrinsicBounds(int s, int t, int e, int b) {}
+    public void setCompoundDrawablesRelativeWithIntrinsicBounds(android.graphics.drawable.Drawable s,
+            android.graphics.drawable.Drawable t, android.graphics.drawable.Drawable e,
+            android.graphics.drawable.Drawable b) {}
+    public void setFilters(android.text.InputFilter[] filters) {}
+    public android.text.InputFilter[] getFilters() { return new android.text.InputFilter[0]; }
+    public void setInputType(int type) {}
+    public int getInputType() { return 0; }
+    public void setRawInputType(int type) {}
+    public void setShowSoftInputOnFocus(boolean show) {}
+    public boolean getShowSoftInputOnFocus() { return true; }
+    public void setTextIsSelectable(boolean selectable) {}
+    private android.text.method.MovementMethod movementMethod;
+    public void setMovementMethod(android.text.method.MovementMethod movement) {
+        this.movementMethod = movement;
+    }
+    public android.text.method.MovementMethod getMovementMethod() {
+        return movementMethod;
+    }
+    public void setHint(CharSequence hint) {}
+    public CharSequence getHint() { return ""; }
+    public void setHint(int resId) {}
+    public void setText(int resId) {}
+    public final void append(CharSequence text) {
+        setText(textString() + (text == null ? "" : text.toString()));
+    }
+    public int length() { return textString().length(); }
+    public boolean isTextSelectable() { return false; }
+    public void setTextSelectable(boolean selectable) {}
+    private int selectionStart;
+    private int selectionEnd;
+
+    public int getSelectionStart() { return selectionStart; }
+    public int getSelectionEnd() { return selectionEnd; }
+    public boolean hasSelection() { return selectionStart != selectionEnd; }
+
+    public void setSelection(int start, int stop) {
+        int len = textString().length();
+        selectionStart = Math.max(0, Math.min(start, len));
+        selectionEnd = Math.max(0, Math.min(stop, len));
+    }
+
+    public void setSelection(int index) {
+        setSelection(index, index);
+    }
+
+    public void selectAll() {
+        setSelection(0, textString().length());
+    }
+
+    public void setCustomSelectionActionModeCallback(android.view.ActionMode.Callback callback) {}
+    public android.view.ActionMode.Callback getCustomSelectionActionModeCallback() { return null; }
+
+    private final java.util.ArrayList<android.text.TextWatcher> watchers =
+            new java.util.ArrayList<>();
+
+    public void addTextChangedListener(android.text.TextWatcher watcher) {
+        if (watcher != null && !watchers.contains(watcher)) watchers.add(watcher);
+    }
+
+    public void removeTextChangedListener(android.text.TextWatcher watcher) {
+        watchers.remove(watcher);
+    }
+
     public void setText(CharSequence text) {
-        this.text = text != null ? text : "";
+        CharSequence old = this.text;
+        CharSequence next = text != null ? text : "";
+        for (android.text.TextWatcher w : watchers) {
+            w.beforeTextChanged(old, 0, old.length(), next.length());
+        }
+        this.text = next;
+        for (android.text.TextWatcher w : watchers) {
+            w.onTextChanged(next, 0, old.length(), next.length());
+        }
+        android.text.Editable editable = new android.text.Editable(next.toString());
+        for (android.text.TextWatcher w : watchers) {
+            w.afterTextChanged(editable);
+        }
         invalidate();
     }
+
 
     public void setText(String text) {
         setText((CharSequence) text);

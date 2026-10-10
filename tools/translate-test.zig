@@ -44,8 +44,10 @@ pub fn main(init: std.process.Init) !u8 {
 
     var ok: usize = 0;
     var failed: usize = 0;
+    var fwd = translate.ForwardNeeds{};
+    defer fwd.deinit(arena);
     for (0..header.class_defs_size) |i| {
-        const tc = translate.translateClass(arena, d, i) catch |err| {
+        const tc = translate.translateClass(arena, d, i, &fwd, &.{}) catch |err| {
             const def = d.classDef(i) catch {
                 std.debug.print("TRANSLATE FAIL class {d}: {t} (classDef unreadable)\n", .{ i, err });
                 if (!keep_going) return 1;
@@ -74,6 +76,22 @@ pub fn main(init: std.process.Init) !u8 {
             try dumpLines(arena, out, d, i, tc.internal_name);
         }
     }
+    // Second pass: inherited-ctor forwards (see launch.zig).
+    if (fwd.needs.items.len > 0 and failed == 0) {
+        var plan = try translate.planInheritedForwards(arena, d, &fwd);
+        var pit = plan.iterator();
+        while (pit.next()) |e| {
+            const found = translate.dexDefIndexByInternal(d, arena, e.key_ptr.*) orelse continue;
+            const tc = try translate.translateClass(arena, d, found, &fwd, e.value_ptr.items);
+            const out_path = try std.fmt.allocPrint(arena, "{s}/{s}.class", .{ positional[1], tc.internal_name });
+            var f = try std.Io.Dir.cwd().createFile(io, out_path, .{});
+            defer f.close(io);
+            var buf: [8192]u8 = undefined;
+            var fw = f.writer(io, &buf);
+            try fw.interface.writeAll(tc.bytes);
+            try fw.interface.flush();
+        }
+    }
     if (keep_going) std.debug.print("keep-going: {d} ok, {d} failed of {d}\n", .{ ok, failed, header.class_defs_size });
     return if (failed > 0) 1 else 0;
 }
@@ -86,6 +104,18 @@ pub fn main(init: std.process.Init) !u8 {
 /// diffs these triples against javap output; drift breaks the gate silently.
 fn dumpLines(gpa: std.mem.Allocator, out: *std.Io.Writer, d: dex.Dex, def_idx: usize, internal: []const u8) !void {
     const def = try d.classDef(def_idx);
+    // Super context for super-<init> redirect (lines only; types match real translation).
+    var super_buf: ?[]u8 = null;
+    defer if (super_buf) |b| gpa.free(b);
+    var super_opt: ?[]const u8 = null;
+    if (def.superclass_idx != dex.no_index) {
+        const sdesc = try d.getTypeDescriptor(gpa, def.superclass_idx);
+        defer gpa.free(sdesc);
+        const sinternal = try translate.descriptorToInternal(gpa, sdesc);
+        defer gpa.free(sinternal);
+        super_buf = try gpa.dupe(u8, sinternal);
+        super_opt = super_buf;
+    }
     var cdata = try dex.readClassData(gpa, d, def.class_data_off);
     defer cdata.deinit(gpa);
     const groups = [_][]dex.EncodedMethod{ cdata.direct_methods, cdata.virtual_methods };
@@ -97,7 +127,9 @@ fn dumpLines(gpa: std.mem.Allocator, out: *std.Io.Writer, d: dex.Dex, def_idx: u
             defer gpa.free(mname);
             var c = try dex.readCode(gpa, d, m.code_off);
             defer c.deinit(gpa);
-            var tm = try translate.translateMethod(gpa, d, c, mid.proto_idx, m.access_flags & 0x8 != 0);
+            const is_ctor = std.mem.eql(u8, mname, "<init>") and m.access_flags & 0x8 == 0;
+            const ctor_this: ?u16 = if (is_ctor and c.ins <= c.registers) @intCast(c.registers - c.ins) else null;
+            var tm = try translate.translateMethod(gpa, d, c, mid.proto_idx, m.access_flags & 0x8 != 0, super_opt, internal, ctor_this, null);
             defer tm.deinit(gpa);
             for (tm.lines) |le| {
                 try out.print("{s} {s} {d} {d}\n", .{ internal, mname, le.start_pc, le.line });

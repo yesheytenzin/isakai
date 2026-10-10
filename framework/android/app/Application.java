@@ -1,54 +1,63 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 package android.app;
 
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
+import android.content.Context;
 
-/** Minimal Application: lifecycle + private file storage. M1 headless subset. */
-public class Application {
-    private String dataDir;
+/** Minimal Application: lifecycle anchor over the Context storage surface. */
+public class Application extends Context {
+    private NotificationManager notificationManager;
     /** Called by IsakaiMain before any component runs. */
+    @Override
     public void attach(String dataDir) {
-        this.dataDir = dataDir;
+        super.attach(dataDir);
     }
 
     public void onCreate() {}
 
-    public String getDataDir() {
-        return dataDir;
+    @Override
+    public android.content.res.Resources getResources() {
+        return android.content.res.Resources.getSystem();
     }
-
-    public Path file(String name) {
-        return Paths.get(dataDir, name);
-    }
-
-    public String readFile(String name, String fallback) {
-        try {
-            Path p = file(name);
-            if (!Files.exists(p)) return fallback;
-            return new String(Files.readAllBytes(p), StandardCharsets.UTF_8);
-        } catch (IOException e) {
-            return fallback;
-        }
-    }
-
-    public void writeFile(String name, String content) {
-        try {
-            Path p = file(name);
-            Files.createDirectories(p.getParent());
-            Path tmp = p.resolveSibling(name + ".tmp");
-            Files.write(tmp, content.getBytes(StandardCharsets.UTF_8));
-            try {
-                Files.move(tmp, p, java.nio.file.StandardCopyOption.ATOMIC_MOVE,
-                        java.nio.file.StandardCopyOption.REPLACE_EXISTING);
-            } catch (java.nio.file.AtomicMoveNotSupportedException e) {
-                Files.move(tmp, p, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+    /**
+     * Service lookup: {@code NOTIFICATION_SERVICE} lazily creates a
+     * desktop manager; misses fall through to the Context default
+     * (layout inflater and future services).
+     */
+    @Override
+    public Object getSystemService(String name) {
+        if (Context.NOTIFICATION_SERVICE.equals(name)) {
+            if (notificationManager == null) {
+                notificationManager = new NotificationManager(getDataDirString());
             }
-        } catch (IOException e) {
-            throw new RuntimeException("write " + name + ": " + e.getMessage(), e);
+            return notificationManager;
         }
+        return super.getSystemService(name);
+    }
+
+    /** Framework hook: drain queued disk writes (prefs apply()). No-op unless overridden. */
+    @Override
+    public void drainQueuedWork() {
+        org.isakai.prefs.IsakaiPrefsWork.waitToFinish();
+    }
+
+    public interface ActivityLifecycleCallbacks {
+        void onActivityCreated(Activity activity, android.os.Bundle savedInstanceState);
+        void onActivityStarted(Activity activity);
+        void onActivityResumed(Activity activity);
+        void onActivityPaused(Activity activity);
+        void onActivityStopped(Activity activity);
+        void onActivitySaveInstanceState(Activity activity, android.os.Bundle outState);
+        void onActivityDestroyed(Activity activity);
+    }
+
+    private final java.util.ArrayList<ActivityLifecycleCallbacks> lifecycleCallbacks =
+            new java.util.ArrayList<>();
+
+    public void registerActivityLifecycleCallbacks(ActivityLifecycleCallbacks callback) {
+        if (callback != null && !lifecycleCallbacks.contains(callback)) lifecycleCallbacks.add(callback);
+    }
+
+    public void unregisterActivityLifecycleCallbacks(ActivityLifecycleCallbacks callback) {
+        lifecycleCallbacks.remove(callback);
     }
 }

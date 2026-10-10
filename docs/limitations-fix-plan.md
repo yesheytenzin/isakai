@@ -191,20 +191,63 @@ host JDK 17+ with zero Android binaries. Nothing is BLOCKED.
     Bitmap/PNG, ellipsize/gravity, Paint/alpha, input, animation loop,
     partial damage.
 
+## Phase 5 — M4 app-services gate — DONE 2026-10-10
+
+Gate: OpenCalc + Simple Calculator + Simple Notes complete headless
+(onCreate→destroyed, exit 0); fixture headless + windowed green; oracle
+18/18; `zig build test` green. Six parallel slices + integration:
+
+19. **Resources (arsc/XML/assets).** `src/arsc.zig` table parse; staged
+    res/ + assets/ serving; `Resources` id lookups fail-closed; binary-XML
+    decode feeding parsers; `@string` manifest labels resolved.
+20. **Layout inflation.** `LayoutInflater` factory chain + widget factory,
+    `ViewGroup.findViewById` tree search, `MenuInflater`, theme/style bags
+    with parent chains, `TypedArray` attr-id matching (resMap indexed by
+    string-pool order per aapt2 XmlFlattener), StAX order-independent parse,
+    real parser depth (was flat-cursor).
+21. **Graphics decode.** ImageIO PNG/JPEG `BitmapFactory`, drawable XML
+    incl. `VectorDrawable` shell, `ColorStateList`, color parsing.
+22. **Platform.** Wayland socket brokering (`--wayland-sock` + helper
+    bind-mount, privileged E2E env-blocked); wl_output→DisplayMetrics;
+    atomic writes + anchored symlinks + arch record; NO_NEW_PRIVS +
+    mount-ns confinement; per-dex arena (launch translation 400s→77s).
+23. **Services.** Provider hosting + resolver routing, `Parcel`
+    round-trip, save-picker writeback, clipboard text/URI/HTML, audio
+    format allowlist, gesture stack.
+24. **Translator hardening (integration).** 21t/22c/23x reg extracts
+    (`if-eqz` byte-reg, `new-array` nibble, 23x byte-A); inherited-ctor
+    forwards incl. super-calls + this-alias + self-named; try-end
+    shrinking (Dalvik try-start handler semantics vs JVM body-join);
+    reaching-def method-entry fallback; array-comp param seeding;
+    manifest activity-alias + theme plumbing.
+25. **Framework.** ~150 stubs (views, managers, xmlpull, os, util,
+    spans, a11y, inputmethod, MediaRouter peers); AOSP hierarchy fixes
+    (`AccessibilityEvent`→record, `SeekBar`/`RatingBar`→`AbsSeekBar`).
+
 ## Explicitly deferred
 
 - v1 JAR verification — never; fail closed, modern APKs only.
 - StackMapTable native emitter — v50 is safe; ASM oracle if ever needed.
 - Landlock/seccomp — M5 (raw-syscall shim + JVM syscall enumeration).
 - Replace/upgrade flow — after uid-helper (needs cert continuity design).
-- resources.arsc parsing (incl. `@string` labels) — driven by view inflation.
 - Annotations beyond LineNumberTable — line numbers landed; annotations next.
 - ECDSA P-521 curve — zero real-world keys; explicit `UnsupportedAlgorithm`
   with golden rejection tests; revisit only for 100% coverage.
 - RSA > 4096 bit, multi-signer APKs — intentional fail-closed rejections.
-- Privileged windowed runs (Wayland socket brokering) — M4+ sandbox design.
 - Per-request `$(package)` polkit message — impossible via pkexec
   (needs a D-Bus mechanism); `$(command_line)` compromise shipped.
+- Native `.so` apps — install rejects (no Bionic bridge milestone).
+- WebView — no engine milestone; apps touching it die at NoClassDefFoundError.
+- MediaPlayer/codecs/camera/sensors/location/bluetooth/NFC — zero classes;
+  SoundPool (WAV playback) only. Driven by app demand.
+- Privileged windowed E2E — code landed (socket brokering + helper mount),
+  unverified here (no passwordless elevation on this machine).
+- Async event loop (epoll/timerfd/eventfd) + JNI upcall callbacks —
+  superseded by the poll pump (nPollInput slices); no benefit to switching.
+- resources.arsc parsing — LANDED 2026-10-10 (M4).
+- Privileged windowed runs (Wayland socket brokering) — LANDED 2026-10-10,
+  E2E unverified (see above).
+
 
 ## Dependency order
 

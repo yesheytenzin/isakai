@@ -1,0 +1,321 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+package android.content;
+
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+
+/**
+ * Minimal abstract Context: file/prefs/database storage surface (M4).
+ *
+ * <p>Storage layout under the app data dir (lazy 0700 mkdir handled by the
+ * host helper at install; runtime mkdirs defensively re-assert 0700):
+ * <pre>
+ *   files/  cache/  code_cache/  no_backup/  shared_prefs/  databases/  app_&lt;name&gt;/
+ * </pre>
+ * {@link #getDir} rejects any name containing a separator; {@link #getDatabasePath}
+ * appends {@code .db} when no extension is present.
+ *
+ * <p>Prefs: one {@link SharedPreferences} instance per name, cached in a map;
+ * world-readable/world-writeable modes throw {@link SecurityException}.
+ */
+public abstract class Context {
+    public static final int MODE_PRIVATE = 0;
+    public static final int MODE_WORLD_READABLE = 1;
+    public static final int MODE_WORLD_WRITEABLE = 2;
+    public static final int MODE_APPEND = 32768;
+
+    /** Service name for notifications; Application.getSystemService override lands with desktop. */
+    public static final String NOTIFICATION_SERVICE = "notification";
+
+    /** Service name for layout inflation; resolved by the default getSystemService branch. */
+    public static final String LAYOUT_INFLATER_SERVICE = "layout_inflater";
+    private String dataDir;
+    private String packageName = "";
+    private final Map<String, SharedPreferences> prefsCache = new ConcurrentHashMap<>();
+
+    /** Called by IsakaiMain before any component runs. */
+    public void attach(String dataDir) {
+        this.dataDir = dataDir;
+    }
+
+    /** Called by IsakaiMain right after attach; argv carries the package. */
+    public void attachPackage(String packageName) {
+        this.packageName = packageName != null ? packageName : "";
+    }
+
+    public String getPackageName() {
+        return packageName;
+    }
+
+    public String getDataDirString() {
+        return dataDir;
+    }
+
+    protected File dataRoot() {
+        return new File(dataDir);
+    }
+
+    private File subdir(String name) {
+        File d = new File(dataRoot(), name);
+        if (!d.isDirectory()) {
+            d.mkdirs();
+            chmod0700(d);
+        }
+        return d;
+    }
+
+    private static void chmod0700(File f) {
+        f.setReadable(false, false);
+        f.setWritable(false, false);
+        f.setExecutable(false, false);
+        f.setReadable(true, true);
+        f.setWritable(true, true);
+        f.setExecutable(true, true);
+    }
+
+    public File getFilesDir() {
+        return subdir("files");
+    }
+
+    public File getCacheDir() {
+        return subdir("cache");
+    }
+
+    public File getCodeCacheDir() {
+        return subdir("code_cache");
+    }
+
+    public File getNoBackupFilesDir() {
+        return subdir("no_backup");
+    }
+
+    public File getDataDir() {
+        return dataRoot();
+    }
+
+    /**
+     * App-private directory {@code app_<name>}; names containing a file
+     * separator are rejected with IllegalArgumentException.
+     */
+    public File getDir(String name, int mode) {
+        checkPrivateMode(mode);
+        if (name == null || name.indexOf('/') >= 0 || name.indexOf(File.separatorChar) >= 0) {
+            throw new IllegalArgumentException("getDir rejects separators: " + name);
+        }
+        File d = new File(dataRoot(), "app_" + name);
+        if (!d.isDirectory()) {
+            d.mkdirs();
+            chmod0700(d);
+        }
+        return d;
+    }
+
+    public File getFileStreamPath(String name) {
+        return new File(getFilesDir(), name);
+    }
+
+    public File getSharedPrefsFile(String name) {
+        return new File(subdir("shared_prefs"), name + ".xml");
+    }
+
+    public File getDatabasePath(String name) {
+        String file = name.indexOf('.') >= 0 ? name : name + ".db";
+        return new File(subdir("databases"), file);
+    }
+
+    public String[] fileList() {
+        String[] list = getFilesDir().list();
+        return list != null ? list : new String[0];
+    }
+
+    public String[] databaseList() {
+        String[] list = subdir("databases").list();
+        return list != null ? list : new String[0];
+    }
+
+    public boolean deleteFile(String name) {
+        File f = getFileStreamPath(name);
+        return f.exists() && f.delete();
+    }
+
+    public boolean deleteDatabase(String name) {
+        File f = getDatabasePath(name);
+        boolean ok = !f.exists() || f.delete();
+        new File(f.getParentFile(), f.getName() + "-journal").delete();
+        new File(f.getParentFile(), f.getName() + "-wal").delete();
+        new File(f.getParentFile(), f.getName() + "-shm").delete();
+        return ok;
+    }
+
+    public FileInputStream openFileInput(String name) throws IOException {
+        return new FileInputStream(getFileStreamPath(name));
+    }
+
+    public FileOutputStream openFileOutput(String name, int mode) throws IOException {
+        boolean append = (mode & MODE_APPEND) != 0;
+        checkPrivateMode(mode & ~MODE_APPEND);
+        File f = getFileStreamPath(name);
+        FileOutputStream out = new FileOutputStream(f, append);
+        chmod0600(f);
+        return out;
+    }
+
+    private static void chmod0600(File f) {
+        f.setReadable(false, false);
+        f.setWritable(false, false);
+        f.setExecutable(false, false);
+        f.setReadable(true, true);
+        f.setWritable(true, true);
+    }
+
+    /** Legacy M1 helper: read a private file as UTF-8, fallback when missing/unreadable. */
+    public String readFile(String name, String fallback) {
+        try {
+            Path p = getFileStreamPath(name).toPath();
+            if (!Files.exists(p)) return fallback;
+            return new String(Files.readAllBytes(p), StandardCharsets.UTF_8);
+        } catch (IOException e) {
+            return fallback;
+        }
+    }
+
+    /** Legacy M1 helper: atomic tmp+rename write of a private UTF-8 file. */
+    public void writeFile(String name, String content) {
+        try {
+            File f = getFileStreamPath(name);
+            File parent = f.getParentFile();
+            if (parent != null) parent.mkdirs();
+            File tmp = new File(parent, name + ".tmp");
+            Files.write(tmp.toPath(), content.getBytes(StandardCharsets.UTF_8));
+            try {
+                Files.move(tmp.toPath(), f.toPath(),
+                        java.nio.file.StandardCopyOption.ATOMIC_MOVE,
+                        java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+            } catch (java.nio.file.AtomicMoveNotSupportedException e) {
+                Files.move(tmp.toPath(), f.toPath(),
+                        java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+            }
+        } catch (IOException e) {
+            throw new RuntimeException("write " + name + ": " + e.getMessage(), e);
+        }
+    }
+
+    private static void checkPrivateMode(int mode) {
+        if ((mode & (MODE_WORLD_READABLE | MODE_WORLD_WRITEABLE)) != 0) {
+            throw new SecurityException("world modes are not supported");
+        }
+    }
+
+    public SharedPreferences getSharedPreferences(String name, int mode) {
+        checkPrivateMode(mode);
+        SharedPreferences existing = prefsCache.get(name);
+        if (existing != null) return existing;
+        SharedPreferences created = new SharedPreferencesImpl(getSharedPrefsFile(name));
+        SharedPreferences raced = prefsCache.putIfAbsent(name, created);
+        return raced != null ? raced : created;
+    }
+
+    /** Framework hook: drain queued disk writes (prefs apply()). No-op unless overridden. */
+    public void drainQueuedWork() {}
+
+    public abstract android.content.res.Resources getResources();
+
+    private int baseTheme;
+
+    /** Manifest application theme; applied under activity/setTheme layers. */
+    public void attachTheme(int appTheme) {
+        baseTheme = appTheme;
+    }
+
+    public android.content.res.Resources.Theme getTheme() {
+        android.content.res.Resources.Theme theme = getResources().newTheme();
+        if (baseTheme != 0) theme.applyStyle(baseTheme, true);
+        return theme;
+    }
+
+
+    public String getString(int resId) {
+        return getResources().getString(resId);
+    }
+
+    public android.content.Context getApplicationContext() {
+        return this;
+    }
+
+    /**
+     * Service lookup: {@code LAYOUT_INFLATER_SERVICE} returns a
+     * {@link android.view.LayoutInflater} bound to this context; other names
+     * return null (overrides add their services then fall through here).
+     */
+    public Object getSystemService(String name) {
+        if (LAYOUT_INFLATER_SERVICE.equals(name)) {
+            return android.view.LayoutInflater.from(this);
+        }
+        return null;
+    }
+
+    public android.content.pm.PackageManager getPackageManager() {
+        return new IsakaiPackageManager(this);
+    }
+
+
+    public android.content.ContentResolver getContentResolver() {
+        return null;
+    }
+
+    public ClassLoader getClassLoader() {
+        return getClass().getClassLoader();
+    }
+
+    public boolean isRestricted() {
+        return false;
+    }
+
+    public android.content.res.TypedArray obtainStyledAttributes(android.util.AttributeSet set, int[] attrs) {
+        return getTheme().obtainStyledAttributes(set, attrs, 0, 0);
+    }
+
+    public android.content.res.TypedArray obtainStyledAttributes(int resid, int[] attrs) {
+        return getTheme().obtainStyledAttributes(resid, attrs);
+    }
+
+    public android.content.res.TypedArray obtainStyledAttributes(int[] attrs) {
+        return getTheme().obtainStyledAttributes(attrs);
+    }
+
+    public android.content.res.TypedArray obtainStyledAttributes(android.util.AttributeSet set, int[] attrs, int defStyleAttr, int defStyleRes) {
+        return getTheme().obtainStyledAttributes(set, attrs, defStyleAttr, defStyleRes);
+    }
+
+    public android.graphics.drawable.Drawable getDrawable(int id) {
+        return getResources().getDrawable(id);
+    }
+
+    public android.content.res.ColorStateList getColorStateList(int id) {
+        return getResources().getColorStateList(id);
+    }
+
+
+    public void startActivity(android.content.Intent intent) {}
+
+    public void startActivity(android.content.Intent intent, android.os.Bundle options) {
+        startActivity(intent);
+    }
+    /** Copy a stream; shared by prefs backup/restore paths. */
+    protected static void copyStream(InputStream in, OutputStream out) throws IOException {
+        byte[] buf = new byte[8192];
+        int n;
+        while ((n = in.read(buf)) >= 0) {
+            out.write(buf, 0, n);
+        }
+    }
+}

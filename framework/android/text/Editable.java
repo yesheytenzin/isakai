@@ -6,6 +6,18 @@ package android.text;
  * No spans or watchers in M3.
  */
 public class Editable implements CharSequence {
+    public static class Factory {
+        private static final Factory INSTANCE = new Factory();
+
+        public static Factory getInstance() {
+            return INSTANCE;
+        }
+
+        public Editable newEditable(CharSequence source) {
+            return new Editable(source);
+        }
+    }
+
     private final StringBuilder buffer;
 
     public Editable() {

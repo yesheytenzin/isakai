@@ -98,9 +98,26 @@ raster, `BitmapFont` 5x7 glyphs) renders into the posted buffers; the
 Activity pump dispatches `KeyEvent`/`MotionEvent` to the focused /
 hit-tested view and redraws on the dirty flag.
 
-## Privileged windowed limitation
+## Privileged windowed sandboxing
 
-Windowed launches currently require `ISAKAI_NO_PRIVILEGE=1`: the
-dropped-privilege child gets a fresh `XDG_RUNTIME_DIR` with no
-compositor socket. Brokering the Wayland socket into the sandbox is
-M4+ work (a clear stderr hint is printed otherwise).
+Windowed launches work under isolation: `uid-helper run` takes
+`--wayland-sock <abs>`, bind-mounts the compositor socket onto
+`<data>/run/<base>` inside a private mount namespace (root pre-drop,
+fail-closed `_exit(127)`), then rewrites the app env to
+`WAYLAND_DISPLAY=<base>` + `XDG_RUNTIME_DIR=<data>/run`. The JNI
+`nOpen` resolver consumes exactly that pair. Verified E2E 2026-10-10
+(fixture + real app, exit 0, uid/gid 200000+, NNP=1, split mount-ns).
+
+**Compositor prerequisite**: the app uid connects to the socket as
+"other", so the socket inode needs the write bit for other
+(`chmod o+w $XDG_RUNTIME_DIR/$WAYLAND_DISPLAY`); the runtime dir
+itself stays 0700 since only the socket is bind-mounted in.
+Hyprland does not UID-gate Wayland clients beyond file perms.
+
+**Desktop bridge**: `work/run/<pkg>/` stays launcher-owned 0711 (the
+unprivileged bridge daemon binds there; the app traverses x-only to
+connect). The socket is path-`chmod`'d 0777 — `fchmod` on a unix
+socket fd is a silent no-op on current kernels — and clients are
+gated by SO_PEERCRED against `--uid`. `work/stage/<pkg>/` is
+app-owned 0700 (direct transfer writes). Only `stage/` is chowned
+by the helper at install.

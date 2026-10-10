@@ -131,11 +131,61 @@ pub const Window = struct {
     /// FIFO: recv pushes, pump shifts.
     pending_fds: [8]posix.fd_t = .{ -1, -1, -1, -1, -1, -1, -1, -1 },
     npending_fds: usize = 0,
-    /// Ring of 8-jint input events (kinds 1/2/5/6 per the M3 contract).
+    /// Ring of 8-jint input events (kinds 1/2/5/6 per the M3 contract,
+    /// plus M4 touch kinds 7/8).
     events: [256][8]i32 = undefined,
     ev_head: usize = 0,
     ev_len: usize = 0,
     ev_dropped: bool = false,
+
+    // --- M4 touch/output state (touch agent owns; clipboard agent owns
+    // --- data-device state elsewhere in this struct) ---
+    touch: u32 = 0,
+    /// 10 touch slots: dense lowest-free indices; wl touch id per slot.
+    touch_used: [10]bool = .{ false, false, false, false, false, false, false, false, false, false },
+    touch_wl: [10]i32 = .{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+    touch_x: [10]f32 = .{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+    touch_y: [10]f32 = .{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+    /// Staged motion within a touch frame; flushed as one MOVE.
+    touch_pending: bool = false,
+    touch_pending_time: u32 = 0,
+    /// First bound wl_output (first global wins); more are ignored.
+    output: u32 = 0,
+    output_version: u32 = 0,
+    out_name: u32 = 0,
+    out_version: u32 = 0,
+    out_scale: i32 = 1,
+    out_mm_w: i32 = 0,
+    out_mm_h: i32 = 0,
+    /// Bumped on output done and on window-size change; Java polls it via
+    /// nPollMetrics into int[8] (see takeMetrics).
+    metrics_gen: u64 = 0,
+    /// Last metrics generation consumed by takeMetrics.
+    taken_metrics_gen: u64 = 0,
+    // --- M4 clipboard/data-device state (clipboard agent owns; touch
+    // --- agent owns the touch/output block above) ---
+    /// Advertised wl_data_device_manager global; 0 when the compositor
+    /// offers none (silent local-only clipboard).
+    dm_name: u32 = 0,
+    /// Advertised manager version; we bind min(advertised, 3).
+    dm_version: u32 = 0,
+    /// Bound manager + per-seat device (0 when unavailable).
+    data_manager: u32 = 0,
+    data_device: u32 = 0,
+    /// Our live selection source (0 when we hold no selection).
+    clip_source: u32 = 0,
+    /// Text we last offered (owned slice; served on send-event fds).
+    /// Null when we hold no selection.
+    clip_text: ?[]u8 = null,
+    /// Last input serial from keyboard/pointer enter/key/button events;
+    /// set_selection carries it (0 when no input serial seen yet).
+    last_serial: u32 = 0,
+    /// Remote offer stash: object id + offered-mime flags. One offer at a
+    /// time; a new data_offer destroys the previous object.
+    clip_offer: u32 = 0,
+    clip_offer_utf8: bool = false,
+    clip_offer_plain: bool = false,
+    clip_offer_legacy: bool = false,
 
     rx: std.ArrayListUnmanaged(u8) = .empty,
 
@@ -192,6 +242,26 @@ pub const Window = struct {
             self.seat = self.allocId();
             try self.sendBind(self.registry, self.seat_name, "wl_seat", seat_ver, self.seat);
         }
+        // M4 output: bind the first advertised wl_output at min(ver, 4)
+        // for DisplayMetrics (density/scale). Additional outputs are
+        // ignored; missing output just leaves scale=1 fallback metrics.
+        if (self.out_name != 0) {
+            const out_ver: u32 = @min(self.out_version, 4);
+            self.output = self.allocId();
+            self.output_version = out_ver;
+            try self.sendBind(self.registry, self.out_name, "wl_output", out_ver, self.output);
+        }
+        // M4 clipboard: bind min(advertised, 3) + get_data_device after the
+        // seat so set_selection has a device to act on. Missing
+        // manager/seat = silent local-only clipboard (no device, no
+        // selection, Java falls back to its process-local copy).
+        if (self.dm_name != 0 and self.seat != 0) {
+            const dm_ver: u32 = @min(self.dm_version, 3);
+            self.data_manager = self.allocId();
+            try self.sendBind(self.registry, self.dm_name, "wl_data_device_manager", dm_ver, self.data_manager);
+            self.data_device = self.allocId();
+            try self.sendWords(self.data_manager, 1, &.{ self.data_device, self.seat });
+        }
 
         self.surface = self.allocId();
         try self.sendWords(self.compositor, 0, &.{self.surface});
@@ -206,6 +276,10 @@ pub const Window = struct {
         try self.sendWords(self.surface, 6, &.{});
         try self.waitConfigure(10_000);
 
+        // Publish generation 1 so the first nPollMetrics carries the live
+        // size with scale=1 fallback metrics even when the compositor
+        // offers no wl_output (v1 globals only) or sends no done batch.
+        self.metrics_gen +|= 1;
         try self.makePool(self.cur_w, self.cur_h);
         return self;
     }
@@ -337,6 +411,32 @@ pub const Window = struct {
         return .{ .w = self.cur_w, .h = self.cur_h };
     }
 
+    /// Generation-gated DisplayMetrics snapshot for the JNI nPollMetrics
+    /// path. Returns the metrics once per generation into `out` (int[8]:
+    /// [w,h,densityDpi,density*1000,scaled*1000,xdpi*1000,ydpi*1000,scale]);
+    /// null when nothing new arrived. Pure accessor: performs no I/O.
+    /// w/h come from the live window size; densityDpi = 160*scale;
+    /// xdpi/ydpi derive from the output physical size with a fallback to
+    /// densityDpi when the size is unknown.
+    pub fn takeMetrics(self: *Window, out: *[8]i32) ?void {
+        if (self.taken_metrics_gen == self.metrics_gen) return null;
+        self.taken_metrics_gen = self.metrics_gen;
+        const scale: i32 = @max(self.out_scale, 1);
+        const dpi: i32 = 160 * scale;
+        const w: i32 = self.cur_w;
+        const h: i32 = self.cur_h;
+        var xdpi: i32 = dpi * 1000;
+        var ydpi: i32 = dpi * 1000;
+        if (self.out_mm_w > 0 and w > 0) {
+            xdpi = @intCast(@divTrunc(@as(i64, w) * 25400, @as(i64, self.out_mm_w)));
+        }
+        if (self.out_mm_h > 0 and h > 0) {
+            ydpi = @intCast(@divTrunc(@as(i64, h) * 25400, @as(i64, self.out_mm_h)));
+        }
+        out.* = .{ w, h, dpi, scale * 1000, scale * 1000, xdpi, ydpi, scale };
+        return {};
+    }
+
     /// Best-effort destroy of every protocol object, then free.
     /// wl_compositor and wl_shm are version-1 singletons with no release
     /// request in this protocol version (release is v2+ / inferred), so
@@ -351,13 +451,22 @@ pub const Window = struct {
         }
         if (self.pool != 0) self.sendWords(self.pool, 1, &.{}) catch {};
         if (self.wm_base != 0) self.sendWords(self.wm_base, 0, &.{}) catch {};
-        // Seat objects: release is version-gated (keyboard/pointer need v3+,
-        // seat needs v5+). Bound version is min(advertised, 8); only send
-        // release when the bound version supports it.
+        // Seat objects: release is version-gated (keyboard/pointer/touch
+        // need seat v3+, seat needs v5+; bound version is min(advertised,
+        // 8)). Output release needs wl_output v3+. Only send release when
+        // the bound version supports it.
         const seat_ver: u32 = @min(self.seat_version, 8);
         if (self.keyboard != 0 and seat_ver >= 3) self.sendWords(self.keyboard, 0, &.{}) catch {};
         if (self.pointer != 0 and seat_ver >= 3) self.sendWords(self.pointer, 0, &.{}) catch {};
+        if (self.touch != 0 and seat_ver >= 3) self.sendWords(self.touch, 0, &.{}) catch {};
         if (self.seat != 0 and seat_ver >= 5) self.sendWords(self.seat, 4, &.{}) catch {};
+        // Clipboard objects: source.destroy=0 / offer.destroy=2 always
+        // exist; device.release=1 needs v2+; manager.release=2 exists only
+        // at v4 (XML), unreachable at our min(advertised, 3) bind.
+        if (self.clip_source != 0) self.sendWords(self.clip_source, 0, &.{}) catch {};
+        if (self.clip_offer != 0) self.sendWords(self.clip_offer, 2, &.{}) catch {};
+        if (self.data_device != 0 and @min(self.dm_version, 3) >= 2) self.sendWords(self.data_device, 1, &.{}) catch {};
+        if (self.data_manager != 0 and @min(self.dm_version, 3) >= 4) self.sendWords(self.data_manager, 2, &.{}) catch {};
         const gpa = self.gpa;
         self.cleanup();
         gpa.destroy(self);
@@ -365,7 +474,10 @@ pub const Window = struct {
 
     fn cleanup(self: *Window) void {
         self.resetXkb();
-        self.drainFds();
+        if (self.clip_text) |t| {
+            self.gpa.free(t);
+            self.clip_text = null;
+        }
         if (self.map) |m| {
             posix.munmap(m);
             self.map = null;
@@ -410,6 +522,18 @@ pub const Window = struct {
             if (self.seat_name == 0) {
                 self.seat_name = name;
                 self.seat_version = version;
+            }
+        } else if (std.mem.eql(u8, iface, "wl_output")) {
+            // First output wins; bound at min(advertised, 4) in open.
+            if (self.out_name == 0) {
+                self.out_name = name;
+                self.out_version = version;
+            }
+        } else if (std.mem.eql(u8, iface, "wl_data_device_manager")) {
+            // First manager wins; bound at min(advertised, 3) in open.
+            if (self.dm_name == 0) {
+                self.dm_name = name;
+                self.dm_version = version;
             }
         }
     }
@@ -469,6 +593,263 @@ pub const Window = struct {
         if (n != 0) try self.recv();
         try self.consumeKeymap();
         self.pumpRepeat();
+    }
+    // ------------------------------------------------------------------
+    // M4 clipboard engine (clipboard agent owns): data-device copy/paste.
+    // Opcodes (verified against /usr/share/wayland/wayland.xml):
+    // wl_data_device_manager: create_data_source=0 get_data_device=1.
+    // wl_data_device: set_selection=1 (source nullable, serial);
+    //   events data_offer=0 selection=2 (offer id nullable).
+    // wl_data_source: offer=0; events target=0 send=1 (mime + fd)
+    //   cancelled=2.
+    // wl_data_offer: offer=0 (mime string); receive=1 (mime + fd).
+    // Selection mime preference: text/plain;charset=utf-8, then
+    // text/plain, then UTF8_STRING. No memfd anywhere: the receiver
+    // supplies the fd; copy serves send-event fds, paste reads the
+    // offer-receive pipe to EOF.
+    // ------------------------------------------------------------------
+
+    /// Offered text mime types, in preference order.
+    const clip_mime_utf8 = "text/plain;charset=utf-8";
+    const clip_mime_plain = "text/plain";
+    const clip_mime_legacy = "UTF8_STRING";
+
+    /// True when `mime` is one of the three text types we serve/accept.
+    fn isClipTextMime(mime: []const u8) bool {
+        return std.mem.eql(u8, mime, clip_mime_utf8) or
+            std.mem.eql(u8, mime, clip_mime_plain) or
+            std.mem.eql(u8, mime, clip_mime_legacy);
+    }
+
+    /// Copy: publish `text` as the Wayland selection. Empty text clears
+    /// the selection (null source). No manager/seat/device = local-only:
+    /// record nothing here; the Java side keeps its process-local copy.
+    /// A previous live source is destroyed first. Best-effort sends: a
+    /// dead socket leaves the text staged for the send handler.
+    pub fn clipboardCopy(self: *Window, text: []const u8) void {
+        if (self.data_manager == 0 or self.data_device == 0) return;
+        if (self.clip_source != 0) {
+            self.sendWords(self.clip_source, 0, &.{}) catch {};
+            self.clip_source = 0;
+        }
+        if (self.clip_text) |t| {
+            self.gpa.free(t);
+            self.clip_text = null;
+        }
+        if (text.len == 0) {
+            self.sendWords(self.data_device, 1, &.{ 0, self.last_serial }) catch {};
+            return;
+        }
+        const dup = self.gpa.dupe(u8, text) catch return;
+        const src = self.allocId();
+        self.sendWords(self.data_manager, 0, &.{src}) catch {
+            self.gpa.free(dup);
+            return;
+        };
+        self.sendStr(src, 0, clip_mime_utf8) catch {};
+        self.sendStr(src, 0, clip_mime_plain) catch {};
+        self.sendStr(src, 0, clip_mime_legacy) catch {};
+        self.sendWords(self.data_device, 1, &.{ src, self.last_serial }) catch {};
+        self.clip_source = src;
+        self.clip_text = dup;
+    }
+
+    /// Best-effort clear of our selection (null source + drop staged text).
+    /// Used by close(); clipboardCopy("") is the public clear path.
+    fn clearSelection(self: *Window) void {
+        if (self.data_device != 0) {
+            self.sendWords(self.data_device, 1, &.{ 0, self.last_serial }) catch {};
+        }
+        if (self.clip_source != 0) {
+            self.sendWords(self.clip_source, 0, &.{}) catch {};
+            self.clip_source = 0;
+        }
+        if (self.clip_text) |t| {
+            self.gpa.free(t);
+            self.clip_text = null;
+        }
+    }
+
+    /// wl_data_source.send: serve one receiver fd with the staged text.
+    /// Non-text mimes get an empty (immediately-closed) transfer. The fd
+    /// always closes here. EINTR retries on write; other errors truncate.
+    fn onSourceSend(self: *Window, mime: []const u8, wfd: ?posix.fd_t) void {
+        const fd = wfd orelse return;
+        defer _ = linux.close(fd);
+        if (!isClipTextMime(mime)) return;
+        const text = self.clip_text orelse return;
+        // Strip a NUL terminator if the caller staged one (defensive:
+        // clipboardCopy stores raw bytes without NUL).
+        var body = text;
+        if (body.len > 0 and body[body.len - 1] == 0) body = body[0 .. body.len - 1];
+        var off: usize = 0;
+        while (off < body.len) {
+            const rc = linux.write(fd, body.ptr + off, body.len - off);
+            switch (linux.errno(rc)) {
+                .SUCCESS => {
+                    if (rc == 0) return;
+                    off += @intCast(rc);
+                },
+                .INTR => continue,
+                else => return,
+            }
+        }
+    }
+
+    /// wl_data_source.cancelled: our selection was replaced; drop the
+    /// source object and the staged text.
+    fn onSourceCancelled(self: *Window) void {
+        if (self.clip_source != 0) {
+            self.sendWords(self.clip_source, 0, &.{}) catch {};
+            self.clip_source = 0;
+        }
+        if (self.clip_text) |t| {
+            self.gpa.free(t);
+            self.clip_text = null;
+        }
+    }
+
+    /// wl_data_device.data_offer: stash the new offer id, destroying any
+    /// previous offer object first (one live offer at a time).
+    fn onDataOffer(self: *Window, offer_id: u32) void {
+        if (self.clip_offer != 0) {
+            self.sendWords(self.clip_offer, 2, &.{}) catch {};
+        }
+        self.clip_offer = offer_id;
+        self.clip_offer_utf8 = false;
+        self.clip_offer_plain = false;
+        self.clip_offer_legacy = false;
+    }
+
+    /// wl_data_offer.offer: record which text mimes the remote side offers.
+    fn onOfferMime(self: *Window, mime: []const u8) void {
+        if (std.mem.eql(u8, mime, clip_mime_utf8)) {
+            self.clip_offer_utf8 = true;
+        } else if (std.mem.eql(u8, mime, clip_mime_plain)) {
+            self.clip_offer_plain = true;
+        } else if (std.mem.eql(u8, mime, clip_mime_legacy)) {
+            self.clip_offer_legacy = true;
+        }
+    }
+
+    /// wl_data_device.selection: adopt the offer (or null = empty) and
+    /// push a kind-7 hint: [7,1,...] text offered, [7,2,...] non-text
+    /// offer, [7,0,...] empty. A superseded offer object is destroyed.
+    /// Null id with a live stash destroys the stash (defensive: the
+    /// compositor normally destroys it, but double-destroy is harmless
+    /// since ids are never reused on one connection).
+    fn onSelection(self: *Window, offer_id: u32) void {
+        if (offer_id == 0) {
+            if (self.clip_offer != 0) {
+                self.sendWords(self.clip_offer, 2, &.{}) catch {};
+                self.clip_offer = 0;
+            }
+            self.clip_offer_utf8 = false;
+            self.clip_offer_plain = false;
+            self.clip_offer_legacy = false;
+            self.pushEvent(.{ 7, 0, 0, 0, 0, 0, 0, 0 });
+            return;
+        }
+        self.clip_offer = offer_id;
+        if (self.clip_offer_utf8 or self.clip_offer_plain or self.clip_offer_legacy) {
+            self.pushEvent(.{ 7, 1, 0, 0, 0, 0, 0, 0 });
+        } else {
+            self.pushEvent(.{ 7, 2, 0, 0, 0, 0, 0, 0 });
+        }
+    }
+
+    /// Best mime the current offer carries, or null when no text is
+    /// offered. Preference: utf8 > plain > legacy.
+    fn offerMime(self: *const Window) ?[]const u8 {
+        if (self.clip_offer == 0) return null;
+        if (self.clip_offer_utf8) return clip_mime_utf8;
+        if (self.clip_offer_plain) return clip_mime_plain;
+        if (self.clip_offer_legacy) return clip_mime_legacy;
+        return null;
+    }
+
+    /// True when the current remote offer carries text.
+    pub fn clipboardHasText(self: *const Window) bool {
+        return self.offerMime() != null;
+    }
+
+    /// Paste: receive the offered text into a fresh heap slice. Creates a
+    /// pipe, sends wl_data_offer.receive(mime, write-end), then reads the
+    /// write-end to EOF after the compositor serves it. Returns null when
+    /// no text is offered or any step fails. Caller owns the slice.
+    /// Pumps the connection so the receive request is flushed and the
+    /// sender's bytes arrive; bounded at ~2s.
+    pub fn clipboardPaste(self: *Window) ?[]u8 {
+        const mime = self.offerMime() orelse return null;
+        if (self.sock == -1) return null;
+        var fds: [2]posix.fd_t = .{ -1, -1 };
+        const rc = linux.pipe(&fds);
+        if (linux.errno(rc) != .SUCCESS) return null;
+        self.sendReceive(self.clip_offer, mime, fds[1]) catch {
+            _ = linux.close(fds[0]);
+            _ = linux.close(fds[1]);
+            return null;
+        };
+        _ = linux.close(fds[1]);
+        // Non-blocking reads: the sender serves the fd asynchronously, so
+        // a blocking read could wait past the deadline with no way out.
+        // O_NONBLOCK via fcntl; errors fall back to blocking (the pump
+        // loop still bounds total time, and EOF ends it early).
+        const fl = linux.fcntl(fds[0], linux.F.GETFL, 0);
+        if (linux.errno(fl) == .SUCCESS) {
+            const cur: usize = fl;
+            const nonblock: usize = 0o4000; // O_NONBLOCK on all Linux arches
+            _ = linux.fcntl(fds[0], linux.F.SETFL, cur | nonblock);
+        }
+        defer _ = linux.close(fds[0]);
+        // Flush the request, then read until EOF or timeout (~2s).
+        const start = nowMs();
+        var out: std.ArrayListUnmanaged(u8) = .empty;
+        defer out.deinit(self.gpa);
+        var done = false;
+        while (!done) {
+            const el = nowMs() -| start;
+            if (el >= 2000) break;
+            self.pump(100) catch {};
+            while (true) {
+                var tmp: [4096]u8 = undefined;
+                const n = linux.read(fds[0], &tmp, tmp.len);
+                switch (linux.errno(n)) {
+                    .SUCCESS => {
+                        if (n == 0) {
+                            done = true;
+                            break;
+                        }
+                        out.appendSlice(self.gpa, tmp[0..@intCast(n)]) catch return null;
+                        if (out.items.len > 8 * 1024 * 1024) return null;
+                    },
+                    .INTR => continue,
+                    .AGAIN => break,
+                    else => {
+                        // Sender hung up without EOF or another read error:
+                        // keep what arrived (if anything), stop reading.
+                        done = out.items.len > 0;
+                        if (!done) return null;
+                        break;
+                    },
+                }
+            }
+        }
+        if (!done and out.items.len == 0) return null;
+        // Strip one trailing NUL the sender may have included.
+        var items = out.items;
+        if (items.len > 0 and items[items.len - 1] == 0) items = items[0 .. items.len - 1];
+        return self.gpa.dupe(u8, items) catch null;
+    }
+
+    /// wl_data_offer.receive(offer, mime, fd): request text bytes on `fd`.
+    /// The fd travels out-of-band via SCM_RIGHTS with this message.
+    fn sendReceive(self: *Window, offer: u32, mime: []const u8, fd: posix.fd_t) !void {
+        if (stringWireLen(mime) > 240) return error.MessageTooLong;
+        var buf: [256]u8 = undefined;
+        var pos: usize = 8;
+        try putStr(buf[0..], &pos, mime);
+        try self.finishSendFd(&buf, pos, offer, 1, fd);
     }
 
     // ------------------------------------------------------------------
@@ -549,12 +930,14 @@ pub const Window = struct {
         }
     }
 
-    /// wl_seat.capabilities: create keyboard/pointer objects for newly
-    /// present capabilities. Never destroys on loss (compositor may send
-    /// no further events; objects go away at close).
+    /// wl_seat.capabilities: create keyboard/pointer/touch objects for
+    /// newly present capabilities. Never destroys on loss (compositor may
+    /// send no further events; objects go away at close). Touch needs
+    /// wl_seat.get_touch (opcode 2); release needs seat v5+.
     fn onSeatCaps(self: *Window, caps: u32) void {
         const have_kb = (caps & 2) != 0;
         const have_ptr = (caps & 1) != 0;
+        const have_touch = (caps & 4) != 0;
         // Assign the id before the best-effort send: on a dead socket
         // (or in tests with no socket) the objects still exist locally.
         if (have_kb and self.keyboard == 0) {
@@ -566,6 +949,11 @@ pub const Window = struct {
             const id = self.allocId();
             self.pointer = id;
             self.sendWords(self.seat, 0, &.{id}) catch {};
+        }
+        if (have_touch and self.touch == 0) {
+            const id = self.allocId();
+            self.touch = id;
+            self.sendWords(self.seat, 2, &.{id}) catch {};
         }
         self.seat_caps = caps;
     }
@@ -879,6 +1267,131 @@ pub const Window = struct {
         }
     }
 
+    // ------------------------------------------------------------------
+    // M4 touch engine (touch agent owns). 10 dense slots, lowest-free
+    // indices; ring kinds 7 (header [7,raw,count,tlo,thi,0,0,0]) + count
+    // x kind 8 ([8,id,x,y,0,0,0,0]). wl_touch opcodes: down=0 up=1
+    // motion=2 frame=3 cancel=4 shape=5 orientation=6.
+    // ------------------------------------------------------------------
+
+    /// Split (lo, hi) timestamp halves shared by splitTime and the
+    /// touch header emitter (one named type so call sites unify).
+    const TimePair = struct { lo: i32, hi: i32 };
+
+    /// Number of currently active touch slots.
+    fn touchActive(self: *const Window) usize {
+        var n: usize = 0;
+        for (self.touch_used) |u| {
+            if (u) n += 1;
+        }
+        return n;
+    }
+
+    /// Slot index for a wl touch id, or null when unknown.
+    fn touchSlotOf(self: *const Window, wl_id: i32) ?usize {
+        for (0..10) |i| {
+            if (self.touch_used[i] and self.touch_wl[i] == wl_id) return i;
+        }
+        return null;
+    }
+
+    /// Lowest free slot, or null when all 10 are in use.
+    fn touchFree(self: *const Window) ?usize {
+        for (0..10) |i| {
+            if (!self.touch_used[i]) return i;
+        }
+        return null;
+    }
+
+    /// Emit the pending staged motion as one MOVE before down/up/cancel.
+    fn flushTouchPending(self: *Window) void {
+        if (!self.touch_pending) return;
+        self.touch_pending = false;
+        const t = splitTime(self.touch_pending_time);
+        self.pushTouchHeader(2, t);
+    }
+
+    /// Push one kind-7 header + one kind-8 row per active slot, in slot
+    /// order. `raw` is the MotionEvent-style action (DOWN/POINTER_DOWN/
+    /// MOVE/POINTER_UP/UP/CANCEL). Never pushes an empty header: callers
+    /// guarantee count >= 1 (clipboard kind-7 uses count == 0 instead).
+    fn pushTouchHeader(self: *Window, raw: i32, t: TimePair) void {
+        var count: i32 = 0;
+        for (self.touch_used) |u| {
+            if (u) count += 1;
+        }
+        if (count == 0) return;
+        self.pushEvent(.{ 7, raw, count, t.lo, t.hi, 0, 0, 0 });
+        for (0..10) |i| {
+            if (!self.touch_used[i]) continue;
+            self.pushEvent(.{ 8, @intCast(i), @bitCast(self.touch_x[i]), @bitCast(self.touch_y[i]), 0, 0, 0, 0 });
+        }
+    }
+
+    /// wl_touch.down: allocate the lowest-free slot; first-down emits
+    /// DOWN, later ones POINTER_DOWN | (index << 8). Unknown extra
+    /// downs past 10 slots are ignored.
+    fn onTouchDown(self: *Window, time: u32, wl_id: i32, x: i32, y: i32) void {
+        self.flushTouchPending();
+        const slot = self.touchFree() orelse return;
+        self.touch_used[slot] = true;
+        self.touch_wl[slot] = wl_id;
+        self.touch_x[slot] = fixedToFloat(x);
+        self.touch_y[slot] = fixedToFloat(y);
+        const first = self.touchActive() == 1;
+        const raw: i32 = if (first) 0 else 5 | (@as(i32, @intCast(slot)) << 8);
+        const t = splitTime(time);
+        self.pushTouchHeader(raw, t);
+    }
+
+    /// wl_touch.motion: stage the position; the frame emits one MOVE.
+    /// Unknown ids are ignored.
+    fn onTouchMotion(self: *Window, time: u32, wl_id: i32, x: i32, y: i32) void {
+        const slot = self.touchSlotOf(wl_id) orelse return;
+        self.touch_x[slot] = fixedToFloat(x);
+        self.touch_y[slot] = fixedToFloat(y);
+        self.touch_pending = true;
+        self.touch_pending_time = time;
+    }
+
+    /// wl_touch.frame: emit one MOVE for staged motion.
+    fn onTouchFrame(self: *Window) void {
+        if (!self.touch_pending) return;
+        if (self.touchActive() == 0) {
+            self.touch_pending = false;
+            return;
+        }
+        self.touch_pending = false;
+        const t = splitTime(self.touch_pending_time);
+        self.pushTouchHeader(2, t);
+    }
+
+    /// wl_touch.up: free the slot; last-up emits UP, otherwise
+    /// POINTER_UP | (index << 8). Unknown ids are ignored.
+    fn onTouchUp(self: *Window, time: u32, wl_id: i32) void {
+        self.flushTouchPending();
+        const slot = self.touchSlotOf(wl_id) orelse return;
+        const last = self.touchActive() == 1;
+        const raw: i32 = if (last) 1 else 6 | (@as(i32, @intCast(slot)) << 8);
+        const t = splitTime(time);
+        // Emit with the slot still counted so the header/rows include the
+        // lifting pointer at its last position, then free it.
+        self.pushTouchHeader(raw, t);
+        self.touch_used[slot] = false;
+    }
+
+    /// wl_touch.cancel: CANCEL over all active slots, then clear.
+    /// wl_touch.shape/orientation: parsed and discarded (see dispatch).
+    fn onTouchCancel(self: *Window) void {
+        self.flushTouchPending();
+        if (self.touchActive() == 0) return;
+        const now = nowMs();
+        const t = splitTime(@truncate(now & 0xFFFF_FFFF));
+        self.pushTouchHeader(3, t);
+        for (0..10) |i| self.touch_used[i] = false;
+        self.touch_pending = false;
+    }
+
     /// wl_fixed (24.8) -> float surface-local pixels.
     fn fixedToFloat(v: i32) f32 {
         return @as(f32, @floatFromInt(v)) / 256.0;
@@ -886,7 +1399,7 @@ pub const Window = struct {
 
     /// Split a u32 millisecond timestamp into (lo, hi) jint halves.
     /// Wayland time is u32 millis with an undefined base; hi is 0.
-    fn splitTime(time: u32) struct { lo: i32, hi: i32 } {
+    fn splitTime(time: u32) TimePair {
         return .{ .lo = @bitCast(time), .hi = 0 };
     }
 
@@ -1013,6 +1526,9 @@ pub const Window = struct {
                             self.cur_w = nw;
                             self.cur_h = nh;
                             self.size_gen +|= 1;
+                            // Window size feeds metrics w/h: bump so Java
+                            // re-polls DisplayMetrics on resize.
+                            self.metrics_gen +|= 1;
                         }
                     }
                 },
@@ -1057,7 +1573,8 @@ pub const Window = struct {
                     try self.onKeymap(format, km_size);
                 },
                 1 => {
-                    _ = try c.nextU32(); // serial
+                    const kserial = try c.nextU32();
+                    self.last_serial = kserial;
                     _ = try c.nextU32(); // surface
                     _ = try c.nextArray(); // keys (must not emulate)
                     self.pushEvent(.{ 5, 1, 0, 0, 0, 0, 0, 0 });
@@ -1068,11 +1585,12 @@ pub const Window = struct {
                     self.onKeyboardLeave();
                 },
                 3 => {
-                    const serial = try c.nextU32();
+                    const kserial = try c.nextU32();
+                    self.last_serial = kserial;
                     const time = try c.nextU32();
                     const key = try c.nextU32();
                     const st = try c.nextU32();
-                    try self.onKey(serial, time, key, st);
+                    try self.onKey(kserial, time, key, st);
                 },
                 4 => {
                     _ = try c.nextU32(); // serial
@@ -1097,11 +1615,12 @@ pub const Window = struct {
             // axis_value120=9 (since 8) axis_relative_direction=10 warp=11.
             switch (op) {
                 0 => {
-                    const serial = try c.nextU32();
+                    const pserial = try c.nextU32();
+                    self.last_serial = pserial;
                     const surface = try c.nextU32();
                     const x = try c.nextI32();
                     const y = try c.nextI32();
-                    try self.onPointerEnter(serial, surface, x, y);
+                    try self.onPointerEnter(pserial, surface, x, y);
                 },
                 1 => {
                     _ = try c.nextU32(); // serial
@@ -1115,11 +1634,12 @@ pub const Window = struct {
                     self.onPointerMotion(time, x, y);
                 },
                 3 => {
-                    const serial = try c.nextU32();
+                    const pserial = try c.nextU32();
+                    self.last_serial = pserial;
                     const time = try c.nextU32();
                     const button = try c.nextU32();
                     const st = try c.nextU32();
-                    self.onPointerButton(serial, time, button, st);
+                    self.onPointerButton(pserial, time, button, st);
                 },
                 4 => {
                     const time = try c.nextU32();
@@ -1137,6 +1657,146 @@ pub const Window = struct {
             }
             return;
         }
+        if (self.touch != 0 and id == self.touch) {
+            // wl_touch: down=0 up=1 motion=2 frame=3 cancel=4 shape=5
+            // orientation=6. xdg_output-style globals are NOT handled here;
+            // shape/orientation are parsed and discarded per contract.
+            switch (op) {
+                0 => {
+                    _ = try c.nextU32(); // serial
+                    const time = try c.nextU32();
+                    _ = try c.nextU32(); // surface
+                    const wl_id = try c.nextI32();
+                    const x = try c.nextI32();
+                    const y = try c.nextI32();
+                    self.onTouchDown(time, wl_id, x, y);
+                },
+                1 => {
+                    _ = try c.nextU32(); // serial
+                    const time = try c.nextU32();
+                    const wl_id = try c.nextI32();
+                    self.onTouchUp(time, wl_id);
+                },
+                2 => {
+                    const time = try c.nextU32();
+                    const wl_id = try c.nextI32();
+                    const x = try c.nextI32();
+                    const y = try c.nextI32();
+                    self.onTouchMotion(time, wl_id, x, y);
+                },
+                3 => self.onTouchFrame(),
+                4 => self.onTouchCancel(),
+                5 => {
+                    _ = try c.nextI32(); // id
+                    _ = try c.nextI32(); // major
+                    _ = try c.nextI32(); // minor
+                },
+                6 => {
+                    _ = try c.nextI32(); // id
+                    _ = try c.nextI32(); // orientation
+                },
+                else => {},
+            }
+            return;
+        }
+        if (self.output != 0 and id == self.output) {
+            // wl_output at min(adv,4): geometry=0 mode=1 done=2 scale=3
+            // name=4 description=5. xdg_output is DEFERRED (ignored).
+            switch (op) {
+                0 => {
+                    _ = try c.nextI32(); // x
+                    _ = try c.nextI32(); // y
+                    const mm_w = try c.nextI32();
+                    const mm_h = try c.nextI32();
+                    _ = try c.nextI32(); // subpixel
+                    _ = try c.nextString(); // make
+                    _ = try c.nextString(); // model
+                    _ = try c.nextI32(); // transform
+                    self.out_mm_w = mm_w;
+                    self.out_mm_h = mm_h;
+                },
+                1 => {
+                    _ = try c.nextU32(); // flags
+                    _ = try c.nextI32(); // width
+                    _ = try c.nextI32(); // height
+                    _ = try c.nextI32(); // refresh
+                },
+                2 => {
+                    // Atomic batch end: publish a fresh metrics generation.
+                    self.metrics_gen +|= 1;
+                },
+                3 => {
+                    const factor = try c.nextI32();
+                    if (factor > 0) self.out_scale = factor;
+                },
+                4 => {
+                    _ = try c.nextString(); // name
+                },
+                5 => {
+                    _ = try c.nextString(); // description
+                },
+                else => {},
+            }
+            return;
+        }
+        // --- M4 clipboard/data-device dispatch (clipboard agent owns) ---
+        if (self.clip_offer != 0 and id == self.clip_offer) {
+            // wl_data_offer: offer=0 only. source_actions/action (3/4)
+            // are dnd-only; ignored here.
+            if (op == 0) {
+                const mime = try c.nextString();
+                self.onOfferMime(mime);
+            }
+            return;
+        }
+        if (self.clip_source != 0 and id == self.clip_source) {
+            // wl_data_source: target=0, send=1, cancelled=2.
+            // dnd_* /action (4..7) are dnd-only; ignored here.
+            switch (op) {
+                0 => {
+                    _ = try c.nextString(); // accepted mime (nullable)
+                },
+                1 => {
+                    const mime = try c.nextString();
+                    const wfd = self.shiftFd();
+                    self.onSourceSend(mime, wfd);
+                },
+                2 => self.onSourceCancelled(),
+                else => {},
+            }
+            return;
+        }
+        if (self.data_device != 0 and id == self.data_device) {
+            // wl_data_device: data_offer=0, selection=2. enter/leave/motion
+            // (1/3..6, dnd) are parsed minimally and otherwise ignored.
+            switch (op) {
+                0 => {
+                    const offer_id = try c.nextU32();
+                    self.onDataOffer(offer_id);
+                },
+                1 => {
+                    _ = try c.nextU32(); // serial
+                    _ = try c.nextU32(); // surface
+                    _ = try c.nextI32(); // x (fixed)
+                    _ = try c.nextI32(); // y (fixed)
+                    _ = try c.nextU32(); // offer id (nullable object)
+                },
+                2 => {
+                    const offer_id = try c.nextU32();
+                    self.onSelection(offer_id);
+                },
+                3 => {
+                    _ = try c.nextU32(); // time
+                    _ = try c.nextI32(); // x (fixed)
+                    _ = try c.nextI32(); // y (fixed)
+                },
+                4 => {},
+                5 => {},
+                6 => {},
+                else => {},
+            }
+            return;
+        }
         if (op == 0) {
             for (self.frames[0..self.nframes], 0..) |fid, i| {
                 if (fid == id) {
@@ -1147,7 +1807,7 @@ pub const Window = struct {
                 }
             }
         }
-        // Anything else (delete_id, future versions): ignore.
+        // Anything else (delete_id, future versions, xdg_output): ignore.
     }
 
     fn sendRaw(self: *Window, bytes: []const u8, fd: ?posix.fd_t) !void {
@@ -2075,4 +2735,467 @@ test "keymap with bad format is ignored" {
     try std.testing.expect(!win.have_pending_keymap);
     try win.consumeKeymap();
     try std.testing.expect(win.xkb_state == null);
+}
+
+// ---------------------------------------------------------------------------
+// M4 touch/output tests: synthetic wl_touch/wl_output payloads.
+// ---------------------------------------------------------------------------
+
+/// Feed a synthetic wl_touch.down (serial,time,surface,id,x,y fixed).
+fn fakeTouchDown(win: *Window, time: u32, wl_id: i32, x: i32, y: i32) !void {
+    var buf: [24]u8 = undefined;
+    var pos: usize = 0;
+    putU32Wire(&buf, &pos, 1); // serial
+    putU32Wire(&buf, &pos, time);
+    putU32Wire(&buf, &pos, 7); // surface
+    putI32Wire(&buf, &pos, wl_id);
+    putI32Wire(&buf, &pos, x);
+    putI32Wire(&buf, &pos, y);
+    try win.onEvent(win.touch, 0, buf[0..pos]);
+}
+
+fn fakeTouchUp(win: *Window, time: u32, wl_id: i32) !void {
+    var buf: [12]u8 = undefined;
+    var pos: usize = 0;
+    putU32Wire(&buf, &pos, 2); // serial
+    putU32Wire(&buf, &pos, time);
+    putI32Wire(&buf, &pos, wl_id);
+    try win.onEvent(win.touch, 1, buf[0..pos]);
+}
+
+fn fakeTouchMotion(win: *Window, time: u32, wl_id: i32, x: i32, y: i32) !void {
+    var buf: [16]u8 = undefined;
+    var pos: usize = 0;
+    putU32Wire(&buf, &pos, time);
+    putI32Wire(&buf, &pos, wl_id);
+    putI32Wire(&buf, &pos, x);
+    putI32Wire(&buf, &pos, y);
+    try win.onEvent(win.touch, 2, buf[0..pos]);
+}
+
+fn blankTouchWindow() Window {
+    var win = blankInputWindow();
+    win.touch = 42;
+    return win;
+}
+
+test "seat caps create touch on cap 4" {
+    var win = blankInputWindow();
+    win.seat = 10;
+    var payload: [4]u8 = undefined;
+    var pos: usize = 0;
+    putU32Wire(&payload, &pos, 4); // touch only
+    try win.onEvent(10, 0, payload[0..pos]);
+    try std.testing.expect(win.touch != 0);
+    try std.testing.expect(win.keyboard == 0);
+    try std.testing.expect(win.pointer == 0);
+}
+
+test "touch down up emits DOWN then UP with full arrays" {
+    var win = blankTouchWindow();
+    try fakeTouchDown(&win, 1000, 7, 100 * 256, 50 * 256);
+    try win.onEvent(win.touch, 3, &.{}); // frame (no motion: no MOVE)
+    try fakeTouchUp(&win, 1010, 7);
+    // DOWN: header + 1 row; UP: header + 1 row.
+    try std.testing.expectEqual(@as(usize, 4), win.pendingInputs());
+    var out: [32]i32 = undefined;
+    const n = win.takeInput(&out);
+    try std.testing.expectEqual(@as(usize, 4), n);
+    try std.testing.expectEqual(@as(i32, 7), out[0]);
+    try std.testing.expectEqual(@as(i32, 0), out[1]); // DOWN
+    try std.testing.expectEqual(@as(i32, 1), out[2]); // count
+    try std.testing.expectEqual(@as(i32, 8), out[8]);
+    try std.testing.expectEqual(@as(i32, 0), out[9]); // slot 0
+    try std.testing.expectEqual(@as(f32, 100.0), @as(f32, @bitCast(out[10])));
+    try std.testing.expectEqual(@as(i32, 7), out[16]);
+    try std.testing.expectEqual(@as(i32, 1), out[17]); // UP
+    try std.testing.expectEqual(@as(i32, 8), out[24]);
+}
+
+test "touch second down carries index bits, up reuses slot" {
+    var win = blankTouchWindow();
+    try fakeTouchDown(&win, 1000, 7, 10 * 256, 10 * 256);
+    try fakeTouchDown(&win, 1001, 9, 20 * 256, 20 * 256);
+    try fakeTouchUp(&win, 1002, 7); // slot 0 lifts: POINTER_UP|0<<8
+    try fakeTouchDown(&win, 1003, 11, 30 * 256, 30 * 256); // reuses slot 0
+    var out: [96]i32 = undefined;
+    const n = win.takeInput(&out);
+    // DOWN(2) + POINTER_DOWN(3) + POINTER_UP(3) + POINTER_DOWN(3) = 11.
+    try std.testing.expectEqual(@as(usize, 11), n);
+    // [0] DOWN count 1; [2] POINTER_DOWN count 2 raw 5|(1<<8).
+    try std.testing.expectEqual(@as(i32, 0), out[1]);
+    try std.testing.expectEqual(@as(i32, 5 | (1 << 8)), out[17]);
+    try std.testing.expectEqual(@as(i32, 2), out[18]);
+    // [5] POINTER_UP for slot 0 (raw 6|0<<8 == 6), still 2 rows.
+    try std.testing.expectEqual(@as(i32, 7), out[40]);
+    try std.testing.expectEqual(@as(i32, 6), out[41]);
+    try std.testing.expectEqual(@as(i32, 2), out[42]);
+    // [8] POINTER_DOWN reusing slot 0 at (30,30).
+    try std.testing.expectEqual(@as(i32, 5 | (0 << 8)), out[65]);
+    try std.testing.expectEqual(@as(i32, 0), out[73]); // reused slot 0
+    try std.testing.expectEqual(@as(f32, 30.0), @as(f32, @bitCast(out[74])));
+}
+
+test "touch motion coalesces to one MOVE per frame" {
+    var win = blankTouchWindow();
+    try fakeTouchDown(&win, 1000, 7, 10 * 256, 10 * 256);
+    var drain: [32]i32 = undefined;
+    _ = win.takeInput(drain[0..]);
+    try fakeTouchMotion(&win, 1001, 7, 11 * 256, 11 * 256);
+    try fakeTouchMotion(&win, 1002, 7, 12 * 256, 12 * 256);
+    try win.onEvent(win.touch, 3, &.{}); // frame: one MOVE
+    try fakeTouchMotion(&win, 1003, 7, 13 * 256, 13 * 256);
+    try win.onEvent(win.touch, 3, &.{}); // frame: one MOVE
+    var out: [32]i32 = undefined;
+    const n = win.takeInput(&out);
+    try std.testing.expectEqual(@as(usize, 4), n);
+    try std.testing.expectEqual(@as(i32, 7), out[0]);
+    try std.testing.expectEqual(@as(i32, 2), out[1]); // MOVE
+    try std.testing.expectEqual(@as(f32, 12.0), @as(f32, @bitCast(out[10])));
+    try std.testing.expectEqual(@as(i32, 2), out[17]); // MOVE
+    try std.testing.expectEqual(@as(f32, 13.0), @as(f32, @bitCast(out[26])));
+}
+
+test "touch cancel clears and unknown ids ignored" {
+    var win = blankTouchWindow();
+    try fakeTouchDown(&win, 1000, 7, 10 * 256, 10 * 256);
+    try fakeTouchMotion(&win, 1001, 99, 50 * 256, 50 * 256); // unknown: ignored
+    try fakeTouchUp(&win, 1002, 99); // unknown: ignored
+    try std.testing.expectEqual(@as(usize, 2), win.pendingInputs());
+    try win.onEvent(win.touch, 4, &.{}); // cancel
+    var out: [32]i32 = undefined;
+    const n = win.takeInput(&out);
+    try std.testing.expectEqual(@as(usize, 4), n);
+    try std.testing.expectEqual(@as(i32, 3), out[17]); // CANCEL
+    try std.testing.expectEqual(@as(usize, 0), win.touchActive());
+    // Shape/orientation parse+discard: no events, no crash.
+    var sp: [12]u8 = undefined;
+    var pos: usize = 0;
+    putI32Wire(&sp, &pos, 7);
+    putI32Wire(&sp, &pos, 10 * 256);
+    putI32Wire(&sp, &pos, 5 * 256);
+    try win.onEvent(win.touch, 5, sp[0..pos]);
+    pos = 0;
+    putI32Wire(&sp, &pos, 7);
+    putI32Wire(&sp, &pos, 45 * 256);
+    try win.onEvent(win.touch, 6, sp[0..8]);
+    try std.testing.expectEqual(@as(usize, 0), win.pendingInputs());
+}
+
+test "touch over capacity ignores extra downs" {
+    var win = blankTouchWindow();
+    var i: i32 = 0;
+    while (i < 10) : (i += 1) {
+        try fakeTouchDown(&win, 1000 + @as(u32, @intCast(i)), i, i * 256, i * 256);
+    }
+    try std.testing.expectEqual(@as(usize, 10), win.touchActive());
+    const before = win.pendingInputs();
+    try fakeTouchDown(&win, 2000, 99, 0, 0); // 11th: ignored
+    try std.testing.expectEqual(before, win.pendingInputs());
+    try std.testing.expectEqual(@as(usize, 10), win.touchActive());
+}
+
+test "touch pending MOVE flushes before down" {
+    var win = blankTouchWindow();
+    try fakeTouchDown(&win, 1000, 7, 10 * 256, 10 * 256);
+    try fakeTouchMotion(&win, 1001, 7, 11 * 256, 11 * 256);
+    try fakeTouchDown(&win, 1002, 9, 20 * 256, 20 * 256); // flushes MOVE first
+    var out: [64]i32 = undefined;
+    const n = win.takeInput(&out);
+    // DOWN(2) + MOVE(2) + POINTER_DOWN(3) = 7 events.
+    try std.testing.expectEqual(@as(usize, 7), n);
+    try std.testing.expectEqual(@as(i32, 0), out[1]); // DOWN
+    try std.testing.expectEqual(@as(i32, 2), out[17]); // flushed MOVE
+    try std.testing.expectEqual(@as(i32, 5 | (1 << 8)), out[33]); // POINTER_DOWN
+}
+
+test "output geometry scale done feeds takeMetrics" {
+    var win = blankInputWindow();
+    win.output = 55;
+    win.cur_w = 800;
+    win.cur_h = 600;
+    // geometry(mm 400x300) then scale 2 then done.
+    const ms = "Dell";
+    const md = "U2719D";
+    var gb: [128]u8 = undefined;
+    var p2: usize = 0;
+    putI32Wire(&gb, &p2, 0);
+    putI32Wire(&gb, &p2, 0);
+    putI32Wire(&gb, &p2, 400);
+    putI32Wire(&gb, &p2, 300);
+    putI32Wire(&gb, &p2, 0);
+    p2 += writeString(gb[p2..], ms);
+    p2 += writeString(gb[p2..], md);
+    putI32Wire(&gb, &p2, 0);
+    try win.onEvent(55, 0, gb[0..p2]);
+    var sb: [4]u8 = undefined;
+    var sp2: usize = 0;
+    putI32Wire(&sb, &sp2, 2);
+    try win.onEvent(55, 3, sb[0..sp2]);
+    try win.onEvent(55, 2, &.{}); // done: gen 1
+    var snap: [8]i32 = undefined;
+    const got = win.takeMetrics(&snap);
+    try std.testing.expect(got != null);
+    try std.testing.expectEqual(@as(i32, 800), snap[0]);
+    try std.testing.expectEqual(@as(i32, 600), snap[1]);
+    try std.testing.expectEqual(@as(i32, 320), snap[2]); // 160*2
+    try std.testing.expectEqual(@as(i32, 2000), snap[3]);
+    try std.testing.expectEqual(@as(i32, 50800), snap[5]); // 800*25400/400
+    try std.testing.expectEqual(@as(i32, 50800), snap[6]); // 600*25400/300
+    try std.testing.expect(win.takeMetrics(&snap) == null); // gated
+}
+
+test "metrics fall back to density when mm unknown" {
+    var win = blankInputWindow();
+    win.output = 55;
+    win.cur_w = 640;
+    win.cur_h = 480;
+    win.metrics_gen = 1; // synthetic generation
+    var snap: [8]i32 = undefined;
+    const got = win.takeMetrics(&snap);
+    try std.testing.expect(got != null);
+    try std.testing.expectEqual(@as(i32, 160), snap[2]);
+    try std.testing.expectEqual(@as(i32, 160000), snap[5]);
+    try std.testing.expectEqual(@as(i32, 1), snap[7]);
+}
+
+test "output mode event is consumed without publishing metrics" {
+    // wl_output.mode (op 1) carries the hardware pixel size but must not
+    // publish: takeMetrics stays gated until done (op 2) or a scale change
+    // path that also flows through done. Unknown ops are ignored too.
+    var win = blankInputWindow();
+    win.output = 55;
+    win.cur_w = 800;
+    win.cur_h = 600;
+    var mb: [16]u8 = undefined;
+    var mp: usize = 0;
+    putI32Wire(&mb, &mp, 0); // flags
+    putI32Wire(&mb, &mp, 1920); // width (hardware px: not window px)
+    putI32Wire(&mb, &mp, 1080); // height
+    putI32Wire(&mb, &mp, 60000); // refresh mHz
+    try win.onEvent(55, 1, mb[0..mp]);
+    try std.testing.expectEqual(@as(u64, 0), win.metrics_gen);
+    var snap: [8]i32 = undefined;
+    try std.testing.expect(win.takeMetrics(&snap) == null);
+    try win.onEvent(55, 9, &.{}); // unknown op: ignored
+    try std.testing.expectEqual(@as(u64, 0), win.metrics_gen);
+    try win.onEvent(55, 2, &.{}); // done publishes
+    try std.testing.expect(win.takeMetrics(&snap) != null);
+    try std.testing.expectEqual(@as(i32, 800), snap[0]);
+    try std.testing.expectEqual(@as(i32, 160), snap[2]); // scale still 1
+}
+
+test "output scale after done needs a second done to publish" {
+    // Scale arriving after the done batch must not publish on its own:
+    // the compositor's next done ends the batch and publishes once.
+    var win = blankInputWindow();
+    win.output = 55;
+    win.cur_w = 640;
+    win.cur_h = 480;
+    try win.onEvent(55, 2, &.{}); // done: gen 1
+    var snap: [8]i32 = undefined;
+    try std.testing.expect(win.takeMetrics(&snap) != null);
+    var sb: [4]u8 = undefined;
+    var sp: usize = 0;
+    putI32Wire(&sb, &sp, 2);
+    try win.onEvent(55, 3, sb[0..sp]); // scale=2, no publish yet
+    try std.testing.expect(win.takeMetrics(&snap) == null);
+    try std.testing.expectEqual(@as(i32, 2), win.out_scale);
+    try win.onEvent(55, 2, &.{}); // done: gen 2
+    try std.testing.expect(win.takeMetrics(&snap) != null);
+    try std.testing.expectEqual(@as(i32, 320), snap[2]); // 160*2
+    try std.testing.expectEqual(@as(i32, 2), snap[7]);
+}
+
+// ---------------------------------------------------------------------------
+// M4 clipboard tests: synthetic offer/selection/send flows.
+// ---------------------------------------------------------------------------
+
+/// Blank clipboard window: no socket, loopback sends succeed (sendWords on
+/// fd -1 fails silently? No: sendRaw on -1 errors, caught by callers).
+/// Tests that need sends use sock=-1 with catch {} paths and check state.
+fn blankClipWindow() Window {
+    return Window{ .gpa = std.testing.allocator };
+}
+
+/// Feed a wl_data_offer.offer(0) mime string through onEvent.
+fn fakeOfferMime(win: *Window, mime: []const u8) !void {
+    var buf: [256]u8 = undefined;
+    var pos: usize = 0;
+    pos += writeString(buf[pos..], mime);
+    try win.onEvent(win.clip_offer, 0, buf[0..pos]);
+}
+
+test "noteGlobal records first data-device manager" {
+    var win = blankClipWindow();
+    win.noteGlobal(7, "wl_data_device_manager", 4);
+    try std.testing.expectEqual(@as(u32, 7), win.dm_name);
+    try std.testing.expectEqual(@as(u32, 4), win.dm_version);
+    win.noteGlobal(8, "wl_data_device_manager", 2);
+    try std.testing.expectEqual(@as(u32, 7), win.dm_name);
+}
+
+test "offer mime flags and selection push kind-7 text hint" {
+    var win = blankClipWindow();
+    win.data_device = 40;
+    win.onDataOffer(41);
+    win.clip_offer = 41;
+    try fakeOfferMime(&win, "text/plain");
+    try std.testing.expect(win.clip_offer_plain);
+    try std.testing.expect(!win.clip_offer_utf8);
+    // selection adopts the offer and pushes [7,1,...].
+    var sel: [4]u8 = undefined;
+    var pos: usize = 0;
+    putU32Wire(&sel, &pos, 41);
+    try win.onEvent(40, 2, sel[0..pos]);
+    try std.testing.expectEqual(@as(u32, 41), win.clip_offer);
+    try std.testing.expect(win.clipboardHasText());
+    try std.testing.expectEqual(@as(usize, 1), win.pendingInputs());
+    var out: [8]i32 = undefined;
+    const n = win.takeInput(&out);
+    try std.testing.expectEqual(@as(usize, 1), n);
+    try std.testing.expectEqual(@as(i32, 7), out[0]);
+    try std.testing.expectEqual(@as(i32, 1), out[1]);
+    try std.testing.expectEqual(@as(i32, 0), out[2]);
+}
+
+test "selection with non-text offer pushes kind-7 status 2" {
+    var win = blankClipWindow();
+    win.data_device = 40;
+    win.onDataOffer(42);
+    win.clip_offer = 42;
+    try fakeOfferMime(&win, "image/png");
+    try std.testing.expect(!win.clipboardHasText());
+    var sel: [4]u8 = undefined;
+    var pos: usize = 0;
+    putU32Wire(&sel, &pos, 42);
+    try win.onEvent(40, 2, sel[0..pos]);
+    var out: [8]i32 = undefined;
+    const n = win.takeInput(&out);
+    try std.testing.expectEqual(@as(usize, 1), n);
+    try std.testing.expectEqual(@as(i32, 7), out[0]);
+    try std.testing.expectEqual(@as(i32, 2), out[1]);
+}
+
+test "null selection pushes kind-7 empty and clears flags" {
+    var win = blankClipWindow();
+    win.data_device = 40;
+    win.onDataOffer(43);
+    win.clip_offer = 43;
+    try fakeOfferMime(&win, "text/plain");
+    var sel: [4]u8 = undefined;
+    var pos: usize = 0;
+    putU32Wire(&sel, &pos, 0); // null offer
+    try win.onEvent(40, 2, sel[0..pos]);
+    try std.testing.expectEqual(@as(u32, 0), win.clip_offer);
+    try std.testing.expect(!win.clipboardHasText());
+    var out: [8]i32 = undefined;
+    const n = win.takeInput(&out);
+    try std.testing.expectEqual(@as(usize, 1), n);
+    try std.testing.expectEqual(@as(i32, 7), out[0]);
+    try std.testing.expectEqual(@as(i32, 0), out[1]);
+}
+
+test "new data_offer destroys the previous offer" {
+    var win = blankClipWindow();
+    win.data_device = 40;
+    win.onDataOffer(44);
+    try std.testing.expectEqual(@as(u32, 44), win.clip_offer);
+    win.onDataOffer(45);
+    try std.testing.expectEqual(@as(u32, 45), win.clip_offer);
+    try std.testing.expect(!win.clip_offer_plain);
+}
+
+test "offer mime preference is utf8 over plain over legacy" {
+    var win = blankClipWindow();
+    win.clip_offer = 50;
+    try fakeOfferMime(&win, "UTF8_STRING");
+    try fakeOfferMime(&win, "text/plain");
+    try std.testing.expectEqualStrings("text/plain", win.offerMime().?);
+    try fakeOfferMime(&win, "text/plain;charset=utf-8");
+    try std.testing.expectEqualStrings("text/plain;charset=utf-8", win.offerMime().?);
+    // Unknown mimes are ignored.
+    try fakeOfferMime(&win, "application/x-custom");
+    try std.testing.expectEqualStrings("text/plain;charset=utf-8", win.offerMime().?);
+}
+
+test "copy without device is local-only no-op" {
+    var win = blankClipWindow();
+    win.clipboardCopy("hello");
+    try std.testing.expectEqual(@as(u32, 0), win.clip_source);
+    try std.testing.expect(win.clip_text == null);
+}
+
+test "source send serves staged text and closes the fd" {
+    var win = blankClipWindow();
+    win.clipboardCopy("ignored-no-device");
+    // Stage text directly (copy needs a live device for source ids).
+    win.clip_text = try std.testing.allocator.dupe(u8, "hi");
+    var fds: [2]posix.fd_t = .{ -1, -1 };
+    try std.testing.expectEqual(@as(usize, 0), linux.pipe(&fds));
+    win.onSourceSend("text/plain", fds[1]);
+    // Write end closed by onSourceSend; read the bytes.
+    var buf: [8]u8 = undefined;
+    const n = linux.read(fds[0], &buf, buf.len);
+    try std.testing.expectEqual(@as(usize, 2), @as(usize, @intCast(n)));
+    try std.testing.expectEqualSlices(u8, "hi", buf[0..2]);
+    _ = linux.close(fds[0]);
+    // Freed by cleanup path equivalent:
+    std.testing.allocator.free(win.clip_text.?);
+    win.clip_text = null;
+}
+
+test "source send with non-text mime sends nothing" {
+    var win = blankClipWindow();
+    win.clip_text = try std.testing.allocator.dupe(u8, "hi");
+    defer {
+        std.testing.allocator.free(win.clip_text.?);
+        win.clip_text = null;
+    }
+    var fds: [2]posix.fd_t = .{ -1, -1 };
+    try std.testing.expectEqual(@as(usize, 0), linux.pipe(&fds));
+    win.onSourceSend("image/png", fds[1]);
+    // Write end closed with no bytes: read hits EOF immediately.
+    var buf: [8]u8 = undefined;
+    const n = linux.read(fds[0], &buf, buf.len);
+    try std.testing.expectEqual(@as(usize, 0), @as(usize, @intCast(n)));
+    _ = linux.close(fds[0]);
+}
+
+test "cancelled drops source and staged text" {
+    var win = blankClipWindow();
+    win.clip_source = 60;
+    win.clip_text = try std.testing.allocator.dupe(u8, "stale");
+    win.onSourceCancelled();
+    try std.testing.expectEqual(@as(u32, 0), win.clip_source);
+    try std.testing.expect(win.clip_text == null);
+}
+
+test "clear selection sends null source path without device" {
+    var win = blankClipWindow();
+    win.clip_text = try std.testing.allocator.dupe(u8, "stale");
+    win.clearSelection();
+    try std.testing.expect(win.clip_text == null);
+}
+
+test "serials tracked from keyboard and pointer events" {
+    var win = blankClipWindow();
+    win.keyboard = 11;
+    win.pointer = 12;
+    var kp: [16]u8 = undefined;
+    var pos: usize = 0;
+    putU32Wire(&kp, &pos, 777);
+    putU32Wire(&kp, &pos, 1000);
+    putU32Wire(&kp, &pos, 30);
+    putU32Wire(&kp, &pos, 1);
+    try win.onEvent(11, 3, kp[0..pos]);
+    try std.testing.expectEqual(@as(u32, 777), win.last_serial);
+    var pp: [16]u8 = undefined;
+    pos = 0;
+    putU32Wire(&pp, &pos, 888);
+    putU32Wire(&pp, &pos, 7);
+    putI32Wire(&pp, &pos, 0);
+    putI32Wire(&pp, &pos, 0);
+    try win.onEvent(12, 0, pp[0..pos]);
+    try std.testing.expectEqual(@as(u32, 888), win.last_serial);
 }

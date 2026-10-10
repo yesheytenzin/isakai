@@ -160,6 +160,25 @@ public class Canvas {
         fillRect(clipLeft, clipTop, clipRight, clipBottom, color);
     }
 
+    /** Blit a bitmap scaled to [x,x+w) x [y,y+h), clipped. */
+    public void drawBitmap(Bitmap bitmap, int x, int y, int w, int h) {
+        if (bitmap == null || bitmap.isRecycled() || w <= 0 || h <= 0) return;
+        int sw = bitmap.getWidth();
+        int sh = bitmap.getHeight();
+        if (sw <= 0 || sh <= 0) return;
+        int x0 = Math.max(x, Math.max(0, clipLeft));
+        int y0 = Math.max(y, Math.max(0, clipTop));
+        int x1 = Math.min(x + w, Math.min(width, clipRight));
+        int y1 = Math.min(y + h, Math.min(height, clipBottom));
+        for (int dy = y0; dy < y1; dy++) {
+            int sy = (dy - y) * sh / h;
+            for (int dx = x0; dx < x1; dx++) {
+                int sx = (dx - x) * sw / w;
+                setIdx(dy * width + dx, bitmap.getPixel(sx, sy));
+            }
+        }
+    }
+
     /** Fill [left,right) x [top,bottom), clipped to the canvas and clip rect. */
     public void fillRect(int left, int top, int right, int bottom, int color) {
         if (left < 0) left = 0;

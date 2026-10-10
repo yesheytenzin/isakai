@@ -9,6 +9,6 @@ pub fn main(init: std.process.Init) !u8 {
         std.debug.print("INSPECT FAIL: {t}\n", .{err});
         return 1;
     };
-    std.debug.print("package={s} min={d} target={d} app={?s} launcher={?s} perms={d} services={d}\n", .{ m.package, m.min_sdk, m.target_sdk, m.application, m.launcher, m.permissions.items.len, m.services.items.len });
+    std.debug.print("package={s} min={d} target={d} app={?s} launcher={?s} perms={d} services={d} apptheme=0x{x} acttheme=0x{x}\n", .{ m.package, m.min_sdk, m.target_sdk, m.application, m.launcher, m.permissions.items.len, m.services.items.len, m.app_theme, m.activity_theme });
     return 0;
 }

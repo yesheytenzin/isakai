@@ -11,6 +11,16 @@ import android.app.Application;
  * The title (5th arg) resolves to launcher label, else app label, else package.
  */
 public class IsakaiMain {
+    private static int parseThemeId(String s) {
+        if (s == null || s.isEmpty() || s.equals("-")) return 0;
+        try {
+            long v = Long.parseLong(s);
+            return (int) v;
+        } catch (NumberFormatException e) {
+            return 0;
+        }
+    }
+
     public static void main(String[] args) throws Exception {
         if (args.length < 1) {
             System.err.println("usage: IsakaiMain <data-dir> [app-class] [activity-class] [package] [title]");
@@ -23,6 +33,8 @@ public class IsakaiMain {
             app = (Application) appClass.getDeclaredConstructor().newInstance();
         }
         app.attach(dataDir);
+        if (args.length > 3 && args[3] != null && !args[3].isEmpty()) app.attachPackage(args[3]);
+        if (args.length > 5) app.attachTheme(parseThemeId(args[5]));
         System.out.println("isakai: application " + app.getClass().getName() + " onCreate");
         app.onCreate();
 
@@ -30,6 +42,9 @@ public class IsakaiMain {
             Class<?> actClass = Class.forName(args[2]);
             Activity act = (Activity) actClass.getDeclaredConstructor().newInstance();
             act.attach(app);
+            int appTheme = args.length > 5 ? parseThemeId(args[5]) : 0;
+            int actTheme = args.length > 6 ? parseThemeId(args[6]) : 0;
+            act.attachTheme(appTheme, actTheme);
             boolean windowed = Boolean.getBoolean("isakai.windowed");
             String pkg = args.length > 3 && args[3] != null && !args[3].isEmpty() ? args[3] : act.getClass().getPackage().getName();
             String title = args.length > 4 && args[4] != null && !args[4].isEmpty() ? args[4] : pkg;

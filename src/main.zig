@@ -237,7 +237,7 @@ fn cmdUidHelper(
 }
 
 /// uid-helper run: fork, drop to the app user, exec the command.
-/// Argv: isakai uid-helper run <package> <uid> <data-dir> <work> -- <exe> <args...>
+/// Argv: isakai uid-helper run <package> <uid> <data-dir> <work> [--wayland-sock <abs-path>] -- <exe> <args...>
 /// Must be root. Never returns on success (child execs, parent waits).
 fn cmdUidHelperRun(
     init: std.process.Init,
@@ -247,16 +247,22 @@ fn cmdUidHelperRun(
     const io = init.io;
     _ = io;
     if (try requireRoot(err_writer)) |code| return code;
-    // rest[0]=run rest[1]=package rest[2]=uid rest[3]=data-dir rest[4]=work rest[5]=-- rest[6..]=cmd
-    if (rest.len < 7 or !std.mem.eql(u8, rest[5], "--")) {
-        try err_writer.writeAll("usage: isakai uid-helper run <package> <uid> <data-dir> <work> -- <exe> [args...]\n");
+    // rest[0]=run rest[1]=package rest[2]=uid rest[3]=data-dir rest[4]=work [rest[5]=--wayland-sock rest[6]=path] rest[N]=-- rest[N+1..]=cmd
+    var wayland_sock: ?[]const u8 = null;
+    var sep: usize = 5;
+    if (rest.len > 6 and std.mem.eql(u8, rest[5], "--wayland-sock")) {
+        wayland_sock = rest[6];
+        sep = 7;
+    }
+    if (rest.len < sep + 2 or !std.mem.eql(u8, rest[sep], "--")) {
+        try err_writer.writeAll("usage: isakai uid-helper run <package> <uid> <data-dir> <work> [--wayland-sock <path>] -- <exe> [args...]\n");
         return 2;
     }
     const uid = std.fmt.parseInt(u32, rest[2], 10) catch {
         try err_writer.writeAll("uid-helper run: bad uid\n");
         return 2;
     };
-    return uid_helper.runAs(rest[1], uid, rest[3], rest[4], rest[6..], err_writer);
+    return uid_helper.runAs(rest[1], uid, rest[3], rest[4], rest[sep + 1 ..], wayland_sock, err_writer);
 }
 
 pub fn main(init: std.process.Init) !u8 {

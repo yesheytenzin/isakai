@@ -77,6 +77,10 @@ pub const Package = struct {
     state: AppState = .installed,
     signer_sha256: ?[]const u8 = null,
     launch_id: u64 = 0,
+    /// Host machine arch recorded at install (uname -m, e.g. "x86_64").
+    /// Defaults to "" for entries written before arch capture landed;
+    /// install always fills it, so empty means pre-arch registry.
+    arch: []const u8 = "",
 };
 
 pub const Registry = struct {
@@ -100,6 +104,95 @@ pub const Registry = struct {
     fn registryPath(gpa: std.mem.Allocator, work: []const u8) ![]u8 {
         return std.fmt.allocPrint(gpa, "{s}/registry.json", .{work});
     }
+    /// Host machine arch (uname -m, e.g. "x86_64"). Caller owns the result.
+    pub fn hostArch(gpa: std.mem.Allocator) ![]u8 {
+        const uts = std.posix.uname();
+        const m = std.mem.sliceTo(&uts.machine, 0);
+        return gpa.dupe(u8, m);
+    }
+
+    /// Write `data` to `path` atomically: O_CREAT|O_EXCL|O_NOFOLLOW tmp
+    /// sibling + fsync + rename. The tmp name carries the pid so two
+    /// writers never share it; O_EXCL makes a stale tmp fail loudly
+    /// (caller unlinks and retries) instead of truncating. Fail-closed:
+    /// any error leaves the destination untouched.
+    pub fn writeAtomic(io: std.Io, gpa: std.mem.Allocator, path: []const u8, data: []const u8, mode: u32) !void {
+        const tmp_path = try tmpSiblingPath(gpa, path);
+        defer gpa.free(tmp_path);
+        const fd = try openTmpExclusive(tmp_path, mode);
+        errdefer std.Io.Dir.deleteFileAbsolute(io, tmp_path) catch {};
+        var off: usize = 0;
+        while (off < data.len) {
+            const n = std.os.linux.write(fd, data.ptr + off, data.len - off);
+            const err = std.os.linux.errno(n);
+            if (err != .SUCCESS) {
+                _ = std.os.linux.close(fd);
+                return error.WriteFailed;
+            }
+            const wrote: usize = @intCast(n);
+            if (wrote == 0) {
+                _ = std.os.linux.close(fd);
+                return error.WriteFailed;
+            }
+            off += wrote;
+        }
+        if (std.os.linux.errno(std.os.linux.fsync(fd)) != .SUCCESS) {
+            _ = std.os.linux.close(fd);
+            return error.SyncFailed;
+        }
+        _ = std.os.linux.close(fd);
+        try std.Io.Dir.renameAbsolute(tmp_path, path, io);
+    }
+
+    /// Tmp sibling for an atomic write: "<path>.tmp.<pid>". Caller owns.
+    pub fn tmpSiblingPath(gpa: std.mem.Allocator, path: []const u8) ![]u8 {
+        return std.fmt.allocPrint(gpa, "{s}.tmp.{d}", .{ path, std.os.linux.getpid() });
+    }
+
+    /// Open a tmp sibling O_WRONLY|O_CREAT|O_EXCL|O_NOFOLLOW|O_CLOEXEC.
+    /// O_EXCL: a stale sibling fails loudly instead of being truncated.
+    fn openTmpExclusive(path: []const u8, mode: u32) !std.os.linux.fd_t {
+        const linux = std.os.linux;
+        var zbuf: [4096]u8 = undefined;
+        if (path.len + 1 > zbuf.len) return error.NameTooLong;
+        @memcpy(zbuf[0..path.len], path);
+        zbuf[path.len] = 0;
+        const z: [*:0]const u8 = @ptrCast(&zbuf);
+        const rc = linux.openat(linux.AT.FDCWD, z, .{ .ACCMODE = .WRONLY, .CREAT = true, .EXCL = true, .NOFOLLOW = true, .CLOEXEC = true }, @truncate(mode));
+        const err = linux.errno(rc);
+        if (err != .SUCCESS) {
+            if (err == .EXIST) return error.TmpExists;
+            return error.OpenFailed;
+        }
+        return @bitCast(@as(u32, @truncate(rc)));
+    }
+
+    /// Validate a staged symlink: readlink must resolve inside `anchor_dir`
+    /// (exact dir or dir + "/..."), with no `..` escape in the joined path.
+    /// Pure string check on the link target; callers re-verify post-rename.
+    pub fn symlinkTargetAnchored(link_target: []const u8, anchor_dir: []const u8) bool {
+        if (link_target.len == 0) return false;
+        if (std.mem.indexOf(u8, link_target, "..") != null) return false;
+        if (link_target[0] == '/') {
+            if (std.mem.eql(u8, link_target, anchor_dir)) return true;
+            if (link_target.len <= anchor_dir.len) return false;
+            if (!std.mem.startsWith(u8, link_target, anchor_dir)) return false;
+            return link_target[anchor_dir.len] == '/';
+        }
+        var buf: [4096]u8 = undefined;
+        const joined = std.fmt.bufPrint(&buf, "{s}/{s}", .{ anchor_dir, link_target }) catch return false;
+        return std.mem.indexOf(u8, joined, "..") == null;
+    }
+
+    /// Read the symlink at `link_path` and check its target stays anchored
+    /// under `anchor_dir`. Returns false when the path is not a symlink,
+    /// is unreadable, or escapes. Buffer cap 4 KiB (Linux PATH_MAX).
+    pub fn validateStagedSymlink(io: std.Io, link_path: []const u8, anchor_dir: []const u8) bool {
+        var buf: [4096]u8 = undefined;
+        const n = std.Io.Dir.readLinkAbsolute(io, link_path, &buf) catch return false;
+        return symlinkTargetAnchored(buf[0..n], anchor_dir);
+    }
+
 
     /// Advisory inter-process lock guarding check-then-act sequences
     /// (load → mutate → save). Crash-safe: the OS releases flock on exit.
@@ -152,6 +245,7 @@ pub const Registry = struct {
             pkg.data_dir = try alloc.dupe(u8, pkg.data_dir);
             pkg.apk = try alloc.dupe(u8, pkg.apk);
             if (pkg.signer_sha256) |s| pkg.signer_sha256 = try alloc.dupe(u8, s);
+            pkg.arch = try alloc.dupe(u8, pkg.arch);
             try self.packages.put(alloc, name, pkg);
         }
         return self;
@@ -166,14 +260,12 @@ pub const Registry = struct {
         try std.Io.Dir.cwd().createDirPath(io, work);
         const path = try registryPath(gpa, work);
         defer gpa.free(path);
-        const tmp_path = try std.fmt.allocPrint(gpa, "{s}.tmp", .{path});
-        defer gpa.free(tmp_path);
-
-        var file = try std.Io.Dir.cwd().createFile(io, tmp_path, .{});
-        defer file.close(io);
-        var buf: [4096]u8 = undefined;
-        var file_writer = file.writer(io, &buf);
-        const w = &file_writer.interface;
+        // Serialize into memory first so the atomic write is one shot:
+        // writeAtomic (O_EXCL tmp + fsync + rename) leaves any existing
+        // registry untouched on failure.
+        var aw: std.Io.Writer.Allocating = .init(gpa);
+        defer aw.deinit();
+        const w = &aw.writer;
         var jw: std.json.Stringify = .{ .writer = w, .options = .{ .whitespace = .indent_2 } };
         try jw.beginObject();
         // Sorted for stable output.
@@ -192,9 +284,7 @@ pub const Registry = struct {
             try jw.write(pkg);
         }
         try jw.endObject();
-        try w.flush();
-        try file.sync(io);
-        try std.Io.Dir.renameAbsolute(tmp_path, path, io);
+        try writeAtomic(io, gpa, path, aw.written(), 0o644);
     }
 
     pub fn add(self: *Self, package: Package) !void {
@@ -205,6 +295,7 @@ pub const Registry = struct {
         pkg.data_dir = try alloc.dupe(u8, package.data_dir);
         pkg.apk = try alloc.dupe(u8, package.apk);
         if (pkg.signer_sha256) |s| pkg.signer_sha256 = try alloc.dupe(u8, s);
+        pkg.arch = try alloc.dupe(u8, package.arch);
         try self.packages.put(alloc, name, pkg);
     }
 
@@ -475,6 +566,7 @@ test "save and load round-trip" {
         .state = .{ .running = .{ .pid = 123, .started = 7 } },
         .signer_sha256 = "ab12",
         .launch_id = 3,
+        .arch = "x86_64",
     });
     try reg.save(io, gpa, t.work);
 
@@ -485,6 +577,7 @@ test "save and load round-trip" {
     try std.testing.expectEqual(@as(u32, 5000), pkg.uid);
     try std.testing.expectEqual(@as(u64, 3), pkg.launch_id);
     try std.testing.expectEqualStrings("ab12", pkg.signer_sha256.?);
+    try std.testing.expectEqualStrings("x86_64", pkg.arch);
     switch (pkg.state) {
         .running => |r| {
             try std.testing.expectEqual(@as(u32, 123), r.pid);
@@ -517,4 +610,107 @@ test "corrupt registry fails checked load" {
     } else |_| {
         // Any parse error is the expected outcome.
     }
+}
+
+test "hostArch matches uname -m" {
+    const gpa = std.testing.allocator;
+    const got = try Registry.hostArch(gpa);
+    defer gpa.free(got);
+    try std.testing.expect(got.len > 0);
+    const uts = std.posix.uname();
+    try std.testing.expectEqualStrings(std.mem.sliceTo(&uts.machine, 0), got);
+}
+
+test "writeAtomic writes and refuses to clobber via O_EXCL" {
+    const gpa = std.testing.allocator;
+    const io = std.testing.io;
+    var t = try tmpWorkDir(io, gpa);
+    defer t.tmp.cleanup();
+    defer gpa.free(t.work);
+    try std.Io.Dir.cwd().createDirPath(io, t.work);
+    const path = try std.fmt.allocPrint(gpa, "{s}/atomic.txt", .{t.work});
+    defer gpa.free(path);
+    try Registry.writeAtomic(io, gpa, path, "hello", 0o644);
+    const back = try std.Io.Dir.cwd().readFileAlloc(io, path, gpa, .limited(64));
+    defer gpa.free(back);
+    try std.testing.expectEqualStrings("hello", back);
+    // Stale tmp sibling blocks a second write loudly (fail-closed, dest kept).
+    const stale = try Registry.tmpSiblingPath(gpa, path);
+    defer gpa.free(stale);
+    var f = try std.Io.Dir.cwd().createFile(io, stale, .{});
+    f.close(io);
+    if (Registry.writeAtomic(io, gpa, path, "other", 0o644)) |_| return error.TestUnexpectedResult else |_| {}
+    const kept = try std.Io.Dir.cwd().readFileAlloc(io, path, gpa, .limited(64));
+    defer gpa.free(kept);
+    try std.testing.expectEqualStrings("hello", kept);
+    try std.Io.Dir.deleteFileAbsolute(io, stale);
+    try Registry.writeAtomic(io, gpa, path, "other", 0o644);
+    const updated = try std.Io.Dir.cwd().readFileAlloc(io, path, gpa, .limited(64));
+    defer gpa.free(updated);
+    try std.testing.expectEqualStrings("other", updated);
+}
+
+test "symlinkTargetAnchored confines staged links" {
+    try std.testing.expect(Registry.symlinkTargetAnchored("/work/code/abc/classes", "/work/code/abc"));
+    try std.testing.expect(Registry.symlinkTargetAnchored("/work/code/abc", "/work/code/abc"));
+    try std.testing.expect(!Registry.symlinkTargetAnchored("/work/code/other", "/work/code/abc"));
+    try std.testing.expect(!Registry.symlinkTargetAnchored("/work/code/abc-evil", "/work/code/abc"));
+    try std.testing.expect(!Registry.symlinkTargetAnchored("/work/code/abc/../evil", "/work/code/abc"));
+    try std.testing.expect(Registry.symlinkTargetAnchored("classes", "/work/code/abc"));
+    try std.testing.expect(Registry.symlinkTargetAnchored("sub/dir", "/work/code/abc"));
+    try std.testing.expect(!Registry.symlinkTargetAnchored("../evil", "/work/code/abc"));
+    try std.testing.expect(!Registry.symlinkTargetAnchored("", "/work/code/abc"));
+}
+
+/// Test-only symlink creator via the raw syscall (std has no Io-level
+/// symlink wrapper on this toolchain). NUL-terminated stack copies.
+fn symlinkZ(target: []const u8, link: []const u8) !void {
+    var tbuf: [4096]u8 = undefined;
+    var lbuf: [4096]u8 = undefined;
+    if (target.len + 1 > tbuf.len or link.len + 1 > lbuf.len) return error.NameTooLong;
+    @memcpy(tbuf[0..target.len], target);
+    tbuf[target.len] = 0;
+    @memcpy(lbuf[0..link.len], link);
+    lbuf[link.len] = 0;
+    const rc = std.os.linux.symlink(@ptrCast(&tbuf), @ptrCast(&lbuf));
+    if (std.os.linux.errno(rc) != .SUCCESS) return error.SymlinkFailed;
+}
+
+test "validateStagedSymlink reads live links" {
+    const gpa = std.testing.allocator;
+    const io = std.testing.io;
+    var t = try tmpWorkDir(io, gpa);
+    defer t.tmp.cleanup();
+    defer gpa.free(t.work);
+    try std.Io.Dir.cwd().createDirPath(io, t.work);
+    const anchor = try std.fmt.allocPrint(gpa, "{s}/anchor", .{t.work});
+    defer gpa.free(anchor);
+    try std.Io.Dir.cwd().createDirPath(io, anchor);
+    const good = try std.fmt.allocPrint(gpa, "{s}/good", .{t.work});
+    defer gpa.free(good);
+    const evil = try std.fmt.allocPrint(gpa, "{s}/evil", .{t.work});
+    defer gpa.free(evil);
+    try symlinkZ(anchor, good);
+    try symlinkZ("/etc", evil);
+    try std.testing.expect(Registry.validateStagedSymlink(io, good, t.work));
+    try std.testing.expect(!Registry.validateStagedSymlink(io, evil, t.work));
+    try std.testing.expect(!Registry.validateStagedSymlink(io, anchor, t.work));
+}
+
+test "old registry without arch loads as empty arch" {
+    const gpa = std.testing.allocator;
+    const io = std.testing.io;
+    var t = try tmpWorkDir(io, gpa);
+    defer t.tmp.cleanup();
+    defer gpa.free(t.work);
+    try std.Io.Dir.cwd().createDirPath(io, t.work);
+    const path = try std.fmt.allocPrint(gpa, "{s}/registry.json", .{t.work});
+    defer gpa.free(path);
+    const legacy =
+        \\{"org.example.old":{"name":"org.example.old","uid":5000,"data_dir":"/tmp/o","apk":"/tmp/o.apk","installed_at":1,"state":{"status":"installed"}}}
+    ;
+    try Registry.writeAtomic(io, gpa, path, legacy, 0o644);
+    var loaded = try Registry.loadChecked(io, gpa, t.work);
+    defer loaded.deinit();
+    try std.testing.expectEqualStrings("", loaded.get("org.example.old").?.arch);
 }

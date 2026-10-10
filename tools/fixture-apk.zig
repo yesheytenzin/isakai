@@ -99,7 +99,6 @@ fn buildManifest(gpa: std.mem.Allocator, package: []const u8) ![]u8 {
         "versionName",
         "1.0",
         "label",
-        "Fixture",
     });
     const S = struct {
         manifest: u32 = 0,
@@ -125,7 +124,6 @@ fn buildManifest(gpa: std.mem.Allocator, package: []const u8) ![]u8 {
         version_name: u32 = 20,
         version_name_val: u32 = 21,
         label_attr: u32 = 22,
-        label_val: u32 = 23,
     }{};
 
     // Chunk 0: XML header (type 3, header 8).
@@ -241,15 +239,17 @@ fn buildManifest(gpa: std.mem.Allocator, package: []const u8) ![]u8 {
         .{ .ns = S.android_ns, .name = S.name_attr, .raw = S.internet_perm, .typ = 3, .val = S.internet_perm },
     });
     try writeEnd(w, 3, NONE, S.uses_permission);
-    // <application android:name=".FixtureApp" android:label="Fixture">
+    // <application android:name=".FixtureApp" android:label="@string/app_name">
+    // The label is a resource reference on purpose: it covers the
+    // install-time arsc path (label id -> "Fixture" from the table).
     try writeStart(w, 4, NONE, S.application, &.{
         .{ .ns = S.android_ns, .name = S.name_attr, .raw = S.app_class, .typ = 3, .val = S.app_class },
-        .{ .ns = S.android_ns, .name = S.label_attr, .raw = S.label_val, .typ = 3, .val = S.label_val },
+        .{ .ns = S.android_ns, .name = S.label_attr, .raw = NONE, .typ = 1, .val = 0x7f110000 },
     });
-    // <activity android:name=".FixtureActivity" android:label="Fixture">
+    // <activity android:name=".FixtureActivity" android:label="@string/activity_label">
     try writeStart(w, 5, NONE, S.activity, &.{
         .{ .ns = S.android_ns, .name = S.name_attr, .raw = S.activity_class, .typ = 3, .val = S.activity_class },
-        .{ .ns = S.android_ns, .name = S.label_attr, .raw = S.label_val, .typ = 3, .val = S.label_val },
+        .{ .ns = S.android_ns, .name = S.label_attr, .raw = NONE, .typ = 1, .val = 0x7f110001 },
     });
     // <intent-filter>
     try writeStart(w, 6, NONE, S.intent_filter, &.{});
@@ -384,6 +384,72 @@ fn buildDex(gpa: std.mem.Allocator) ![]u8 {
         "isakai: button clicked", // 50
         "Z", // 51 shorty ()Z
         "VIIII", // 52 shorty (IIII)V
+        "Landroid/media/SoundPool;", // 53
+        "Ljava/util/concurrent/Future;", // 54
+        "load", // 55
+        "play", // 56
+        "release", // 57
+        "getProperty", // 58
+        "concat", // 59
+        "isakai.codeDir", // 60
+        "/assets/tone.wav", // 61
+        "LII", // 62 shorty (II)L (unused; kept for table stability)
+        "LL", // 63 shorty (L)L (unused; kept for table stability)
+        "L", // 64 shorty ()L (unused; kept for table stability)
+        "VII", // 65 shorty (II)V
+        "Landroid/content/Context;", // 66
+        "getSharedPreferences", // 67
+        "Landroid/content/SharedPreferences;", // 68
+        "edit", // 69
+        "Landroid/content/SharedPreferences$Editor;", // 70
+        "putInt", // 71
+        "commit", // 72
+        "apply", // 73
+        "getInt", // 74
+        "openFileOutput", // 75
+        "Ljava/io/FileOutputStream;", // 76
+        "write", // 77
+        "close", // 78
+        "Ljava/io/OutputStream;", // 79
+        "openFileInput", // 80
+        "Ljava/io/FileInputStream;", // 81
+        "Ljava/io/InputStream;", // 82
+        "read", // 83
+        "prefs_counter", // 84
+        "Landroid/database/sqlite/SQLiteDatabase;", // 85
+        "openOrCreateDatabase", // 86
+        "execSQL", // 87
+        "insert", // 88
+        "Landroid/content/ContentValues;", // 89
+        "put", // 90
+        "query", // 91
+        "Landroid/database/Cursor;", // 92
+        "moveToFirst", // 93
+        "getInt", // 94 dup name, new string idx
+        "close", // 95 dup name, new string idx
+        "value", // 96
+        "fixture", // 97
+        "t", // 98
+        "v", // 99
+        "LLL", // 100 shorty (LL)L dup, new idx
+        "ILL", // 101 shorty (LL)I
+        "VIL", // 102 shorty (IL)V
+        "VILL", // 103 shorty (ILL)V
+        "ILLLLLL", // 104 shorty (LLLLLL)I
+        "Z", // 105 shorty ()Z dup, new idx
+        "ZL", // 106 shorty (L)Z
+        "IIL", // 107 shorty (IL)I
+        "CREATE TABLE IF NOT EXISTS t (v INTEGER)", // 108
+        "NULL", // 109 placeholder for null check below
+        "1", // 110 insert value
+        "INSERT INTO t (v) VALUES (1)", // 111
+        "SELECT v FROM t", // 112
+        "[Ljava/lang/String;", // 113 String[] descriptor
+        "rawQuery", // 114
+        "II", // 115 shorty (I)I
+        "Ljava/io/File;", // 116
+        "getDatabasePath", // 117
+        "getPath", // 118
     };
     const string_ids_off: u32 = @intCast(dex.items.len);
     var str_offs: [strs.len]u32 = undefined;
@@ -402,9 +468,13 @@ fn buildDex(gpa: std.mem.Allocator) ![]u8 {
     // 0 Counter, 1 Object, 2 I, 3 V, 4 FixtureApp, 5 Application, 6 String,
     // 7 Integer, 8 System, 9 PrintStream, 10 FixtureActivity, 11 Activity,
     // 12 TextView, 13 View, 14 EditText, 15 Button, 16 ViewGroup,
-    // 17 OnClickListener, 18 Z
+    // 17 OnClickListener, 18 Z, 19 SoundPool, 20 Future,
+    // 21 Context, 22 SharedPreferences, 23 Editor, 24 FileOutputStream,
+    // 25 OutputStream, 26 FileInputStream, 27 InputStream, 28 SQLiteDatabase,
+    // 29 ContentValues, 30 Cursor, 31 String[], 32 File
     const type_ids_off: u32 = @intCast(dex.items.len);
-    for ([_]u32{ 0, 1, 2, 3, 9, 10, 11, 16, 19, 21, 23, 24, 34, 37, 38, 39, 40, 41, 51 }) |s| try w32(&dex, gpa, s);
+    const type_strs = [_]u32{ 0, 1, 2, 3, 9, 10, 11, 16, 19, 21, 23, 24, 34, 37, 38, 39, 40, 41, 51, 53, 54, 66, 68, 70, 76, 79, 81, 82, 85, 89, 92, 113, 116 };
+    for (type_strs) |s| try w32(&dex, gpa, s);
 
     // --- Type lists for protos with params (built before protos) ---
     // list_I: [I]; list_LL: [String,String]; list_L: [String]; list_View: [View]
@@ -435,8 +505,35 @@ fn buildDex(gpa: std.mem.Allocator) ![]u8 {
     try w16(&dex, gpa, 2);
     try w16(&dex, gpa, 2);
     try w16(&dex, gpa, 2);
+    const list_II_off: u32 = @intCast(dex.items.len);
+    try w32(&dex, gpa, 2);
+    try w16(&dex, gpa, 2);
+    // Storage lists: [String,int](LI); [String x7 with int x3] for query.
+    const list_LI_off: u32 = @intCast(dex.items.len);
+    try w32(&dex, gpa, 2);
+    try w16(&dex, gpa, 6);
+    try w16(&dex, gpa, 2);
+    const list_Q_off: u32 = @intCast(dex.items.len);
+    try w32(&dex, gpa, 7);
+    try w16(&dex, gpa, 6);
+    try w16(&dex, gpa, 6);
+    try w16(&dex, gpa, 2);
+    try w16(&dex, gpa, 2);
+    try w16(&dex, gpa, 2);
+    try w16(&dex, gpa, 6);
+    try w16(&dex, gpa, 6);
+    while (dex.items.len % 4 != 0) try dex.append(gpa, 0);
+    // list_LArr: [String, String[]] for rawQuery.
+    const list_LArr_off: u32 = @intCast(dex.items.len);
+    try w32(&dex, gpa, 2);
+    try w16(&dex, gpa, 6);
+    try w16(&dex, gpa, 31);
+    // list_LObj: [String, Object] for openOrCreateDatabase.
+    const list_LObj_off: u32 = @intCast(dex.items.len);
+    try w32(&dex, gpa, 2);
+    try w16(&dex, gpa, 6);
+    try w16(&dex, gpa, 1);
 
-    // --- Protos ---
     // 0 ()V, 1 ()I, 2 (I)V, 3 (LL)L, 4 (L)I, 5 (I)L, 6 (LL)V, 7 (L)V,
     // 8 (View)V, 9 (String)V, 10 (OnClickListener)V, 11 ()Z, 12 (IIII)V
     const proto_ids_off: u32 = @intCast(dex.items.len);
@@ -479,7 +576,94 @@ fn buildDex(gpa: std.mem.Allocator) ![]u8 {
     try w32(&dex, gpa, 52); // shorty VIIII
     try w32(&dex, gpa, 3);
     try w32(&dex, gpa, list_IIII_off);
-
+    try w32(&dex, gpa, 62); // shorty LII
+    try w32(&dex, gpa, 6);
+    try w32(&dex, gpa, list_II_off);
+    try w32(&dex, gpa, 63); // shorty LL
+    try w32(&dex, gpa, 6);
+    try w32(&dex, gpa, list_L_off);
+    try w32(&dex, gpa, 64); // shorty L
+    try w32(&dex, gpa, 6);
+    try w32(&dex, gpa, 0);
+    try w32(&dex, gpa, 65); // shorty VII
+    try w32(&dex, gpa, 3);
+    try w32(&dex, gpa, list_II_off);
+    // Storage protos (17..31):
+    // 17 (LI)L getSharedPreferences; 18 ()L SharedPrefs.edit;
+    // 19 (LI)L Editor.putInt; 20 ()Z Editor.commit; 21 ()V Editor.apply;
+    // 22 (LI)I SharedPrefs.getInt; 23 (LI)L Context.openFileOutput;
+    // 24 (L)V OutputStream.write; 25 ()V Closeable.close;
+    // 26 (L)L Context.openFileInput; 27 ()I InputStream.read;
+    // 28 (LL)L SQLiteDatabase.openOrCreateDatabase(static);
+    // 29 (L)V SQLiteDatabase.execSQL; 30 (LL)V ContentValues.put;
+    // 31 (LLLLLLL)L SQLiteDatabase.query
+    try w32(&dex, gpa, 100); // shorty LLL
+    try w32(&dex, gpa, 22);
+    try w32(&dex, gpa, list_LI_off);
+    try w32(&dex, gpa, 64); // shorty L
+    try w32(&dex, gpa, 23); // return Editor (edit()L)
+    try w32(&dex, gpa, 0);
+    try w32(&dex, gpa, 100); // shorty LLL
+    try w32(&dex, gpa, 23);
+    try w32(&dex, gpa, list_LI_off);
+    try w32(&dex, gpa, 105); // shorty Z
+    try w32(&dex, gpa, 18); // return Z (commit()Z pushes boolean)
+    try w32(&dex, gpa, 0);
+    try w32(&dex, gpa, 3);
+    try w32(&dex, gpa, 3);
+    try w32(&dex, gpa, 0);
+    try w32(&dex, gpa, 101); // shorty ILL
+    try w32(&dex, gpa, 2);
+    try w32(&dex, gpa, list_LI_off);
+    try w32(&dex, gpa, 100); // shorty LLL
+    try w32(&dex, gpa, 24);
+    try w32(&dex, gpa, list_LI_off);
+    try w32(&dex, gpa, 102); // shorty VIL
+    try w32(&dex, gpa, 3);
+    try w32(&dex, gpa, list_L_off);
+    try w32(&dex, gpa, 3);
+    try w32(&dex, gpa, 3);
+    try w32(&dex, gpa, 0);
+    try w32(&dex, gpa, 32); // shorty VL
+    try w32(&dex, gpa, 27);
+    try w32(&dex, gpa, list_L_off);
+    try w32(&dex, gpa, 2);
+    try w32(&dex, gpa, 2);
+    try w32(&dex, gpa, 0);
+    try w32(&dex, gpa, 100); // shorty LLL
+    try w32(&dex, gpa, 28);
+    try w32(&dex, gpa, list_LL_off);
+    try w32(&dex, gpa, 32); // shorty VL
+    try w32(&dex, gpa, 3);
+    try w32(&dex, gpa, list_L_off);
+    try w32(&dex, gpa, 103); // shorty VILL
+    try w32(&dex, gpa, 3);
+    try w32(&dex, gpa, list_LL_off);
+    try w32(&dex, gpa, 104); // shorty ILLLLLL
+    try w32(&dex, gpa, 30);
+    try w32(&dex, gpa, list_Q_off);
+    // 32 rawQuery(String,String[]) -> Cursor: shorty LLL (str 100),
+    // return Cursor (type 30), params [String, String[]].
+    try w32(&dex, gpa, 100); // shorty LLL
+    try w32(&dex, gpa, 30);
+    try w32(&dex, gpa, list_LArr_off);
+    // 33 (I)I: shorty II (str 115), return I (type 2), params [I].
+    try w32(&dex, gpa, 115); // shorty II
+    try w32(&dex, gpa, 2);
+    try w32(&dex, gpa, list_I_off);
+    // 34 (L)L FileInputStream: shorty LL (str 63), return FileInputStream (26).
+    try w32(&dex, gpa, 63); // shorty LL
+    try w32(&dex, gpa, 26);
+    try w32(&dex, gpa, list_L_off);
+    // 35 (LObject)L: shorty LLL (str 100), return SQLiteDatabase (28),
+    // params [String, Object] for openOrCreateDatabase factory arg.
+    try w32(&dex, gpa, 100); // shorty LLL
+    try w32(&dex, gpa, 28);
+    try w32(&dex, gpa, list_LObj_off);
+    // 36 (L)L File: shorty LL (str 63), return File (type 32).
+    try w32(&dex, gpa, 63); // shorty LL
+    try w32(&dex, gpa, 32);
+    try w32(&dex, gpa, list_L_off);
     // --- Fields ---
     // 0: Counter.count:I; 1: System.out:PrintStream;
     // 2: FixtureActivity.edit:EditText
@@ -537,6 +721,48 @@ fn buildDex(gpa: std.mem.Allocator) ![]u8 {
         .{ .c = 13, .p = 11, .n = 44 },
         .{ .c = 13, .p = 12, .n = 46 },
         .{ .c = 10, .p = 8, .n = 45 },
+        .{ .c = 19, .p = 0, .n = 4 }, // 29 SoundPool.<init>()V
+        .{ .c = 19, .p = 4, .n = 55 }, // 30 SoundPool.load(L)I
+        .{ .c = 19, .p = 16, .n = 56 }, // 31 SoundPool.play(II)V
+        .{ .c = 19, .p = 0, .n = 57 }, // 32 SoundPool.release()V
+        .{ .c = 8, .p = 14, .n = 58 }, // 33 System.getProperty(L)L
+        .{ .c = 6, .p = 14, .n = 59 }, // 34 String.concat(L)L
+        .{ .c = 20, .p = 15, .n = 7 }, // 35 Future.get()L
+        // Storage methods 36..57:
+        // 36 Context.getSharedPreferences(LI)L (c=21 virtual on Context)
+        // 37 SharedPreferences.edit()L; 38 Editor.putInt(LI)L;
+        // 39 Editor.commit()Z; 40 Editor.apply()V; 41 SharedPrefs.getInt(LI)I;
+        // 42 Context.openFileOutput(LI)L; 43 OutputStream.write(I)V
+        // (FileOutputStream inherits); 44 OutputStream.close()V;
+        // 45 Context.openFileInput(L)L; 46 InputStream.read()I;
+        // 47 InputStream.close()V; 48 SQLiteDatabase.openOrCreateDatabase(LL)L static;
+        // 49 SQLiteDatabase.execSQL(L)V; 50 ContentValues.<init>()V;
+        // 51 ContentValues.put(LL)V; 52 SQLiteDatabase.insert(LLL)J NYI->see below;
+        // 53 SQLiteDatabase.query(LLLLLLL)L; 54 Cursor.moveToFirst()Z;
+        // 55 Cursor.getInt(I)I; 56 Cursor.close()V; 57 ContentValues.put(IL)V(int)
+        .{ .c = 21, .p = 17, .n = 67 }, // 36
+        .{ .c = 22, .p = 18, .n = 69 }, // 37 edit
+        .{ .c = 23, .p = 19, .n = 71 }, // 38 putInt
+        .{ .c = 23, .p = 20, .n = 72 }, // 39 commit
+        .{ .c = 23, .p = 21, .n = 73 }, // 40 apply
+        .{ .c = 22, .p = 22, .n = 74 }, // 41 getInt
+        .{ .c = 21, .p = 23, .n = 75 }, // 42 openFileOutput
+        .{ .c = 25, .p = 2, .n = 77 }, // 43 write
+        .{ .c = 25, .p = 0, .n = 78 }, // 44 close
+        .{ .c = 21, .p = 34, .n = 80 }, // 45 openFileInput
+        .{ .c = 27, .p = 1, .n = 83 }, // 46 read
+        .{ .c = 27, .p = 0, .n = 78 }, // 47 close (dup name idx 78 ok? use 95)
+        .{ .c = 28, .p = 35, .n = 86 }, // 48 openOrCreateDatabase static
+        .{ .c = 28, .p = 7, .n = 87 }, // 49 execSQL
+        .{ .c = 29, .p = 0, .n = 4 }, // 50 ContentValues.<init>
+        .{ .c = 29, .p = 30, .n = 90 }, // 51 put(LL)V
+        .{ .c = 28, .p = 32, .n = 114 }, // 52 rawQuery(String,String[])L
+        .{ .c = 30, .p = 11, .n = 93 }, // 53 moveToFirst
+        .{ .c = 30, .p = 33, .n = 94 }, // 54 Cursor.getInt(I)I
+        .{ .c = 30, .p = 0, .n = 95 }, // 55 Cursor.close()V
+        .{ .c = 28, .p = 0, .n = 95 }, // 56 SQLiteDatabase.close()V
+        .{ .c = 21, .p = 36, .n = 117 }, // 57 Context.getDatabasePath(L)L
+        .{ .c = 32, .p = 15, .n = 118 }, // 58 File.getPath()L
     };
     for (methods) |m| {
         try w16(&dex, gpa, m.c);
@@ -594,29 +820,128 @@ fn buildDex(gpa: std.mem.Allocator) ![]u8 {
         .{ .regs = 2, .ins = 1, .outs = 0, .insns = &[_]u16{ 0x1052, 0x0000, 0x000f } },
         // 4 FixtureApp.<init>: invoke-direct {v0}, m5
         .{ .regs = 1, .ins = 1, .outs = 1, .insns = &[_]u16{ 0x1070, 0x0005, 0x0000, 0x000e } },
-        // 5 FixtureApp.onCreate: regs=7, this=v6
-        .{ .regs = 7, .ins = 1, .outs = 3, .insns = &[_]u16{
-            0x001a, 14, // const-string v0, "counter"
-            0x011a, 15, // const-string v1, "41"
-            0x306e, 8, 0x0106, // invoke-virtual {v6,v0,v1}, readFile
+        // 5 FixtureApp.onCreate: regs=7, this=v6.
+        // Prefs counter: getSharedPreferences("prefs_counter",0)->edit/getInt+1/
+        // putInt/commit+apply; prints count (1 then 2 across runs), then the
+        // legacy file round-trip + SQLite create/insert/select/getInt/close.
+        .{ .regs = 9, .ins = 1, .outs = 7, .insns = &[_]u16{
+            // prefs(v0) = getSharedPreferences("prefs_counter", 0); this=v8.
+            0x001a, 84, // const-string v0, "prefs_counter"
+            0x0112, // const/4 v1, 0
+            0x306e, 36, 0x0108, // invoke-virtual {v8,v0,v1}, m36
             0x000c, // move-result-object v0
-            0x1071, 10, 0x0000, // invoke-static {v0}, parseInt
+            // count(v1) = prefs.getInt("counter", 41) + 1
+            0x021a, 14, // const-string v2, "counter"
+            0x0313, 42, // const/16 v3, 42 (defValue 42 -> prints 1..2? see below)
+            0x3272, 41, 0x0320, // INVOKE-INTERFACE // invoke-virtual {v0,v2,v3}, m41 getInt
             0x010a, // move-result v1
             0x01d8, 0x0101, // add-int/lit8 v1, v1, 1
-            0x1071, 11, 0x0001, // invoke-static {v1}, valueOf
+            // editor(v2) = prefs.edit()
+            0x1072, 37, 0x0000, // INVOKE-INTERFACE // invoke-virtual {v0}, m37 edit
             0x020c, // move-result-object v2
+            // editor.putInt("counter", count): regs {v2,v0?,v1}: key must be in a reg;
+            // v0 holds prefs (needed later for apply). Copy editor v2->v4,
+            // reload key into v0, keep count in v1: call {v4,v0,v1}.
+            0x2407, // move-object v4, v2
+            0x0507, // move-object v5, v0 (save prefs: v0 reused for key)
             0x001a, 14, // const-string v0, "counter"
-            0x306e, 9, 0x0206, // invoke-virtual {v6,v0,v2}, writeFile
+            0x3172, 38, 0x0104, // INVOKE-INTERFACE // invoke-virtual {v4,v0,v1}, m38 putInt
+            0x040c, // move-result-object v4 (editor, for commit chaining)
+            // commit: editor.commit() -> ignore result in v1
+            0x1072, 39, 0x0004, // INVOKE-INTERFACE // invoke-virtual {v4}, m39 commit
+            0x010a, // move-result v1
+            // println(count): reload count? v1 now holds commit result. Re-read:
+            // count = prefs.getInt("counter", 42) -> v1
+            0x5007, // move-object v0, v5 (restore prefs)
+            0x021a, 14, // const-string v2, "counter"
+            0x0313, 42, // const/16 v3, 42
+            0x3272, 41, 0x0320, // INVOKE-INTERFACE // invoke-virtual {v0,v2,v3}, m41 getInt
+            0x010a, // move-result v1
             0x0362, 1, // sget-object v3, System.out
-            0x206e, 12, 0x0013, // invoke-virtual {v3,v1}, println(I)
-            0x041a, 26, // const-string v4, msg
-            0x206e, 13, 0x0043, // invoke-virtual {v3,v4}, println(L)
+            0x206e, 12, 0x0013, // invoke-virtual {v3,v1}, m12 println(I)
+            // apply path: editor2 = prefs.edit(); putInt(count+1); apply()
+            0x1072, 37, 0x0000, // INVOKE-INTERFACE // invoke-virtual {v0}, m37 edit
+            0x020c, // move-result-object v2
+            0x2407, // move-object v4, v2
+            0x0507, // move-object v5, v0 (save prefs: v0 reused for key)
+            0x001a, 14, // const-string v0, "counter"
+            0x01d8, 0x0101, // add-int/lit8 v1, v1, 1 (count+1)
+            0x3172, 38, 0x0104, // INVOKE-INTERFACE // invoke-virtual {v4,v0,v1}, m38 putInt
+            0x040c, // move-result-object v4
+            0x1072, 40, 0x0004, // INVOKE-INTERFACE // invoke-virtual {v4}, m40 apply
+            // println(count) again after apply (memory-visible immediately)
+            0x5007, // move-object v0, v5 (restore prefs)
+            0x021a, 14, // const-string v2, "counter"
+            0x0313, 42, // const/16 v3, 42
+            0x3272, 41, 0x0320, // INVOKE-INTERFACE // invoke-virtual {v0,v2,v3}, m41 getInt
+            0x010a, // move-result v1
+            0x0362, 1, // sget-object v3, System.out
+            0x206e, 12, 0x0013, // invoke-virtual {v3,v1}, m12 println(I)
+            // activity msg
+            0x041a, 26, // const-string v4, "isakai: fixture app onCreate"
+            0x206e, 13, 0x0043, // invoke-virtual {v3,v4}, m13 println(L)
+            // --- file round-trip: openFileOutput("t",0)->write byte->close ---
+            0x001a, 98, // const-string v0, "t"
+            0x0112, // const/4 v1, 0
+            0x316e, 42, 0x0108, // invoke-virtual {v8,v0,v1}, m42 openFileOutput
+            0x000c, // move-result-object v0 (FileOutputStream)
+            0x0313, 0x2e, // const/16 v3, 46 ('.')
+            0x216e, 43, 0x0030, // invoke-virtual {v0,v3}, m43 write(I)V
+            0x106e, 44, 0x0000, // invoke-virtual {v0}, m44 close
+            // --- file read back: openFileInput("t")->read()->println ---
+            0x001a, 98, // const-string v0, "t"
+            0x216e, 45, 0x0008, // invoke-virtual {v8,v0}, m45 openFileInput (argc2 C=8,D=0)
+            0x000c, // move-result-object v0 (FileInputStream)
+            0x106e, 46, 0x0000, // invoke-virtual {v0}, m46 read
+            0x010a, // move-result v1
+            0x106e, 47, 0x0000, // invoke-virtual {v0}, m47 InputStream.close
+            0x0362, 1, // sget-object v3, System.out
+            0x206e, 12, 0x0013, // invoke-virtual {v3,v1}, m12 println(I)
+            // --- SQLite: path = getDatabasePath("fixture").getPath() ---
+            0x001a, 97, // const-string v0, "fixture"
+            0x216e, 57, 0x0008, // invoke-virtual {v8,v0}, m57 getDatabasePath
+            0x000c, // move-result-object v0 (File)
+            0x106e, 58, 0x0000, // invoke-virtual {v0}, m58 File.getPath
+            0x000c, // move-result-object v0 (path String)
+            // db(v5) = openOrCreateDatabase(path, "NULL"-as-factory)
+            0x011a, 109, // const-string v1, "NULL"
+            0x2171, 48, 0x0010, // invoke-static {v0,v1}, m48 openOrCreateDatabase
+            0x050c, // move-result-object v5
+            // db.execSQL(CREATE...)
+            0x001a, 108, // const-string v0, create-sql
+            0x256e, 49, 0x0005, // invoke-virtual {v5,v0}, m49 execSQL (argc2 C=5,D=0)
+            // cv(v6) = new ContentValues()
+            0x0622, 29, // new-instance v6, ContentValues (type 29)
+            0x1070, 50, 0x0006, // invoke-direct {v6}, m50 <init>
+            // cv.put("v", "1"): m51 is (LL)V -> regs {v6,v0,v1}
+            0x001a, 99, // const-string v0, "v"
+            0x011a, 110, // const-string v1, "1"
+            0x326e, 51, 0x0106, // invoke-virtual {v6,v0,v1}, m51 (argc3 C=6,D=0,E=1)
+            // db.insert via execSQL (skip long-return insert; use execSQL+query):
+            // db.execSQL("INSERT INTO t (v) VALUES (1)")
+            0x001a, 111, // const-string v0, insert-sql
+            0x256e, 49, 0x0005, // invoke-virtual {v5,v0}, m49 execSQL
+            // cur(v0) = db.rawQuery("SELECT v FROM t", new String[0])
+            0x001a, 112, // const-string v0, select-sql
+            0x0112, // const/4 v1, 0 (size 0)
+            0x1123, 31, // new-array v1, v1, String[] (type 31)
+            0x326e, 52, 0x0105, // invoke-virtual {v5,v0,v1}, m52 rawQuery
+            0x000c, // move-result-object v0 (Cursor)
+            0x1072, 53, 0x0000, // INVOKE-INTERFACE // invoke-virtual {v0}, m53 moveToFirst
+            0x030a, // move-result v3 (discard boolean)
+            0x0212, // const/4 v2, 0 (column index)
+            0x2172, 54, 0x0020, // INVOKE-INTERFACE // invoke-virtual {v0,v2}, m54 getInt
+            0x010a, // move-result v1
+            0x0362, 1, // sget-object v3, System.out
+            0x206e, 12, 0x0013, // invoke-virtual {v3,v1}, m12 println(I)
+            0x1072, 55, 0x0000, // INVOKE-INTERFACE // invoke-virtual {v0}, m55 Cursor.close
+            0x106e, 56, 0x0005, // invoke-virtual {v5}, m56 SQLiteDatabase.close
             0x000e, // return-void
         } },
         // 6 FixtureActivity.<init>: invoke-direct {v0}, m14
         .{ .regs = 1, .ins = 1, .outs = 1, .insns = &[_]u16{ 0x1070, 0x000e, 0x0000, 0x000e } },
         // 7 FixtureActivity.onCreate: regs=8, this=v7.
-        // v0=root, v1=edit, v2=button, v3..v6 scratch/coords.
+        // v0=root/path/pool, v1=edit/path-arg, v2=button/soundId, v3..v5 scratch.
         .{ .regs = 8, .ins = 1, .outs = 5, .insns = &[_]u16{
             0x106f, 17, 0x0007, // invoke-super {v7}, Activity.onCreate
             0x0362, 1, // sget-object v3, System.out
@@ -649,6 +974,19 @@ fn buildDex(gpa: std.mem.Allocator) ![]u8 {
             0x106e, 26, 0x0001, // invoke-virtual {v1}, View.requestFocus
             0x030a, // move-result v3
             0x206e, 20, 0x0007, // invoke-virtual {v7,v0}, Activity.setContentView
+            0x001a, 60, // const-string v0, "isakai.codeDir"
+            0x1071, 33, 0x0000, // invoke-static {v0}, System.getProperty
+            0x000c, // move-result-object v0
+            0x011a, 61, // const-string v1, "/assets/tone.wav"
+            0x206e, 34, 0x0010, // invoke-virtual {v0,v1}, String.concat
+            0x010c, // move-result-object v1
+            0x0022, 19, // new-instance v0, SoundPool
+            0x1070, 29, 0x0000, // invoke-direct {v0}, SoundPool.<init>
+            0x206e, 30, 0x0010, // invoke-virtual {v0,v1}, SoundPool.load
+            0x020a, // move-result v2
+            0x0313, 0, // const/16 v3, 0 (loop once)
+            0x306e, 31, 0x0320, // invoke-virtual {v0,v2,v3}, SoundPool.play (blocks)
+            0x106e, 32, 0x0000, // invoke-virtual {v0}, SoundPool.release
             0x000e, // return-void
         } },
         // 8 FixtureActivity.onClick: regs=3, this=v2, arg v0=view.
@@ -760,13 +1098,13 @@ fn buildDex(gpa: std.mem.Allocator) ![]u8 {
     std.mem.writeInt(u32, dex.items[52..][0..4], 0, .little); // map_off (absent)
     std.mem.writeInt(u32, dex.items[56..][0..4], strs.len, .little);
     std.mem.writeInt(u32, dex.items[60..][0..4], string_ids_off, .little);
-    std.mem.writeInt(u32, dex.items[64..][0..4], 19, .little);
+    std.mem.writeInt(u32, dex.items[64..][0..4], type_strs.len, .little);
     std.mem.writeInt(u32, dex.items[68..][0..4], type_ids_off, .little);
-    std.mem.writeInt(u32, dex.items[72..][0..4], 13, .little);
+    std.mem.writeInt(u32, dex.items[72..][0..4], 37, .little);
     std.mem.writeInt(u32, dex.items[76..][0..4], proto_ids_off, .little);
     std.mem.writeInt(u32, dex.items[80..][0..4], 3, .little);
     std.mem.writeInt(u32, dex.items[84..][0..4], field_ids_off, .little);
-    std.mem.writeInt(u32, dex.items[88..][0..4], 29, .little);
+    std.mem.writeInt(u32, dex.items[88..][0..4], methods.len, .little);
     std.mem.writeInt(u32, dex.items[92..][0..4], method_ids_off, .little);
     std.mem.writeInt(u32, dex.items[96..][0..4], 3, .little);
     std.mem.writeInt(u32, dex.items[100..][0..4], class_defs_off, .little);
@@ -886,6 +1224,238 @@ fn writeZip(
     try w.flush();
 }
 
+/// Fixture resources.arsc: package 0x7f with string entries
+/// 0x7f110000 "Fixture" (app label), 0x7f110001 "Fixture" (activity
+/// label), 0x7f110002 greeting text, color 0x7f060000, dimen
+/// 0x7f070000 (48dp), layout 0x7f0b0000 -> res/layout/main.xml, and a
+/// string array 0x7f030000 ["Fixture","Clicked!"]. The string type ships
+/// a qualified twin chunk so the default-config-wins rule is covered.
+fn buildArsc(gpa: std.mem.Allocator) ![]u8 {
+    var out: std.ArrayListUnmanaged(u8) = .empty;
+    errdefer out.deinit(gpa);
+    const wPool = struct {
+        fn f(l: *std.ArrayListUnmanaged(u8), g: std.mem.Allocator, strs: []const []const u8) !void {
+            try writeU16List(l, g, 1);
+            try writeU16List(l, g, 28);
+            const len_pos = l.items.len;
+            try writeU32List(l, g, 0); // patched
+            try writeU32List(l, g, @intCast(strs.len));
+            try writeU32List(l, g, 0);
+            try writeU32List(l, g, 0x100);
+            const start_pos = l.items.len;
+            try writeU32List(l, g, 0); // patched
+            try writeU32List(l, g, 0);
+            var data: std.ArrayListUnmanaged(u8) = .empty;
+            defer data.deinit(g);
+            var offs: std.ArrayListUnmanaged(u32) = .empty;
+            defer offs.deinit(g);
+            for (strs) |s| {
+                try offs.append(g, @intCast(data.items.len));
+                var tmp: [4096]u8 = undefined;
+                var tw = std.Io.Writer.fixed(&tmp);
+                try writePoolString(&tw, s);
+                try data.appendSlice(g, tmp[0..tw.end]);
+            }
+            for (offs.items) |o| try writeU32List(l, g, o);
+            while (data.items.len % 4 != 0) try data.append(g, 0);
+            const strings_start: u32 = @intCast(8 + (l.items.len - len_pos - 4));
+            try l.appendSlice(g, data.items);
+            std.mem.writeInt(u32, l.items[len_pos..][0..4], @intCast(l.items.len - (len_pos - 4)), .little);
+            std.mem.writeInt(u32, l.items[start_pos..][0..4], strings_start, .little);
+        }
+    }.f;
+    const wEntry = struct {
+        fn f(l: *std.ArrayListUnmanaged(u8), g: std.mem.Allocator, key: u32, dtype: u8, data: u32) !void {
+            try writeU16List(l, g, 16);
+            try writeU16List(l, g, 0); // simple
+            try writeU32List(l, g, key);
+            try writeU16List(l, g, 8);
+            try l.append(g, 0);
+            try l.append(g, dtype);
+            try writeU32List(l, g, data);
+        }
+    }.f;
+    const wType = struct {
+        fn f(
+            l: *std.ArrayListUnmanaged(u8),
+            g: std.mem.Allocator,
+            tid: u8,
+            qualified: bool,
+            offs: []const u32,
+            entries: []const u8,
+        ) !void {
+            try writeU16List(l, g, 0x201);
+            try writeU16List(l, g, 84);
+            const len_pos = l.items.len;
+            try writeU32List(l, g, 0); // patched
+            try l.append(g, tid);
+            try l.append(g, 0);
+            try writeU16List(l, g, 0);
+            try writeU32List(l, g, @intCast(offs.len));
+            try writeU32List(l, g, 84 + @as(u32, @intCast(offs.len)) * 4);
+            try writeU32List(l, g, 64);
+            var cfg: [60]u8 = std.mem.zeroes([60]u8);
+            if (qualified) cfg[10] = 240; // density qualifier copy
+            try l.appendSlice(g, &cfg);
+            for (offs) |o| try writeU32List(l, g, o);
+            try l.appendSlice(g, entries);
+            std.mem.writeInt(u32, l.items[len_pos..][0..4], @intCast(l.items.len - (len_pos - 4)), .little);
+        }
+    }.f;
+    const wSpec = struct {
+        fn f(l: *std.ArrayListUnmanaged(u8), g: std.mem.Allocator, tid: u8, count: u32) !void {
+            try writeU16List(l, g, 0x202);
+            try writeU16List(l, g, 16);
+            try writeU32List(l, g, 16 + count * 4);
+            try l.append(g, tid);
+            try l.append(g, 0);
+            try writeU16List(l, g, 0);
+            try writeU32List(l, g, count);
+            for (0..count) |_| try writeU32List(l, g, 0xFFFFFFFF);
+        }
+    }.f;
+
+    try writeU16List(&out, gpa, 2);
+    try writeU16List(&out, gpa, 12);
+    const table_len = out.items.len;
+    try writeU32List(&out, gpa, 0); // patched
+    try writeU32List(&out, gpa, 1);
+    // Global pool: 0 "Fixture", 1 "Clicked!", 2 greeting, 3 layout path,
+    // 4 hdpi twin, 5 hi string for the array.
+    try wPool(&out, gpa, &.{ "Fixture", "Clicked!", "Hello Isakai", "res/layout/main.xml", "Fixture-hdpi", "Hi" });
+
+    const pkg_pos = out.items.len;
+    try writeU16List(&out, gpa, 0x200);
+    try writeU16List(&out, gpa, 288);
+    const pkg_len = out.items.len;
+    try writeU32List(&out, gpa, 0); // patched
+    try writeU32List(&out, gpa, 0x7f);
+    const pkg_bytes = "org.isakai.fixture";
+    for (0..128) |i| {
+        const w: u16 = if (i < pkg_bytes.len) pkg_bytes[i] else 0;
+        try writeU16List(&out, gpa, w);
+    }
+    const type_rel = out.items.len;
+    try writeU32List(&out, gpa, 0); // patched
+    try writeU32List(&out, gpa, 0);
+    const key_rel = out.items.len;
+    try writeU32List(&out, gpa, 0); // patched
+    try writeU32List(&out, gpa, 0);
+    try writeU32List(&out, gpa, 0);
+    const type_pool_off = out.items.len - pkg_pos;
+    try wPool(&out, gpa, &.{
+        "anim", "animator", "array", "attr", "bool", "color", "dimen", "drawable",
+        "id", "integer", "interpolator", "layout", "font", "menu", "mipmap",
+        "plurals", "string", "style", "raw", "xml",
+    });
+    const key_pool_off = out.items.len - pkg_pos;
+    try wPool(&out, gpa, &.{
+        "app_name", "activity_label", "greeting", "sample_color", "margin",
+        "main", "greetings",
+    });
+
+    // String type (17): entries 0..2; qualified twin asserts default wins.
+    var e_def: std.ArrayListUnmanaged(u8) = .empty;
+    defer e_def.deinit(gpa);
+    try wEntry(&e_def, gpa, 0, 3, 0); // app_name -> "Fixture"
+    try wEntry(&e_def, gpa, 1, 3, 0); // activity_label -> "Fixture"
+    try wEntry(&e_def, gpa, 2, 3, 2); // greeting -> "Hello Isakai"
+    var e_q: std.ArrayListUnmanaged(u8) = .empty;
+    defer e_q.deinit(gpa);
+    try wEntry(&e_q, gpa, 0, 3, 4); // hdpi twin (must lose)
+    try wSpec(&out, gpa, 17, 3);
+    try wType(&out, gpa, 17, false, &.{ 0, 16, 32 }, e_def.items);
+    try wType(&out, gpa, 17, true, &.{ 0, 0xFFFFFFFF, 0xFFFFFFFF }, e_q.items);
+    // Color type (6): sample_color -> packed ARGB.
+    var e_c: std.ArrayListUnmanaged(u8) = .empty;
+    defer e_c.deinit(gpa);
+    try wEntry(&e_c, gpa, 3, 0x1c, 0xFF112233);
+    try wSpec(&out, gpa, 6, 1);
+    try wType(&out, gpa, 6, false, &.{0}, e_c.items);
+    // Dimen type (7): margin -> 48dp (0x3001: 48 << 8 | dp).
+    var e_d: std.ArrayListUnmanaged(u8) = .empty;
+    defer e_d.deinit(gpa);
+    try wEntry(&e_d, gpa, 4, 5, 0x3001);
+    try wSpec(&out, gpa, 7, 1);
+    try wType(&out, gpa, 7, false, &.{0}, e_d.items);
+    // Layout type (12): main -> res/layout/main.xml.
+    var e_l: std.ArrayListUnmanaged(u8) = .empty;
+    defer e_l.deinit(gpa);
+    try wEntry(&e_l, gpa, 5, 3, 3);
+    try wSpec(&out, gpa, 12, 1);
+    try wType(&out, gpa, 12, false, &.{0}, e_l.items);
+    // Array type (3): greetings -> bag of ["Fixture", "Clicked!"].
+    var e_a: std.ArrayListUnmanaged(u8) = .empty;
+    defer e_a.deinit(gpa);
+    try writeU16List(&e_a, gpa, 16); // entry size
+    try writeU16List(&e_a, gpa, 1); // COMPLEX
+    try writeU32List(&e_a, gpa, 6); // key: greetings
+    try writeU32List(&e_a, gpa, 0xFFFFFFFF); // parent: none
+    try writeU32List(&e_a, gpa, 2); // count
+    for ([_]u32{ 0, 1 }) |gi| {
+        try writeU32List(&e_a, gpa, 0x01000000); // name: array index attr
+        try writeU16List(&e_a, gpa, 8);
+        try e_a.append(gpa, 0);
+        try e_a.append(gpa, 3);
+        try writeU32List(&e_a, gpa, gi);
+    }
+    try wSpec(&out, gpa, 3, 1);
+    try wType(&out, gpa, 3, false, &.{0}, e_a.items);
+
+    std.mem.writeInt(u32, out.items[type_rel..][0..4], @intCast(type_pool_off), .little);
+    std.mem.writeInt(u32, out.items[key_rel..][0..4], @intCast(key_pool_off), .little);
+    std.mem.writeInt(u32, out.items[pkg_len..][0..4], @intCast(out.items.len - pkg_pos), .little);
+    std.mem.writeInt(u32, out.items[table_len..][0..4], @intCast(out.items.len), .little);
+    return out.toOwnedSlice(gpa);
+}
+
+fn writeU16List(l: *std.ArrayListUnmanaged(u8), g: std.mem.Allocator, v: u16) !void {
+    var b: [2]u8 = undefined;
+    std.mem.writeInt(u16, &b, v, .little);
+    try l.appendSlice(g, &b);
+}
+
+fn writeU32List(l: *std.ArrayListUnmanaged(u8), g: std.mem.Allocator, v: u32) !void {
+    var b: [4]u8 = undefined;
+    std.mem.writeInt(u32, &b, v, .little);
+    try l.appendSlice(g, &b);
+}
+
+/// Plain-text layout staged at res/layout/main.xml, referenced by the
+/// layout entry above. Covered by the XmlResourceParser path.
+fn layoutXml() []const u8 {
+    return "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<LinearLayout xmlns:android=\"http://schemas.android.com/apk/res/android\"><EditText android:text=\"Hello Isakai\" /></LinearLayout>\n";
+}
+
+/// 0.5 s 440 Hz sine, mono S16LE 44100, wrapped in a 44-byte WAV header.
+fn buildToneWav(gpa: std.mem.Allocator) ![]u8 {
+    const frames: usize = 22050;
+    const pcm_len: usize = frames * 2;
+    const total: usize = 44 + pcm_len;
+    const out = try gpa.alloc(u8, total);
+    // RIFF header.
+    @memcpy(out[0..4], "RIFF");
+    std.mem.writeInt(u32, out[4..8], @intCast(total - 8), .little);
+    @memcpy(out[8..12], "WAVE");
+    @memcpy(out[12..16], "fmt ");
+    std.mem.writeInt(u32, out[16..20], 16, .little);
+    std.mem.writeInt(u16, out[20..22], 1, .little); // PCM
+    std.mem.writeInt(u16, out[22..24], 1, .little); // mono
+    std.mem.writeInt(u32, out[24..28], 44100, .little);
+    std.mem.writeInt(u32, out[28..32], 44100 * 2, .little); // byte rate
+    std.mem.writeInt(u16, out[32..34], 2, .little); // block align
+    std.mem.writeInt(u16, out[34..36], 16, .little);
+    @memcpy(out[36..40], "data");
+    std.mem.writeInt(u32, out[40..44], @intCast(pcm_len), .little);
+    for (0..frames) |i| {
+        const t: f64 = @as(f64, @floatFromInt(i)) / 44100.0;
+        const v: f64 = @sin(2.0 * std.math.pi * 440.0 * t);
+        const s16: i16 = @intFromFloat(v * 16000.0);
+        std.mem.writeInt(i16, out[44 + i * 2 ..][0..2], s16, .little);
+    }
+    return out;
+}
+
 pub fn main(init: std.process.Init) !u8 {
     const io = init.io;
     const arena = init.arena.allocator();
@@ -899,10 +1469,15 @@ pub fn main(init: std.process.Init) !u8 {
 
     const manifest = try buildManifest(arena, package);
     const dex = try buildDex(arena);
+    const tone = try buildToneWav(arena);
+    const arsc_bytes = try buildArsc(arena);
     try writeZip(io, arena, out_path, &.{
         .{ .name = "AndroidManifest.xml", .data = manifest, .compress = true },
         .{ .name = "classes.dex", .data = dex, .compress = true },
-        .{ .name = "resources.arsc", .data = &[_]u8{ 2, 0, 12, 0, 0, 0, 0, 0, 1, 0, 0, 0 }, .compress = false },
+        .{ .name = "assets/tone.wav", .data = tone, .compress = false },
+        .{ .name = "assets/hello.txt", .data = "hello assets", .compress = false },
+        .{ .name = "resources.arsc", .data = arsc_bytes, .compress = false },
+        .{ .name = "res/layout/main.xml", .data = layoutXml(), .compress = true },
     });
     std.debug.print("wrote {s} package={s} manifest={d} dex={d}\n", .{ out_path, package, manifest.len, dex.len });
     return 0;

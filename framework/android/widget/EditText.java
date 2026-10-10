@@ -24,6 +24,24 @@ public class EditText extends TextView {
         setClickable(true);
     }
 
+    public EditText(android.content.Context context) {
+        super(context);
+        setFocusable(true);
+        setClickable(true);
+    }
+
+    public EditText(android.content.Context context, android.util.AttributeSet attrs) {
+        super(context, attrs);
+        setFocusable(true);
+        setClickable(true);
+    }
+
+    public EditText(android.content.Context context, android.util.AttributeSet attrs, int defStyleAttr) {
+        super(context, attrs, defStyleAttr);
+        setFocusable(true);
+        setClickable(true);
+    }
+
     @Override
     public void setText(CharSequence text) {
         editable.replaceAll(text);

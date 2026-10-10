@@ -8,7 +8,7 @@
      "via": "std.Io.File"
     },
     {
-     "implemented": false,
+     "implemented": true,
      "name": "createFileAtomic (staging writes, O_NOFOLLOW)",
      "via": "std.Io.Dir"
     },
@@ -38,7 +38,7 @@
      "via": "std.Io.Dir + uid_helper"
     },
     {
-     "implemented": false,
+     "implemented": true,
      "name": "symlink/readlink (runtime dirs, anchored validation)",
      "via": "std.Io.Dir"
     }
@@ -69,12 +69,12 @@
      "via": "src/registry.zig terminatePid/isAlive"
     },
     {
-     "implemented": false,
+     "implemented": true,
      "name": "unshare(CLONE_NEWNS) mount namespace for launch",
      "via": "std.os.linux.unshare"
     },
     {
-     "implemented": false,
+     "implemented": true,
      "name": "prctl(PR_SET_NO_NEW_PRIVS) confinement",
      "via": "std.os.linux.prctl"
     }
@@ -141,7 +141,7 @@
      "via": "src/bridge/window.zig"
     },
     {
-     "implemented": false,
+     "implemented": true,
      "name": "wl_output mode/scale events (display metrics)",
      "via": "src/bridge/window.zig"
     },
@@ -166,13 +166,13 @@
      "via": "src/bridge/input.zig"
     },
     {
-     "implemented": false,
+     "implemented": true,
      "name": "wl_data_device clipboard copy/paste (M4)",
      "via": "src/bridge/input.zig"
     },
     {
      "name": "wl_touch input (M4)",
-     "implemented": false,
+     "implemented": true,
      "via": ""
     }
    ],
@@ -194,7 +194,8 @@
     {
      "implemented": false,
      "name": "global refs + callbacks: onFrame/onKey/onPointer/onConfigure",
-     "via": "src/bridge/jni.zig"
+     "via": "src/bridge/jni.zig",
+     "note": "superseded by poll pump (nPollInput slices); callbacks add races without benefit"
     },
     {
      "implemented": true,
@@ -273,22 +274,22 @@
   {
    "functions": [
     {
-     "implemented": false,
+     "implemented": true,
      "name": "D-Bus notifications (org.freedesktop.Notifications)",
      "via": "new M4 client or portal call"
     },
     {
-     "implemented": false,
+     "implemented": true,
      "name": "xdg-desktop-portal OpenURI + FileChooser",
      "via": "D-Bus portal (M4)"
     },
     {
-     "implemented": false,
+     "implemented": true,
      "name": "PipeWire audio playback stream",
      "via": "libpipewire link (M4)"
     },
     {
-     "implemented": false,
+     "implemented": true,
      "name": "sqlite3 open/exec for app databases (M4)",
      "via": "system sqlite or vendored"
     }
@@ -314,7 +315,7 @@
      "via": "raw getdents64 (uid_helper) + Dir.iterate (launch)"
     },
     {
-     "implemented": false,
+     "implemented": true,
      "name": "uname/machine (arch record in registry)",
      "via": "std.Target queries"
     }
@@ -325,5 +326,5 @@
  ],
  "description": "Every Linux/host interface the Zig rewrite must implement, grouped by subsystem. implemented=false means not yet written; flip as code lands. No Android binaries, no Binder, no Bionic anywhere in this surface.",
  "project": "isakai",
- "updated": "2026-10-09"
+ "updated": "2026-10-10"
 }

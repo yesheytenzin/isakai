@@ -263,7 +263,54 @@ pub fn allocate(gpa: std.mem.Allocator, io: std.Io, args: AllocateArgs) HelperEr
         try mkdirOwnedAt(cache_fd, "tmp", 0o700, args.uid);
         try mkdirOwnedAt(data_fd, "run", 0o700, args.uid);
     }
+    // Stage dir: work/stage/<pkg>, 0700 then chown to the app uid via
+    // dirfd (a swapped symlink cannot redirect ownership). The app
+    // writes transfer files here directly. Best-effort parents.
+    // NOTE: work/run/<pkg> is deliberately NOT chowned: the bridge
+    // daemon (launcher user) must bind its socket there; the socket
+    // itself is fchown'd to the app uid at bind time instead.
+    ensureOneBridgeDir(args.work, args.package, "stage", args.uid);
 }
+
+/// Path must be exactly work/run/<package> or work/stage/<package>:
+/// absolute, anchored, no `..`. Returns the owned path or null.
+fn expectBridgeDir(gpa: std.mem.Allocator, work: []const u8, package: []const u8, kind: []const u8) ?[]u8 {
+    if (!validPackage(package)) return null;
+    if (work.len == 0 or work[0] != '/') return null;
+    if (std.mem.indexOf(u8, package, "..") != null) return null;
+    if (std.mem.indexOf(u8, work, "..") != null) return null;
+    return std.fmt.allocPrint(gpa, "{s}/{s}/{s}", .{ work, kind, package }) catch null;
+}
+
+fn ensureOneBridgeDir(work: []const u8, package: []const u8, kind: []const u8, uid: u32) void {
+    const linux = std.os.linux;
+    var arena: [8192]u8 = undefined;
+    var fba: std.heap.FixedBufferAllocator = .init(&arena);
+    const gpa = fba.allocator();
+    const dir = expectBridgeDir(gpa, work, package, kind) orelse return;
+    // Mkdir parents by path (work/run, work/stage): root-owned 0755 is
+    // fine for parents; the leaf gets 0700 + chown below.
+    var pbuf: [4096]u8 = undefined;
+    const parent = std.fmt.bufPrint(&pbuf, "{s}/{s}", .{ work, kind }) catch return;
+    var pz: [4096]u8 = undefined;
+    if (parent.len + 1 > pz.len) return;
+    @memcpy(pz[0..parent.len], parent);
+    pz[parent.len] = 0;
+    _ = linux.mkdirat(linux.AT.FDCWD, @as([*:0]const u8, @ptrCast(&pz)), 0o755);
+    var dz: [4096]u8 = undefined;
+    if (dir.len + 1 > dz.len) return;
+    @memcpy(dz[0..dir.len], dir);
+    dz[dir.len] = 0;
+    const dir_z: [*:0]const u8 = @ptrCast(&dz);
+    _ = linux.mkdirat(linux.AT.FDCWD, dir_z, 0o700);
+    // chown + chmod by fd (NOFOLLOW open): symlink-safe.
+    const fd = openDirNoFollow(linux.AT.FDCWD, dir_z) orelse return;
+    defer _ = linux.close(fd);
+    _ = linux.fchown(fd, uid, uid);
+    _ = linux.fchmod(fd, 0o700);
+}
+
+
 
 pub fn remove(gpa: std.mem.Allocator, io: std.Io, args: AllocateArgs) HelperError!void {
     if (args.uid < 200000 or args.uid > 299999) return error.BadUid;
@@ -419,14 +466,20 @@ fn hasExe(io: std.Io, path: []const u8) bool {
 
 /// Fork, drop to the app user, set the per-app environment, exec the
 /// command. Parent waits and returns the child's exit code (or 128+signal).
-/// Must be root. Drop order: setgroups(0) → setresgid → setresuid, every
-/// return checked, _exit(127) on failure. Never returns the child.
+/// Must be root. `wayland_sock` (from the launcher's --wayland-sock flag)
+/// is validated pre-fork (absolute, no `..`, SOCK_STREAM) and, when
+/// present, bind-mounted into data_dir/run pre-drop with WAYLAND_DISPLAY
+/// set in the child env. Drop order in the child: NO_NEW_PRIVS +
+/// CLONE_NEWNS mount-ns confinement, then setgroups(0) → setresgid →
+/// setresuid, every return checked, _exit(127) on failure. Never returns
+/// the child.
 pub fn runAs(
     package: []const u8,
     uid: u32,
     data_dir: []const u8,
     work: []const u8,
     cmd: []const [:0]const u8,
+    wayland_sock: ?[]const u8,
     err_writer: *std.Io.Writer,
 ) !u8 {
     const linux = std.os.linux;
@@ -474,6 +527,19 @@ pub fn runAs(
         try err_writer.writeAll("uid-helper run: java binary not world-executable\n");
         return 2;
     }
+    // --wayland-sock, when given, must be absolute with no `..` and must
+    // name a live SOCK_STREAM unix socket. Fail-closed (exit 2): never
+    // launch unbrokered when the flag was given, never broker a bad path.
+    if (wayland_sock) |sock| {
+        if (!validWaylandSockPath(sock)) {
+            try err_writer.writeAll("uid-helper run: bad wayland socket path (absolute, no `..` required)\n");
+            return 2;
+        }
+        if (!isStreamSocket(sock)) {
+            try err_writer.writeAll("uid-helper run: wayland socket is not a live stream socket\n");
+            return 2;
+        }
+    }
     const pid_usize = linux.fork();
     const errno_fork = linux.errno(pid_usize);
     if (errno_fork != .SUCCESS) {
@@ -482,9 +548,9 @@ pub fn runAs(
     }
     const pid: std.posix.pid_t = @bitCast(@as(u32, @truncate(pid_usize)));
     if (pid == 0) {
-        // Child: drop privileges, set env, exec. Async-signal-safe only;
-        // on any failure _exit(127) — never return to the caller.
-        childMain(uid, data_dir, cmd);
+        // Child: confine, drop privileges, set env, exec. Async-signal-safe
+        // only; on any failure _exit(127) — never return to the caller.
+        childMain(uid, data_dir, work, package, cmd, wayland_sock);
     }
     // Parent: wait and translate status.
     while (true) {
@@ -548,7 +614,32 @@ fn worldExecutable(path: [:0]const u8) bool {
     return true;
 }
 
-fn childMain(uid: u32, data_dir: []const u8, cmd: []const [:0]const u8) noreturn {
+/// --wayland-sock path shape: absolute, non-empty, no `..` component.
+/// Socket liveness is checked separately by isStreamSocket.
+pub fn validWaylandSockPath(sock: []const u8) bool {
+    if (sock.len == 0 or sock.len >= 4096) return false;
+    if (sock[0] != '/') return false;
+    if (std.mem.indexOf(u8, sock, "..") != null) return false;
+    if (std.mem.indexOfScalar(u8, sock, 0) != null) return false;
+    return true;
+}
+
+/// True when `path` names a unix-domain socket. Symlinks are followed
+/// (connect() resolves the same way); per-component `..` is still
+/// rejected by validWaylandSockPath. Pre-fork probe: the launcher passes
+/// only validated sockets, so a negative here is fail-closed (exit 2),
+/// never a fallback to unbrokered.
+pub fn isStreamSocket(path: []const u8) bool {
+    const linux = std.os.linux;
+    var zbuf: [4096]u8 = undefined;
+    const z = toZ(path, &zbuf) orelse return false;
+    var stx: linux.Statx = undefined;
+    const rc = linux.statx(linux.AT.FDCWD, z, 0, .{ .TYPE = true }, &stx);
+    if (linux.errno(rc) != .SUCCESS) return false;
+    return stx.mode & linux.S.IFMT == linux.S.IFSOCK;
+}
+
+fn childMain(uid: u32, data_dir: []const u8, work: []const u8, package: []const u8, cmd: []const [:0]const u8, wayland_sock: ?[]const u8) noreturn {
     const linux = std.os.linux;
     // 0. Close every fd >= 3 (no descriptor leaks into the app). Prefer
     // close_range(3, ~0, 0); fall back to a bounded loop when ENOSYS.
@@ -558,6 +649,19 @@ fn childMain(uid: u32, data_dir: []const u8, cmd: []const [:0]const u8) noreturn
             var fd: i32 = 3;
             while (fd < 1024) : (fd += 1) _ = linux.close(fd);
         }
+    }
+    // -1. Confinement, still root, before any drop: NO_NEW_PRIVS (exec
+    // gains no privilege afterwards) + a private mount namespace whose
+    // propagation is slave/private so later bind mounts never escape to
+    // the host. Fail-closed with a stderr diagnostic; _exit(127).
+    confineChild();
+    // 0b. Wayland brokering: bind-mount the compositor socket onto
+    // <data_dir>/run/<basename> (regular-file 0600 target) inside the
+    // private mount ns, still root pre-drop. Fail-closed: _exit(127).
+    var wayland_base: ?[]const u8 = null;
+    var wayland_disp_buf: [108]u8 = undefined;
+    if (wayland_sock) |sock| {
+        wayland_base = brokerWaylandSock(sock, data_dir, &wayland_disp_buf) orelse linux.exit(127);
     }
     // 1. Supplementary groups first (else they leak across exec).
     if (linux.errno(linux.setgroups(0, &[_]linux.gid_t{})) != .SUCCESS) linux.exit(127);
@@ -589,13 +693,39 @@ fn childMain(uid: u32, data_dir: []const u8, cmd: []const [:0]const u8) noreturn
     _ = tmpdir;
     _ = rundir;
     _ = home;
-    const envp: [*:null]const ?[*:0]const u8 = @ptrCast(&[_]?[*:0]const u8{
+    // Bridge/stage paths mirror launch.bridgeDirs (work/run+work/stage):
+    // rebuilt here (allocation-free) as the 5th/6th env vars. No
+    // DBUS_* vars are set: the sandbox reaches the bus only via the
+    // bridge socket.
+    var bridge_buf: [4352]u8 = undefined;
+    var stage_buf: [4352]u8 = undefined;
+    const bridge = std.fmt.bufPrint(&bridge_buf, "ISAKAI_BRIDGE={s}/run/{s}\x00", .{ work, package }) catch linux.exit(127);
+    const stage = std.fmt.bufPrint(&stage_buf, "ISAKAI_STAGE={s}/stage/{s}\x00", .{ work, package }) catch linux.exit(127);
+    _ = bridge;
+    _ = stage;
+    // WAYLAND_DISPLAY=<basename>: points at the bind-mounted socket under
+    // XDG_RUNTIME_DIR (<data_dir>/run). Only present when brokered.
+    var wdisplay_buf: [128]u8 = undefined;
+    if (wayland_base) |base| {
+        _ = std.fmt.bufPrint(&wdisplay_buf, "WAYLAND_DISPLAY={s}\x00", .{base}) catch linux.exit(127);
+    }
+    const env_base: [6]?[*:0]const u8 = .{
         @ptrCast(&tmpdir_buf),
         @ptrCast(&rundir_buf),
         @ptrCast(&home_buf),
         @ptrCast("PATH=/usr/bin:/bin\x00"),
-        null,
-    });
+        @ptrCast(&bridge_buf),
+        @ptrCast(&stage_buf),
+    };
+    var envp_buf: [8]?[*:0]const u8 = .{ null, null, null, null, null, null, null, null };
+    for (env_base, 0..) |e, i| envp_buf[i] = e;
+    var nenv: usize = env_base.len;
+    if (wayland_base != null) {
+        envp_buf[nenv] = @ptrCast(&wdisplay_buf);
+        nenv += 1;
+    }
+    envp_buf[nenv] = null;
+    const envp: [*:null]const ?[*:0]const u8 = @ptrCast(&envp_buf);
     // argv (already NUL-terminated slices).
     var argv_buf: [64]?[*:0]const u8 = @splat(null);
     if (cmd.len >= argv_buf.len) linux.exit(127);
@@ -616,6 +746,147 @@ fn childMain(uid: u32, data_dir: []const u8, cmd: []const [:0]const u8) noreturn
     _ = linux.write(linux.STDERR_FILENO, exe0.ptr, exe0.len);
     _ = linux.write(linux.STDERR_FILENO, "\n", 1);
     linux.exit(127);
+}
+
+/// NO_NEW_PRIVS + private mount namespace, still root, pre-drop.
+/// Fail-closed: stderr diagnostic + _exit(127) on any failure.
+/// Async-signal-safe only (raw syscalls + linux.write). Runs as root
+/// (helper entry requires root), where unshare(CLONE_NEWNS) is permitted;
+/// without root the unshare fails and the launch aborts — by design.
+fn confineChild() void {
+    const linux = std.os.linux;
+    // PR_SET_NO_NEW_PRIVS=38, arg 1: exec transitions gain no privilege.
+    const nnp = linux.prctl(38, 1, 0, 0, 0);
+    if (linux.errno(nnp) != .SUCCESS) {
+        const msg = "uid-helper run: prctl(NO_NEW_PRIVS) failed\n";
+        _ = linux.write(linux.STDERR_FILENO, msg, msg.len);
+        linux.exit(127);
+    }
+    // CLONE_NEWNS: private mount namespace so the socket bind-mount (and
+    // any app mounts) never escape to the host. Entrance mounts keep host
+    // propagation otherwise; mark the tree slave then private.
+    if (linux.errno(linux.unshare(linux.CLONE.NEWNS)) != .SUCCESS) {
+        const msg = "uid-helper run: unshare(CLONE_NEWNS) failed\n";
+        _ = linux.write(linux.STDERR_FILENO, msg, msg.len);
+        linux.exit(127);
+    }
+    const none: [*:0]const u8 = @ptrCast("none\x00");
+    const root: [*:0]const u8 = @ptrCast("/\x00");
+    // mount("none", "/", null, MS_SLAVE|MS_REC, null), then MS_PRIVATE|MS_REC.
+    if (linux.errno(linux.mount(none, root, null, linux.MS.SLAVE | linux.MS.REC, 0)) != .SUCCESS) {
+        const msg = "uid-helper run: mount(/,SLAVE|REC) failed\n";
+        _ = linux.write(linux.STDERR_FILENO, msg, msg.len);
+        linux.exit(127);
+    }
+    if (linux.errno(linux.mount(none, root, null, linux.MS.PRIVATE | linux.MS.REC, 0)) != .SUCCESS) {
+        const msg = "uid-helper run: mount(/,PRIVATE|REC) failed\n";
+        _ = linux.write(linux.STDERR_FILENO, msg, msg.len);
+        linux.exit(127);
+    }
+}
+
+/// Bind-mount the validated compositor socket onto
+/// <data_dir>/run/<basename>. Target is created as a 0600 regular file
+/// (O_CREAT|O_EXCL|O_NOFOLLOW|O_CLOEXEC) so a swapped symlink cannot
+/// redirect the mount. Returns the basename slice (into name_buf) for the
+/// WAYLAND_DISPLAY value, or null on any failure (caller _exit(127)s).
+/// Async-signal-safe: raw syscalls only, fixed stack buffers.
+fn brokerWaylandSock(sock: []const u8, data_dir: []const u8, name_buf: *[108]u8) ?[]const u8 {
+    const linux = std.os.linux;
+    if (!validWaylandSockPath(sock)) return null;
+    const base = std.fs.path.basename(sock);
+    if (base.len == 0 or base.len >= name_buf.len) return null;
+    if (std.mem.indexOfScalar(u8, base, '/') != null) return null;
+    @memcpy(name_buf[0..base.len], base);
+    name_buf[base.len] = 0;
+    const base_z: [*:0]const u8 = @ptrCast(name_buf);
+    _ = base_z;
+    // Re-validate the source is still a socket (TOCTOU: worst case the
+    // bind below fails and the child _exit(127)s — fail-closed).
+    {
+        var sbuf: [4096]u8 = undefined;
+        if (sock.len + 1 > sbuf.len) return null;
+        @memcpy(sbuf[0..sock.len], sock);
+        sbuf[sock.len] = 0;
+        const z: [*:0]const u8 = @ptrCast(&sbuf);
+        var stx: linux.Statx = undefined;
+        const rc = linux.statx(linux.AT.FDCWD, z, 0, .{ .TYPE = true }, &stx);
+        if (linux.errno(rc) != .SUCCESS) {
+            const msg = "uid-helper run: wayland socket vanished\n";
+            _ = linux.write(linux.STDERR_FILENO, msg, msg.len);
+            return null;
+        }
+        if (stx.mode & linux.S.IFMT != linux.S.IFSOCK) {
+            const msg = "uid-helper run: wayland socket replaced\n";
+            _ = linux.write(linux.STDERR_FILENO, msg, msg.len);
+            return null;
+        }
+    }
+    // Target <data_dir>/run/<base>: open data_dir NOFOLLOW, then run dir,
+    // then O_CREAT|O_EXCL|O_NOFOLLOW the target file 0600.
+    var dbuf: [4096]u8 = undefined;
+    var tbuf: [4096]u8 = undefined;
+    var sbuf2: [4096]u8 = undefined;
+    if (data_dir.len + 1 > dbuf.len) return null;
+    @memcpy(dbuf[0..data_dir.len], data_dir);
+    dbuf[data_dir.len] = 0;
+    const data_z: [*:0]const u8 = @ptrCast(&dbuf);
+    const data_fd = openDirNoFollow(linux.AT.FDCWD, data_z) orelse {
+        const msg = "uid-helper run: data dir not openable\n";
+        _ = linux.write(linux.STDERR_FILENO, msg, msg.len);
+        return null;
+    };
+    defer _ = linux.close(data_fd);
+    const run_z: [*:0]const u8 = @ptrCast("run\x00");
+    const run_fd = openDirNoFollow(data_fd, run_z) orelse {
+        const msg = "uid-helper run: data run dir missing\n";
+        _ = linux.write(linux.STDERR_FILENO, msg, msg.len);
+        return null;
+    };
+    defer _ = linux.close(run_fd);
+    if (base.len + 1 > tbuf.len) return null;
+    @memcpy(tbuf[0..base.len], base);
+    tbuf[base.len] = 0;
+    const tgt_z: [*:0]const u8 = @ptrCast(&tbuf);
+    {
+        const rc = linux.openat(run_fd, tgt_z, .{ .ACCMODE = .RDWR, .CREAT = true, .EXCL = true, .NOFOLLOW = true, .CLOEXEC = true }, 0o600);
+        const err = linux.errno(rc);
+        if (err != .SUCCESS) {
+            // Target exists: only reuse a regular 0600-or-tighter file we
+            // own the dirfd to (never follow); else fail closed.
+            if (err != .EXIST) {
+                const msg = "uid-helper run: wayland target create failed\n";
+                _ = linux.write(linux.STDERR_FILENO, msg, msg.len);
+                return null;
+            }
+            const probe = linux.openat(run_fd, tgt_z, .{ .ACCMODE = .RDWR, .NOFOLLOW = true, .CLOEXEC = true }, 0);
+            if (linux.errno(probe) != .SUCCESS) {
+                const msg = "uid-helper run: wayland target not openable\n";
+                _ = linux.write(linux.STDERR_FILENO, msg, msg.len);
+                return null;
+            }
+            _ = linux.close(@bitCast(@as(u32, @truncate(probe))));
+        } else {
+            _ = linux.close(@bitCast(@as(u32, @truncate(rc))));
+        }
+    }
+    if (sock.len + 1 > sbuf2.len) return null;
+    @memcpy(sbuf2[0..sock.len], sock);
+    sbuf2[sock.len] = 0;
+    const src_z: [*:0]const u8 = @ptrCast(&sbuf2);
+    // Bind-mount via /proc/self/fd: mount(src, /proc/self/fd/<run_fd>/<base>,
+    // null, MS_BIND, null). Resolves the dirfd-anchored target to a path
+    // without re-walking it by name (symlink-safe: fds were NOFOLLOW).
+    var dstbuf: [64]u8 = undefined;
+    const dst = std.fmt.bufPrint(&dstbuf, "/proc/self/fd/{d}/{s}\x00", .{ run_fd, base }) catch return null;
+    _ = dst;
+    const dst_z: [*:0]const u8 = @ptrCast(&dstbuf);
+    if (linux.errno(linux.mount(src_z, dst_z, null, linux.MS.BIND, 0)) != .SUCCESS) {
+        const msg = "uid-helper run: wayland bind mount failed\n";
+        _ = linux.write(linux.STDERR_FILENO, msg, msg.len);
+        return null;
+    }
+    return name_buf[0..base.len];
 }
 
 test "userName is stable and hashed" {
@@ -664,4 +935,53 @@ test "hasIsakaiMainMarker requires the entry point" {
     try std.testing.expect(!hasIsakaiMainMarker(bad));
     const empty: []const [:0]const u8 = &.{};
     try std.testing.expect(!hasIsakaiMainMarker(empty));
+}
+
+test "validWaylandSockPath requires absolute no-dotdot" {
+    try std.testing.expect(validWaylandSockPath("/run/user/1000/wayland-0"));
+    try std.testing.expect(validWaylandSockPath("/tmp/wayland-1"));
+    try std.testing.expect(!validWaylandSockPath(""));
+    try std.testing.expect(!validWaylandSockPath("wayland-0"));
+    try std.testing.expect(!validWaylandSockPath("relative/path"));
+    try std.testing.expect(!validWaylandSockPath("/tmp/../evil"));
+    try std.testing.expect(!validWaylandSockPath("/tmp/.."));
+}
+
+test "isStreamSocket detects unix stream sockets, rejects files" {
+    const io = std.testing.io;
+    // Real socketpair endpoint: statx must report IFSOCK.
+    var fds: [2]std.os.linux.fd_t = undefined;
+    const rc = std.os.linux.socketpair(std.os.linux.AF.UNIX, std.os.linux.SOCK.STREAM, 0, &fds);
+    try std.testing.expectEqual(std.os.linux.E.SUCCESS, std.os.linux.errno(rc));
+    defer _ = std.os.linux.close(fds[0]);
+    defer _ = std.os.linux.close(fds[1]);
+    var path_buf: [64]u8 = undefined;
+    const fd_path = try std.fmt.bufPrint(&path_buf, "/proc/self/fd/{d}", .{fds[0]});
+    try std.testing.expect(isStreamSocket(fd_path));
+    // Regular file is not a socket. TmpDir lives under .zig-cache/tmp, so
+    // build a cwd-relative path to a file inside it.
+    var tmp = std.testing.tmpDir(.{});
+    defer tmp.cleanup();
+    var file = try tmp.dir.createFile(io, "plain", .{});
+    file.close(io);
+    var pbuf: [512]u8 = undefined;
+    const fpath = try std.fmt.bufPrint(&pbuf, ".zig-cache/tmp/{s}/plain", .{&tmp.sub_path});
+    try std.testing.expect(!isStreamSocket(fpath));
+    // Missing path is not a socket (fail-closed).
+    try std.testing.expect(!isStreamSocket("/nonexistent-isakai-sock-xyz"));
+}
+
+test "confinement prctl numbers probe live flags" {
+    // Unit-probed flags for the privileged spawn path: PR_SET_NO_NEW_PRIVS
+    // (38) sets the flag and PR_GET_NO_NEW_PRIVS (39) reads it back as 1.
+    // confineChild() runs this same sequence as root pre-drop, then
+    // unshare(CLONE_NEWNS) for the private mount ns; the unshare itself
+    // needs privilege (verified live as root at launch, and fail-closed
+    // _exit(127) otherwise), so only the prctl half is probed here.
+    const linux = std.os.linux;
+    const set = linux.prctl(38, 1, 0, 0, 0);
+    try std.testing.expectEqual(linux.E.SUCCESS, linux.errno(set));
+    const got = linux.prctl(39, 0, 0, 0, 0);
+    try std.testing.expectEqual(linux.E.SUCCESS, linux.errno(got));
+    try std.testing.expectEqual(@as(usize, 1), got);
 }

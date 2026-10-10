@@ -21,6 +21,21 @@ public class Button extends TextView {
         setText(label);
     }
 
+    public Button(android.content.Context context) {
+        super(context);
+        setClickable(true);
+        setFocusable(true);
+        setBackgroundColor(Color.LTGRAY);
+    }
+
+    public Button(android.content.Context context, android.util.AttributeSet attrs) {
+        this(context);
+    }
+
+    public Button(android.content.Context context, android.util.AttributeSet attrs, int defStyleAttr) {
+        this(context);
+    }
+
     @Override
     protected void onDraw(Canvas canvas) {
         int bg = isPressed() ? Color.DKGRAY : backgroundColor;

@@ -9,8 +9,9 @@
 //! `JNIEnv` function table by fixed slot index; the slots below were verified
 //! against JDK 27's `jni.h` with
 //! `slot = offsetof(struct JNINativeInterface_, name) / sizeof(void *)`:
-//! `GetStringUTFChars` = 169, `ReleaseStringUTFChars` = 170,
-//! `GetArrayLength` = 171, `GetIntArrayRegion` = 203,
+//! `NewStringUTF` = 167, `GetStringUTFChars` = 169,
+//! `ReleaseStringUTFChars` = 170, `GetArrayLength` = 171,
+//! `GetByteArrayRegion` = 200, `GetIntArrayRegion` = 203,
 //! `SetIntArrayRegion` = 211, `NewDirectByteBuffer` = 229.
 //!
 //! Failure policy: `nOpen` returns 0 and `nRun` returns -1 on error; the Java
@@ -23,6 +24,9 @@
 
 const std = @import("std");
 const window_mod = @import("window");
+const audio_mod = @import("audio");
+const desktop_mod = @import("desktop");
+const sqlite_mod = @import("sqlite");
 
 const JniInt = i32;
 const JniSize = i32;
@@ -32,9 +36,11 @@ const gpa = std.heap.c_allocator;
 
 /// Slot count of JDK 27's `JNINativeInterface_` table.
 const jni_table_len = 236;
+const slot_new_string_utf: usize = 167;
 const slot_get_string_utf_chars: usize = 169;
 const slot_release_string_utf_chars: usize = 170;
 const slot_get_array_length: usize = 171;
+const slot_get_byte_array_region: usize = 200;
 const slot_get_int_array_region: usize = 203;
 const slot_set_int_array_region: usize = 211;
 const slot_new_direct_byte_buffer: usize = 229;
@@ -82,9 +88,19 @@ fn jniReleaseUtf(env: ?*anyopaque, fns: *const JniTable, s: ?*anyopaque, chars: 
     _ = jniCall(slot_release_string_utf_chars, Fn, fns, env, .{ s, chars });
 }
 
+fn jniNewStringUtf(env: ?*anyopaque, fns: *const JniTable, bytes: [*:0]const u8) ?*anyopaque {
+    const Fn = fn (?*anyopaque, [*:0]const u8) callconv(.c) ?*anyopaque;
+    return jniCall(slot_new_string_utf, Fn, fns, env, .{bytes});
+}
+
 fn jniArrayLen(env: ?*anyopaque, fns: *const JniTable, arr: ?*anyopaque) ?JniSize {
     const Fn = fn (?*anyopaque, ?*anyopaque) callconv(.c) JniSize;
     return jniCall(slot_get_array_length, Fn, fns, env, .{arr});
+}
+
+fn jniGetByteRegion(env: ?*anyopaque, fns: *const JniTable, arr: ?*anyopaque, start: JniSize, len: JniSize, buf: [*]u8) void {
+    const Fn = fn (?*anyopaque, ?*anyopaque, JniSize, JniSize, [*]u8) callconv(.c) void;
+    _ = jniCall(slot_get_byte_array_region, Fn, fns, env, .{ arr, start, len, buf });
 }
 
 fn jniGetIntRegion(env: ?*anyopaque, fns: *const JniTable, arr: ?*anyopaque, start: JniSize, len: JniSize, buf: [*]JniInt) void {
@@ -124,6 +140,11 @@ fn resolveDisplayPath() ?[]u8 {
     if (std.fs.path.isAbsolute(display)) return gpa.dupe(u8, display) catch null;
     const runtime = getenvNonEmpty("XDG_RUNTIME_DIR") orelse return null;
     return std.fmt.allocPrint(gpa, "{s}/{s}", .{ runtime, display }) catch null;
+}
+
+fn asAudio(handle: JniLong) ?*audio_mod.Stream {
+    if (handle == 0) return null;
+    return @ptrFromInt(@as(usize, @intCast(handle)));
 }
 
 fn asWindow(handle: JniLong) ?*window_mod.Window {
@@ -300,11 +321,12 @@ export fn Java_org_isakai_bridge_IsakaiWindow_nRun(
 }
 
 /// Drain queued input events into `batch` as groups of 8 ints, kind first
-/// (M3 contract: 1=KEY, 2=MOTION, 5=KBD_FOCUS, 6=PTR_FOCUS). Returns the
-/// event count, 0 for none, -1 on bad/closed handle or a batch whose
-/// length is not a positive multiple of 8. Pure drain: no pump here, the
-/// Java loop calls run()/pollSize for I/O. The Java wrapper turns
-/// negatives into IllegalStateException (no ThrowNew here).
+/// (M3 contract: 1=KEY, 2=MOTION, 5=KBD_FOCUS, 6=PTR_FOCUS; M4 adds 7/8
+/// touch headers/rows). Returns the event count, 0 for none, -1 on
+/// bad/closed handle or a batch whose length is not a positive multiple
+/// of 8. Pure drain: no pump here, the Java loop calls run()/pollSize
+/// for I/O. The Java wrapper turns negatives into IllegalStateException
+/// (no ThrowNew here).
 export fn Java_org_isakai_bridge_IsakaiWindow_nPollInput(
     env: ?*anyopaque,
     clazz: ?*anyopaque,
@@ -329,6 +351,120 @@ export fn Java_org_isakai_bridge_IsakaiWindow_nPollInput(
     return @intCast(n);
 }
 
+/// Poll the compositor (short dispatch) and report a pending
+/// DisplayMetrics snapshot into `out` (int[8]: w,h,densityDpi,
+/// density*1000,scaled*1000,xdpi*1000,ydpi*1000,scale). Returns 1 when a
+/// fresh snapshot was written, 0 when nothing new arrived, -1 on
+/// bad/closed handle or an out array shorter than 8. Touch rides the
+/// existing nPollInput kinds 7/8; this native carries metrics only.
+export fn Java_org_isakai_bridge_IsakaiWindow_nPollMetrics(
+    env: ?*anyopaque,
+    clazz: ?*anyopaque,
+    handle: JniLong,
+    out: ?*anyopaque,
+) callconv(.c) JniInt {
+    _ = clazz;
+    const win = asWindow(handle) orelse return -1;
+    if (win.isClosed()) return -1;
+    if (out == null) return -1;
+    const fns = jniFunctions(env) orelse return -1;
+    const len = jniArrayLen(env, fns, out) orelse return -1;
+    if (len < 8) return -1;
+    win.pump(0) catch return -1;
+    var snap: [8]JniInt = undefined;
+    if (win.takeMetrics(&snap) == null) return 0;
+    jniSetIntRegion(env, fns, out, 0, 8, snap[0..].ptr);
+    return 1;
+}
+
+/// Open a PulseAudio playback stream (S16LE stereo 44100). Returns a
+/// nonzero handle, 0 on failure. The Java wrapper turns 0 into
+/// IllegalStateException (no ThrowNew here).
+export fn Java_org_isakai_bridge_IsakaiAudio_nAudioOpen(
+    env: ?*anyopaque,
+    clazz: ?*anyopaque,
+) callconv(.c) JniLong {
+    _ = env;
+    _ = clazz;
+    const st = audio_mod.open() orelse return 0;
+    const boxed = gpa.create(audio_mod.Stream) catch return 0;
+    boxed.* = st;
+    return @intCast(@intFromPtr(boxed));
+}
+
+/// Open a PulseAudio playback stream at `rate`/`channels` (S16LE).
+/// Returns a nonzero handle, 0 on failure or unsupported format.
+export fn Java_org_isakai_bridge_IsakaiAudio_nAudioOpenFormat(
+    env: ?*anyopaque,
+    clazz: ?*anyopaque,
+    rate: JniInt,
+    channels: JniInt,
+) callconv(.c) JniLong {
+    _ = env;
+    _ = clazz;
+    if (rate <= 0 or channels <= 0 or channels > 127) return 0;
+    const st = audio_mod.openFormat(@intCast(rate), @intCast(channels)) orelse return 0;
+    const boxed = gpa.create(audio_mod.Stream) catch return 0;
+    boxed.* = st;
+    return @intCast(@intFromPtr(boxed));
+}
+
+/// Write `len` bytes of `data` to the stream in 64 KiB chunks
+/// (GetByteArrayRegion chunked copy, mirroring nPost's int path).
+/// Returns 0 on success, -1 on failure. 0-byte writes succeed; len
+/// above 8 MiB fails.
+export fn Java_org_isakai_bridge_IsakaiAudio_nAudioWrite(
+    env: ?*anyopaque,
+    clazz: ?*anyopaque,
+    handle: JniLong,
+    jdata: ?*anyopaque,
+    len: JniInt,
+) callconv(.c) JniInt {
+    _ = clazz;
+    const stream = asAudio(handle) orelse return -1;
+    if (jdata == null) return -1;
+    if (len < 0) return -1;
+    if (len == 0) return 0;
+    if (@as(i64, len) > audio_mod.max_write_len) return -1;
+    const fns = jniFunctions(env) orelse return -1;
+    const have = jniArrayLen(env, fns, jdata) orelse return -1;
+    if (have < len) return -1;
+    var off: JniSize = 0;
+    var chunk: [65536]u8 = undefined;
+    while (off < len) {
+        const n: JniSize = @min(len - off, 65536);
+        jniGetByteRegion(env, fns, jdata, off, n, &chunk);
+        const slice = chunk[0..@intCast(n)];
+        if (!stream.write(slice)) return -1;
+        off += n;
+    }
+    return 0;
+}
+
+/// Drain buffered audio (block until played). 0 on success, -1 on failure.
+export fn Java_org_isakai_bridge_IsakaiAudio_nAudioDrain(
+    env: ?*anyopaque,
+    clazz: ?*anyopaque,
+    handle: JniLong,
+) callconv(.c) JniInt {
+    _ = env;
+    _ = clazz;
+    const stream = asAudio(handle) orelse return -1;
+    return if (stream.drain()) 0 else -1;
+}
+
+export fn Java_org_isakai_bridge_IsakaiAudio_nAudioClose(
+    env: ?*anyopaque,
+    clazz: ?*anyopaque,
+    handle: JniLong,
+) callconv(.c) void {
+    _ = env;
+    _ = clazz;
+    const stream = asAudio(handle) orelse return;
+    stream.close();
+    gpa.destroy(stream);
+}
+
 export fn Java_org_isakai_bridge_IsakaiWindow_nClose(
     env: ?*anyopaque,
     clazz: ?*anyopaque,
@@ -338,4 +474,208 @@ export fn Java_org_isakai_bridge_IsakaiWindow_nClose(
     _ = clazz;
     const win = asWindow(handle) orelse return;
     win.close();
+}
+
+/// Copy `text` into the Wayland selection (empty clears). Silent
+/// local-only when no data device is bound; the Java side keeps its own
+/// copy either way. 0 on success, -1 on bad handle or JNI failure.
+export fn Java_org_isakai_bridge_IsakaiWindow_nClipboardSet(
+    env: ?*anyopaque,
+    clazz: ?*anyopaque,
+    handle: JniLong,
+    jtext: ?*anyopaque,
+) callconv(.c) JniInt {
+    _ = clazz;
+    const win = asWindow(handle) orelse return -1;
+    if (win.isClosed()) return -1;
+    if (jtext == null) {
+        win.clipboardCopy("");
+        return 0;
+    }
+    const fns = jniFunctions(env) orelse return -1;
+    const chars = jniGetUtf(env, fns, jtext) orelse return -1;
+    defer jniReleaseUtf(env, fns, jtext, chars);
+    win.clipboardCopy(std.mem.span(chars));
+    return 0;
+}
+
+/// Paste the current selection as a NewStringUTF jstring, or null when no
+/// text is offered / the transfer fails. GetStringUTFChars slot verified
+/// via offsetof (see header); NewStringUTF = 167.
+export fn Java_org_isakai_bridge_IsakaiWindow_nClipboardGet(
+    env: ?*anyopaque,
+    clazz: ?*anyopaque,
+    handle: JniLong,
+) callconv(.c) ?*anyopaque {
+    _ = clazz;
+    const win = asWindow(handle) orelse return null;
+    if (win.isClosed()) return null;
+    const fns = jniFunctions(env) orelse return null;
+    const owned = win.clipboardPaste() orelse return null;
+    defer gpa.free(owned);
+    const z = gpa.allocSentinel(u8, owned.len, 0) catch return null;
+    defer gpa.free(z);
+    @memcpy(z[0..owned.len], owned);
+    return jniNewStringUtf(env, fns, z);
+}
+
+/// 1 when the remote offer carries text, 0 otherwise (or bad handle).
+/// Pure flag check: no I/O, so Java decides when to pump.
+export fn Java_org_isakai_bridge_IsakaiWindow_nClipboardHasText(
+    env: ?*anyopaque,
+    clazz: ?*anyopaque,
+    handle: JniLong,
+) callconv(.c) JniInt {
+    _ = env;
+    _ = clazz;
+    const win = asWindow(handle) orelse return 0;
+    if (win.isClosed()) return 0;
+    return if (win.clipboardHasText()) 1 else 0;
+}
+/// Desktop natives (IsakaiDesktop): thin JNI adapters over desktop.zig.
+/// Failure policy matches the window bridge: 0/-1/null returns, the
+/// Java wrapper turns them into IllegalStateException or fallbacks
+/// (no ThrowNew here).
+fn jstrDup(env: ?*anyopaque, fns: *const JniTable, j: ?*anyopaque) ?[]u8 {
+    if (j == null) return null;
+    const chars = jniGetUtf(env, fns, j) orelse return null;
+    defer jniReleaseUtf(env, fns, j, chars);
+    return gpa.dupe(u8, std.mem.span(chars)) catch null;
+}
+export fn Java_org_isakai_bridge_IsakaiDesktop_nNotify(
+    env: ?*anyopaque,
+    clazz: ?*anyopaque,
+    japp: ?*anyopaque,
+    id: JniInt,
+    jtitle: ?*anyopaque,
+    jbody: ?*anyopaque,
+    jchannel: ?*anyopaque,
+    urgency: JniInt,
+) callconv(.c) JniLong {
+    _ = clazz;
+    const fns = jniFunctions(env) orelse return 0;
+    const app = jstrDup(env, fns, japp) orelse return 0;
+    defer gpa.free(app);
+    const title = jstrDup(env, fns, jtitle) orelse return 0;
+    defer gpa.free(title);
+    const body = jstrDup(env, fns, jbody) orelse return 0;
+    defer gpa.free(body);
+    const channel = jstrDup(env, fns, jchannel) orelse return 0;
+    defer gpa.free(channel);
+    const plat = desktop_mod.notify(app, id, title, body, channel, urgency);
+    if (plat == 0) return 0;
+    return @intCast(plat);
+}
+export fn Java_org_isakai_bridge_IsakaiDesktop_nCancel(
+    env: ?*anyopaque,
+    clazz: ?*anyopaque,
+    plat: JniLong,
+) callconv(.c) void {
+    _ = env;
+    _ = clazz;
+    if (plat <= 0) return;
+    desktop_mod.cancel(@intCast(plat));
+}
+export fn Java_org_isakai_bridge_IsakaiDesktop_nOpenUri(
+    env: ?*anyopaque,
+    clazz: ?*anyopaque,
+    juri: ?*anyopaque,
+) callconv(.c) JniInt {
+    _ = clazz;
+    if (juri == null) return -1;
+    const fns = jniFunctions(env) orelse return -1;
+    const uri = jstrDup(env, fns, juri) orelse return -1;
+    defer gpa.free(uri);
+    return if (desktop_mod.openUri(uri)) 0 else -1;
+}
+export fn Java_org_isakai_bridge_IsakaiDesktop_nOpenFileStart(
+    env: ?*anyopaque,
+    clazz: ?*anyopaque,
+    jtitle: ?*anyopaque,
+) callconv(.c) JniLong {
+    _ = clazz;
+    if (jtitle == null) return 0;
+    const fns = jniFunctions(env) orelse return 0;
+    const title = jstrDup(env, fns, jtitle) orelse return 0;
+    defer gpa.free(title);
+    const req = desktop_mod.openFileStart(title);
+    if (req == 0) return 0;
+    return @intCast(req);
+}
+export fn Java_org_isakai_bridge_IsakaiDesktop_nGetFileResult(
+    env: ?*anyopaque,
+    clazz: ?*anyopaque,
+    req: JniLong,
+) callconv(.c) ?*anyopaque {
+    _ = clazz;
+    if (req <= 0) return null;
+    const fns = jniFunctions(env) orelse return null;
+    const r = desktop_mod.fileResult(@intCast(req)) orelse return null;
+    switch (r.status) {
+        .pending => {
+            gpa.free(r.path);
+            return null;
+        },
+        .cancel => {
+            gpa.free(r.path);
+            const z = gpa.allocSentinel(u8, 0, 0) catch return null;
+            return jniNewStringUtf(env, fns, z);
+        },
+        .done => {
+            defer gpa.free(r.path);
+            const z = gpa.allocSentinel(u8, r.path.len, 0) catch return null;
+            defer gpa.free(z);
+            @memcpy(z[0..r.path.len], r.path);
+            return jniNewStringUtf(env, fns, z);
+        },
+    }
+}
+export fn Java_org_isakai_bridge_IsakaiDesktop_nCloseReq(
+    env: ?*anyopaque,
+    clazz: ?*anyopaque,
+    req: JniLong,
+) callconv(.c) void {
+    _ = env;
+    _ = clazz;
+    if (req <= 0) return;
+    desktop_mod.closeReq(@intCast(req));
+}
+export fn Java_org_isakai_bridge_IsakaiDesktop_nPollDesktop(
+    env: ?*anyopaque,
+    clazz: ?*anyopaque,
+    batch: ?*anyopaque,
+) callconv(.c) JniInt {
+    _ = clazz;
+    if (batch == null) return -1;
+    const fns = jniFunctions(env) orelse return -1;
+    const len = jniArrayLen(env, fns, batch) orelse return -1;
+    if (len <= 0 or @rem(len, 8) != 0) return -1;
+    const cap: usize = @intCast(len);
+    const want: usize = @min(cap / 8, 32);
+    var stack: [256]JniInt = undefined;
+    const buf: []i32 = @ptrCast(stack[0 .. want * 8]);
+    const n = desktop_mod.poll(buf);
+    if (n < 0) return -1;
+    if (n > 0) jniSetIntRegion(env, fns, batch, 0, @intCast(n * 8), stack[0..].ptr);
+    return n;
+}
+export fn Java_org_isakai_bridge_IsakaiDesktop_nGetActionKey(
+    env: ?*anyopaque,
+    clazz: ?*anyopaque,
+    slot: JniInt,
+) callconv(.c) ?*anyopaque {
+    _ = clazz;
+    if (slot < 0 or slot >= 16) return null;
+    const fns = jniFunctions(env) orelse return null;
+    const key = desktop_mod.actionKey(@intCast(slot)) orelse return null;
+    const z = gpa.allocSentinel(u8, key.len, 0) catch return null;
+    defer gpa.free(z);
+    @memcpy(z[0..key.len], key);
+    return jniNewStringUtf(env, fns, z);
+}
+
+// Storage force-link: reference the sqlite bridge so its IsakaiSQLite
+// natives land in libisakai_jni.so (no cross-calls; pure symbol anchoring).
+comptime {
+    _ = sqlite_mod.sqlite_linked;
 }

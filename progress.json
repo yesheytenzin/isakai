@@ -265,9 +265,99 @@
    "date": "2026-10-09",
    "item": "Rename mosaic -> isakai (binary, ISAKAI_*, org.isakai, id.isakai.*, docs, trackers)",
    "milestone": "M4"
+  },
+  {
+   "date": "2026-10-10",
+   "item": "M4 storage: Context + AOSP prefs + files 0600 + SQLite JNI, fixture round-trips green",
+   "milestone": "M4"
+  },
+  {
+   "date": "2026-10-10",
+   "item": "M4 desktop: dbus.zig + bridge daemon + notify/portal/links, live bus verified",
+   "milestone": "M4"
+  },
+  {
+   "date": "2026-10-10",
+   "item": "M4 clipboard: data-device v3 copy/paste, wl-copy interop verified",
+   "milestone": "M4"
+  },
+  {
+   "date": "2026-10-10",
+   "item": "M4 audio: pa_simple SoundPool, tone plays via pipewire-pulse",
+   "milestone": "M4"
+  },
+  {
+   "date": "2026-10-10",
+   "item": "M4 touch: wl_touch multi-pointer + metrics, evdev injection verified",
+   "milestone": "M4"
+  },
+  {
+   "date": "2026-10-10",
+   "item": "resources.arsc table + binary XML + staged assets/res wiring",
+   "milestone": "M4"
+  },
+  {
+   "date": "2026-10-10",
+   "item": "LayoutInflater XML walk + factories + findViewById tree + TypedArray/Theme/styles",
+   "milestone": "M4"
+  },
+  {
+   "date": "2026-10-10",
+   "item": "Bitmap PNG/JPEG decode + Drawable inflation + colors/state-lists",
+   "milestone": "M4"
+  },
+  {
+   "date": "2026-10-10",
+   "item": "Privileged windowed Wayland socket brokering (env-blocked E2E noted)",
+   "milestone": "M4"
+  },
+  {
+   "date": "2026-10-10",
+   "item": "wl_output metrics wiring to DisplayMetrics",
+   "milestone": "M4"
+  },
+  {
+   "date": "2026-10-10",
+   "item": "createFileAtomic + anchored symlink/readlink + uname arch record",
+   "milestone": "M4"
+  },
+  {
+   "date": "2026-10-10",
+   "item": "prctl NO_NEW_PRIVS + mount-namespace launch confinement",
+   "milestone": "M4"
+  },
+  {
+   "date": "2026-10-10",
+   "item": "ContentResolver/Provider hosting + Parcel read-back",
+   "milestone": "M4"
+  },
+  {
+   "date": "2026-10-10",
+   "item": "Portal file-writeback + clipboard rich types + audio formats + touch gestures",
+   "milestone": "M4"
+  },
+  {
+   "date": "2026-10-10",
+   "item": "Translator: 21t/22c/23x reg extracts, inherited-ctor forwards, try-end shrinking, reaching-def entry fix, param array comps",
+   "milestone": "M4"
+  },
+  {
+   "date": "2026-10-10",
+   "item": "Manifest activity-alias target + theme plumbing (app/activity themes)",
+   "milestone": "M4"
+  },
+  {
+   "date": "2026-10-10",
+   "item": "Framework: 150+ stubs (widgets, services, xmlpull, os, util, text spans, a11y)",
+   "milestone": "M4"
+  },
+  {
+   "date": "2026-10-10",
+   "item": "M4 gate: OpenCalc + Simple Calculator + Simple Notes headless exit 0; oracle 18/18; zig build test green",
+   "milestone": "M4"
   }
  ],
- "current_milestone": "M4",
+ "current_milestone": "M5",
  "milestones": [
   {
    "done": [
@@ -328,17 +418,25 @@
    "title": "Input: keyboard, pointer, resize, focus"
   },
   {
-   "done": [],
+   "done": [
+    "resources.arsc table + binary XML + staged assets/res wiring",
+    "LayoutInflater XML walk + factories + findViewById tree + TypedArray/Theme/styles",
+    "Bitmap PNG/JPEG decode + Drawable inflation + colors/state-lists",
+    "Privileged windowed Wayland socket brokering (env-blocked E2E noted)",
+    "wl_output metrics wiring to DisplayMetrics",
+    "createFileAtomic + anchored symlink/readlink + uname arch record",
+    "prctl NO_NEW_PRIVS + mount-namespace launch confinement",
+    "ContentResolver/Provider hosting + Parcel read-back",
+    "Portal file-writeback + clipboard rich types + audio formats + touch gestures",
+    "Translator: 21t/22c/23x reg extracts, inherited-ctor forwards, try-end shrinking, reaching-def entry fix, param array comps",
+    "Manifest activity-alias target + theme plumbing (app/activity themes)",
+    "Framework: 150+ stubs (widgets, services, xmlpull, os, util, text spans, a11y)",
+    "M4 gate: OpenCalc + Simple Calculator + Simple Notes headless exit 0; oracle 18/18; zig build test green"
+   ],
    "gate": "3 real OSS apps complete core flows; fixture accepts text and plays sound",
    "id": "M4",
-   "remaining": [
-    "Prefs/files/SQLite storage backend",
-    "Desktop notifications (D-Bus) + file portal + links",
-    "Clipboard via wl_data_device",
-    "PipeWire audio playback",
-    "Touch input"
-   ],
-   "status": "in_progress",
+   "remaining": [],
+   "status": "complete",
    "title": "App services: storage, desktop, audio"
   },
   {
@@ -356,8 +454,8 @@
   }
  ],
  "next": [
-  "M4: Prefs/files/SQLite storage backend"
+  "M5: packaging + Landlock/seccomp + upgrades + supported-API docs"
  ],
  "project": "isakai",
- "updated": "2026-10-09"
+ "updated": "2026-10-10"
 }

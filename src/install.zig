@@ -6,6 +6,7 @@
 const std = @import("std");
 const registry = @import("registry");
 const apksig = @import("apksig");
+const arsc = @import("arsc");
 const uid_helper = @import("uid_helper");
 
 pub const max_entry: u64 = 256 * 1024 * 1024;
@@ -19,11 +20,16 @@ pub const Manifest = struct {
     package: []const u8,
     application: ?[]const u8 = null,
     launcher: ?[]const u8 = null,
-    /// Literal-only labels: android:label as a plain string. `@string/…`
-    /// references are ignored (no resources.arsc parsing yet); the
-    /// launch title falls back to the package in that case.
+    /// Resolved labels when android:label is a literal string. When the
+    /// label is a `@…` resource reference, the raw id is kept in the
+    /// matching `*_label_id` and resolved later against resources.arsc
+    /// (install/launch), with the package as the final fallback.
     app_label: ?[]const u8 = null,
     launcher_label: ?[]const u8 = null,
+    app_label_id: ?u32 = null,
+    launcher_label_id: ?u32 = null,
+    app_theme: u32 = 0,
+    activity_theme: u32 = 0,
     services: std.ArrayListUnmanaged([]const u8) = .empty,
     min_sdk: u32 = 1,
     target_sdk: u32 = 1,
@@ -31,8 +37,8 @@ pub const Manifest = struct {
 };
 
 /// Literal label filter: returns the value unless it looks like a
-/// `@string/…` (or any `@…`) resource reference, which we cannot
-/// resolve without resources.arsc.
+/// `@…` resource reference. References are not lost: the manifest parser
+/// captures their ids (`*_label_id`) for later arsc resolution.
 pub fn literalLabel(v: []const u8) ?[]const u8 {
     if (v.len == 0 or v[0] == '@') return null;
     return v;
@@ -111,7 +117,6 @@ pub const ApkError = error{
     SplitUnsupported,
     BadSdkVersion,
     PermissionNoName,
-    AppComponentFactoryUnsupported,
     ServiceNoName,
     ActivityNoName,
     NestingTooDeep,
@@ -393,7 +398,15 @@ pub fn parseManifest(gpa: std.mem.Allocator, data: []const u8) ApkError!Manifest
     var activity: ?[]u8 = null;
     defer if (activity) |a| gpa.free(a);
     var activity_label: ?[]u8 = null;
-    defer if (activity_label) |l| gpa.free(l);
+    var activity_label_id: ?u32 = null;
+    var activity_target: ?[]u8 = null;
+    defer if (activity_target) |a| gpa.free(a);
+    var activity_themes: std.StringHashMapUnmanaged(u32) = .empty;
+    defer {
+        var it = activity_themes.iterator();
+        while (it.next()) |e| gpa.free(e.key_ptr.*);
+        activity_themes.deinit(gpa);
+    }
     var in_filter = false;
     var seen_main = false;
     var seen_launcher = false;
@@ -429,6 +442,8 @@ pub fn parseManifest(gpa: std.mem.Allocator, data: []const u8) ApkError!Manifest
                 var key_arena: std.heap.ArenaAllocator = .init(gpa);
                 defer key_arena.deinit();
                 const ka = key_arena.allocator();
+                var label_ids: std.StringHashMapUnmanaged(u32) = .empty;
+                defer label_ids.deinit(gpa);
                 for (0..count) |i| {
                     const a = start + i * stride;
                     const ns_idx = try u32At(chunk, a);
@@ -441,6 +456,17 @@ pub fn parseManifest(gpa: std.mem.Allocator, data: []const u8) ApkError!Manifest
                     if (a + 15 >= chunk.len) return error.Truncated;
                     const typ = chunk[a + 15];
                     const value = try u32At(chunk, a + 16);
+                    // Resource references (TYPE_REFERENCE with no raw
+                    // string) carry the id for later arsc resolution.
+                    // OpenCalc labels arrive exactly this way; so do themes.
+                    if (typ == 1 and raw == std.math.maxInt(u32) and std.mem.eql(u8, ns, android_ns) and
+                        (std.mem.eql(u8, key, "label") or std.mem.eql(u8, key, "theme")))
+                    {
+                        const lck = std.fmt.allocPrint(ka, "{s}\x00{s}\x00id", .{ ns, key }) catch return error.OutOfMemory;
+                        const gop = label_ids.getOrPut(gpa, lck) catch return error.OutOfMemory;
+                        if (gop.found_existing) return error.DuplicateAttribute;
+                        gop.value_ptr.* = value;
+                    }
                     const text: []const u8 = if (raw != std.math.maxInt(u32))
                         try poolStr(pool.items, raw)
                     else if (typ == 3)
@@ -473,6 +499,10 @@ pub fn parseManifest(gpa: std.mem.Allocator, data: []const u8) ApkError!Manifest
                         const ck = std.fmt.allocPrint(kaa, "{s}\x00{s}", .{ android_ns, key }) catch return null;
                         return m.get(ck);
                     }
+                    fn androidId(m: *const @TypeOf(label_ids), key: []const u8, kaa: std.mem.Allocator) ?u32 {
+                        const ck = std.fmt.allocPrint(kaa, "{s}\x00{s}\x00id", .{ android_ns, key }) catch return null;
+                        return m.get(ck);
+                    }
                 };
                 const parent: ?[]const u8 = if (stack.items.len > 0) stack.items[stack.items.len - 1] else null;
 
@@ -502,7 +532,11 @@ pub fn parseManifest(gpa: std.mem.Allocator, data: []const u8) ApkError!Manifest
                     manifest.permissions.append(gpa, gpa.dupe(u8, perm) catch return error.OutOfMemory) catch return error.OutOfMemory;
                 } else if (std.mem.eql(u8, name, "application") and parent != null and std.mem.eql(u8, parent.?, "manifest")) {
                     if (lookup.android(&attrs, "appComponentFactory", ka) != null) {
-                        return error.AppComponentFactoryUnsupported;
+                        // API-28 instantiation hook (AndroidX injects
+                        // CoreComponentFactory by default). Default behavior
+                        // is direct instantiation, which is what IsakaiMain
+                        // does — safe to ignore with a warning.
+                        std.log.warn("ignoring android:appComponentFactory (direct instantiation)", .{});
                     }
                     if (lookup.android(&attrs, "name", ka)) |v| {
                         manifest.application = className(gpa, manifest.package, v) catch return error.OutOfMemory;
@@ -512,6 +546,11 @@ pub fn parseManifest(gpa: std.mem.Allocator, data: []const u8) ApkError!Manifest
                             if (manifest.app_label) |old| gpa.free(old);
                             manifest.app_label = gpa.dupe(u8, lit) catch return error.OutOfMemory;
                         }
+                    } else if (lookup.androidId(&label_ids, "label", ka)) |id| {
+                        manifest.app_label_id = id;
+                    }
+                    if (lookup.androidId(&label_ids, "theme", ka)) |tid| {
+                        manifest.app_theme = tid;
                     }
                 } else if (std.mem.eql(u8, name, "service") and parent != null and std.mem.eql(u8, parent.?, "application")) {
                     const svc = lookup.android(&attrs, "name", ka) orelse return error.ServiceNoName;
@@ -524,9 +563,32 @@ pub fn parseManifest(gpa: std.mem.Allocator, data: []const u8) ApkError!Manifest
                     activity = className(gpa, manifest.package, act) catch return error.OutOfMemory;
                     if (activity_label) |old| gpa.free(old);
                     activity_label = null;
+                    activity_label_id = null;
+                    if (activity_target) |old| gpa.free(old);
+                    activity_target = null;
+                    if (std.mem.eql(u8, name, "activity-alias")) {
+                        if (lookup.android(&attrs, "targetActivity", ka)) |t| {
+                            activity_target = className(gpa, manifest.package, t) catch return error.OutOfMemory;
+                        }
+                    }
                     if (lookup.android(&attrs, "label", ka)) |v| {
                         if (literalLabel(v)) |lit| {
                             activity_label = gpa.dupe(u8, lit) catch return error.OutOfMemory;
+                        }
+                    } else if (lookup.androidId(&label_ids, "label", ka)) |id| {
+                        activity_label_id = id;
+                    }
+                    if (lookup.androidId(&label_ids, "theme", ka)) |tid| {
+                        if (activity) |a| {
+                            const key = gpa.dupe(u8, a) catch return error.OutOfMemory;
+                            errdefer gpa.free(key);
+                            const gop = activity_themes.getOrPut(gpa, key) catch return error.OutOfMemory;
+                            if (gop.found_existing) {
+                                gpa.free(key);
+                            } else {
+                                gop.key_ptr.* = key;
+                            }
+                            gop.value_ptr.* = tid;
                         }
                     }
                 } else if (std.mem.eql(u8, name, "intent-filter") and parent != null and
@@ -558,8 +620,17 @@ pub fn parseManifest(gpa: std.mem.Allocator, data: []const u8) ApkError!Manifest
                 if (!std.mem.eql(u8, popped, name)) return error.UnbalancedElements;
                 if (std.mem.eql(u8, name, "intent-filter") and in_filter) {
                     if (seen_main and seen_launcher and manifest.launcher == null) {
-                        if (activity) |a| manifest.launcher = gpa.dupe(u8, a) catch return error.OutOfMemory;
+                        // Launcher aliases resolve to their targetActivity.
+                        if (activity_target) |t| {
+                            manifest.launcher = gpa.dupe(u8, t) catch return error.OutOfMemory;
+                        } else if (activity) |a| {
+                            manifest.launcher = gpa.dupe(u8, a) catch return error.OutOfMemory;
+                        }
+                        if (manifest.launcher) |l| {
+                            if (activity_themes.get(l)) |tid| manifest.activity_theme = tid;
+                        }
                         if (activity_label) |l| manifest.launcher_label = gpa.dupe(u8, l) catch return error.OutOfMemory;
+                        if (activity_label_id) |id| manifest.launcher_label_id = id;
                     }
                     in_filter = false;
                 }
@@ -571,6 +642,11 @@ pub fn parseManifest(gpa: std.mem.Allocator, data: []const u8) ApkError!Manifest
                     if (activity_label) |l| {
                         gpa.free(l);
                         activity_label = null;
+                    }
+                    activity_label_id = null;
+                    if (activity_target) |t| {
+                        gpa.free(t);
+                        activity_target = null;
                     }
                 }
             },
@@ -595,6 +671,64 @@ pub fn freeManifest(gpa: std.mem.Allocator, m: *Manifest) void {
     for (m.permissions.items) |p| gpa.free(p);
     m.permissions.deinit(gpa);
     m.* = .{ .package = "" };
+}
+
+/// Resolve any `@…` label ids against a parsed resources table. Literal
+/// labels (already in `app_label`/`launcher_label`) win; ids fill the
+/// gaps; the package stays the final fallback via `manifestTitle`.
+/// Missing table entries are not an error — the id fields simply stay
+/// set and `manifestTitle` falls back to the package.
+pub fn resolveLabels(gpa: std.mem.Allocator, m: *Manifest, t: *const arsc.Table) !void {
+    if (m.app_label == null) {
+        if (m.app_label_id) |id| {
+            if (t.lookupString(id)) |s| {
+                m.app_label = try gpa.dupe(u8, s);
+            }
+        }
+    }
+    if (m.launcher_label == null) {
+        if (m.launcher_label_id) |id| {
+            if (t.lookupString(id)) |s| {
+                m.launcher_label = try gpa.dupe(u8, s);
+            }
+        }
+    }
+}
+
+/// Load `<code_dir>/resources.arsc` and resolve manifest label ids in
+/// place. Returns false (not an error) when the table is absent or
+/// unparsable: real apps ship one, but a missing/corrupt table must
+/// never break install/launch — the package fallback still titles.
+pub fn resolveStagedLabels(io: std.Io, gpa: std.mem.Allocator, code_dir: []const u8, m: *Manifest) !bool {
+    const path = try std.fmt.allocPrint(gpa, "{s}/resources.arsc", .{code_dir});
+    defer gpa.free(path);
+    const bytes = std.Io.Dir.cwd().readFileAlloc(io, path, gpa, .limited(arsc.max_arsc)) catch return false;
+    defer gpa.free(bytes);
+    var t = arsc.Table.parse(gpa, bytes) catch return false;
+    defer t.deinit();
+    try resolveLabels(gpa, m, &t);
+    return true;
+}
+
+test "ref labels stay as ids until the table resolves them" {
+    const gpa = std.testing.allocator;
+    var m = Manifest{ .package = try gpa.dupe(u8, "com.darkempire78.opencalculator"), .app_label_id = 0x7f11002c, .launcher_label_id = 0x7f110129 };
+    defer freeManifest(gpa, &m);
+    try std.testing.expectEqualStrings("com.darkempire78.opencalculator", manifestTitle(&m));
+    const bytes = try arsc.buildSample(gpa);
+    defer gpa.free(bytes);
+    var t = try arsc.Table.parse(gpa, bytes);
+    defer t.deinit();
+    m.app_label_id = 0x7f110000;
+    m.launcher_label_id = 0x7f110001;
+    try resolveLabels(gpa, &m, &t);
+    try std.testing.expectEqualStrings("Sample", m.app_label.?);
+    try std.testing.expectEqualStrings("Sample", manifestTitle(&m));
+    var m2 = Manifest{ .package = try gpa.dupe(u8, "com.foo"), .app_label_id = 0x7f1100FF };
+    defer freeManifest(gpa, &m2);
+    try resolveLabels(gpa, &m2, &t);
+    try std.testing.expect(m2.app_label == null);
+    try std.testing.expectEqualStrings("com.foo", manifestTitle(&m2));
 }
 
 /// Full inspection: bounds, required entries, ABI gate, manifest parse.

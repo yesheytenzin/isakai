@@ -60,6 +60,34 @@ public final class IsakaiWindow {
      */
     public static native int nPollInput(long handle, int[] batch);
 
+    /**
+     * Poll the compositor and report a pending DisplayMetrics snapshot
+     * into {@code out} (int[8]: {@code [w, h, densityDpi, density*1000,
+     * scaled*1000, xdpi*1000, ydpi*1000, scale]}). Returns 1 when fresh
+     * (the first poll after open is always fresh: scale=1 fallback when
+     * no wl_output is bound), 0 when nothing new, negative on error.
+     * The compositor scale event feeds {@code densityDpi = 160*scale};
+     * apply with {@code DisplayMetrics.setFromSnapshot}. Touch rides
+     * nPollInput kinds 7/8.
+     */
+    public static native int nPollMetrics(long handle, int[] out);
+
+    /**
+     * Copy {@code text} into the Wayland selection (empty clears).
+     * Returns 0 on success, negative on error. Silent local-only when no
+     * data device is bound; the ClipboardManager keeps its own copy.
+     */
+    public static native int nClipboardSet(long handle, String text);
+
+    /**
+     * Paste the current selection, or null when no text is offered or
+     * the transfer fails.
+     */
+    public static native String nClipboardGet(long handle);
+
+    /** 1 when the remote offer carries text, 0 otherwise. No I/O. */
+    public static native int nClipboardHasText(long handle);
+
     public static native void nClose(long h);
 
     /** Unpack width from a packed size long. */
@@ -123,6 +151,38 @@ public final class IsakaiWindow {
          */
         public int pollInput(int[] batch) {
             return checked(nPollInput(h(), batch), "nPollInput");
+        }
+
+        /**
+         * Pending DisplayMetrics snapshot into {@code out} (int[8], layout
+         * as {@link #nPollMetrics}): 1 = fresh and written, 0 = nothing
+         * new ({@code out} untouched). Requires length >= 8; throws
+         * IllegalStateException on native failure.
+         */
+        public int pollMetrics(int[] out) {
+            if (out == null || out.length < 8) throw new IllegalStateException("isakai: nPollMetrics needs int[8]");
+            int r = nPollMetrics(h(), out);
+            if (r < 0) throw new IllegalStateException("isakai: nPollMetrics failed");
+            return r;
+        }
+        /**
+         * Copy {@code text} into the Wayland selection (null/empty
+         * clears). The manager keeps its own copy regardless.
+         */
+        public void clipboardSet(String text) {
+            checked(nClipboardSet(h(), text == null ? "" : text), "nClipboardSet");
+        }
+
+        /** Paste the current selection, or null when unavailable. */
+        public String clipboardGet() {
+            if (handle == 0) throw new IllegalStateException("isakai: window closed");
+            return nClipboardGet(handle);
+        }
+
+        /** True when the remote offer carries text. No I/O. */
+        public boolean clipboardHasText() {
+            if (handle == 0) throw new IllegalStateException("isakai: window closed");
+            return nClipboardHasText(handle) != 0;
         }
 
         /** Dispatch events until close or timeout; 0 = closed, 1 = timeout. */
