@@ -40,7 +40,12 @@ public class HeadlessWindow extends Window {
         // PhoneWindow parity: the content view lives inside the decor
         // content holder, so Window.findViewById sees app views.
         decorContent.removeAllViews();
-        if (view != null) decorContent.addView(view);
+        if (view != null) {
+            view.setLayoutParams(new ViewGroup.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.MATCH_PARENT));
+            decorContent.addView(view);
+        }
     }
 
     @Override

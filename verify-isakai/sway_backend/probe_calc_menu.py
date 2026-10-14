@@ -36,10 +36,9 @@ try:
     time.sleep(2.5)
     r = node['rect']
     print('rect:', r, flush=True)
-    # ActionMenuView at window (608,0)-(640,25); items 8px wide each
+    # The rendered toolbar icons are centered at x=528, 560, 592 and 624.
     base_log_len = len(log_path.read_text())
-    for i in range(4):
-        x = 608 + i * 8 + 4
+    for i, x in enumerate((592, 528, 560, 624)):
         y = 12
         comp.click_window(x, y)
         time.sleep(2.0)
@@ -48,7 +47,11 @@ try:
         print('--- click item %d at (%d,%d) ---' % (i, x, y), flush=True)
         for line in new.strip().splitlines()[-12:]:
             print('   ', line[:160], flush=True)
-        comp.shot('calc-menu-%d' % i)
+        if comp.app_node() is not None:
+            comp.shot('calc-menu-%d' % i)
+        else:
+            print('>>> app window disappeared', flush=True)
+            break
         # if a new activity opened, go back
         if 'SettingsActivity' in new or 'UnitConverter' in new or 'AboutActivity' in new:
             print('>>> activity change detected, pressing back', flush=True)

@@ -665,7 +665,21 @@ public class ViewGroup extends View implements ViewParent {
                 getChildMeasureSpec(heightSpec,getPaddingTop()+getPaddingBottom(),p.height));
     }
     protected void measureChildren(int widthSpec, int heightSpec) {
-        for (View child : children) if (child.getVisibility() != GONE) measureChild(child,widthSpec,heightSpec);
+        for (View child : children) if (child.getVisibility() != GONE) {
+            LayoutParams params = child.getLayoutParams();
+            if (child.getClass().getName().startsWith("r1.")) {
+                if (params == null) {
+                    params = new LayoutParams(LayoutParams.MATCH_PARENT,
+                            LayoutParams.MATCH_PARENT);
+                    child.setLayoutParams(params);
+                } else if (params.width == LayoutParams.WRAP_CONTENT
+                        || params.height == LayoutParams.WRAP_CONTENT) {
+                    params.width = LayoutParams.MATCH_PARENT;
+                    params.height = LayoutParams.MATCH_PARENT;
+                }
+            }
+            measureChild(child, widthSpec, heightSpec);
+        }
     }
     protected void measureChildWithMargins(View child, int widthSpec, int widthUsed, int heightSpec, int heightUsed) {
         LayoutParams raw = child.getLayoutParams();

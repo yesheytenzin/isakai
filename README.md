@@ -139,6 +139,8 @@ verify failed), 2 usage error. Global `--work` overrides `ISAKAI_WORK`.
 parity) are baseline checks; real-app flow evidence is also required.
 
 - [Delivery plan](docs/PLAN.md): scope, sequencing and acceptance criteria.
+- [Runtime reuse assessment](docs/REUSE_ASSESSMENT.md): ATL, ART Standalone,
+  Bionic Translation, and the staged integration decision.
 - [Progress tracker](progress.json): the only task-status and evidence record.
 - [Architecture](docs/ARCHITECTURE.md): system map and host interface index.
 - [Testing](docs/TESTING.md): commands, limitations and acceptance rules.

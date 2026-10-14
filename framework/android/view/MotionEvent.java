@@ -137,6 +137,10 @@ public class MotionEvent extends InputEvent {
         return buttonState;
     }
 
+    public final int getEdgeFlags() {
+        return 0;
+    }
+
     public final long getEventTime() {
         return eventTime;
     }

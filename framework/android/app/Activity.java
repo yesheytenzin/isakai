@@ -407,17 +407,30 @@ public class Activity extends android.content.Context implements android.view.Wi
                         return null;
                     });
             lifecycleRef[0] = lifecycle.getConstructor(lifecycleOwner).newInstance(owner);
-            view.setTag(0x7f09034f, owner);
+                    view.setTag(0x7f09034f, owner);
             view.setTag(0x7f090351, owner);
             Class<?> composeOwner = Class.forName("j0.g2", false, loader);
             Class<?> coroutineContext = Class.forName("a9.i", false, loader);
             Object context = Class.forName("a9.j", false, loader).getField("k").get(null);
             view.setTag(0x7f090052, composeOwner.getConstructor(coroutineContext)
                     .newInstance(context));
+            propagateViewTreeOwners(view);
         } catch (ClassNotFoundException e) {
             // Ordinary apps do not ship translated Compose lifecycle classes.
         } catch (ReflectiveOperationException e) {
             System.err.println("isakai: unable to install translated lifecycle owner: " + e);
+        }
+    }
+
+    private static void propagateViewTreeOwners(View view) {
+        if (!(view instanceof android.view.ViewGroup)) return;
+        android.view.ViewGroup group = (android.view.ViewGroup) view;
+        for (int i = 0; i < group.getChildCount(); i++) {
+            View child = group.getChildAt(i);
+            child.setTag(0x7f09034f, view.getTag(0x7f09034f));
+            child.setTag(0x7f090351, view.getTag(0x7f090351));
+            child.setTag(0x7f090052, view.getTag(0x7f090052));
+            propagateViewTreeOwners(child);
         }
     }
 
@@ -561,6 +574,7 @@ public class Activity extends android.content.Context implements android.view.Wi
             }
             pending.add(() -> {
                 Activity old = top();
+                System.err.println("isakai: activity " + next.getClass().getName() + " start");
                 old.performPause(); old.windowFocused = false;
                 next.attach(caller.application);
                 next.setIntent(deliveredIntent);
@@ -977,12 +991,16 @@ public class Activity extends android.content.Context implements android.view.Wi
                         root.dispatchHostDetached();
                         active = top;
                         root = active.contentView != null ? active.contentView : new View();
+                        System.err.println("isakai: new root " + root.getClass().getName()
+                                + " bounds=" + root.getLeft() + "," + root.getTop()
+                                + "," + root.getWidth() + "x" + root.getHeight());
                         installViewTreeLifecycleOwner(root);
                         root.dispatchHostAttached();
                         active.clipboardManager = clipboardManager;
                         window.setTitle(active.title==null?title:active.title.toString());
                         active.drawFrame(window, root, width, height);
                     }
+
                     if (active.backPressed) break;
                     int r = window.run(100);
                     if (r == 0) break;
@@ -996,6 +1014,7 @@ public class Activity extends android.content.Context implements android.view.Wi
                             r = 0;
                             break;
                         }
+
                         if (n <= 0) break;
                         active.dispatchBatch(root, batch, n);
                     }
@@ -1178,6 +1197,8 @@ public class Activity extends android.content.Context implements android.view.Wi
         if(root.dispatchHostPreDraw())return;
         paintRoot(window, root, width, height);
     }
+
+
 
     /** True while the window still accepts frames; false once it is gone. */
     private static boolean windowAlive(IsakaiWindow.Window window) {
