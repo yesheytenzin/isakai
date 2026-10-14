@@ -12,18 +12,21 @@ requires dispatch, navigation and app-specific compatibility work. Windows now
 remain open until closed; WebView has no rendering engine.
 
 The next delivery target is **three pinned utility apps completing useful
-visible tasks under default isolation**. [progress.json](progress.json) is the
-single tracker for scope, acceptance criteria, task status, blockers, app
-versions and verification evidence. Verification is UI-only: launch pinned
+visible tasks under default isolation**. The [progress folder](progress/README.md)
+is the single planning and progress source. Each `progress/<ID>.md` owns its
+task status, acceptance criteria, blockers, verification evidence and code
+review. The index links to tasks without copying statuses. Technical guides
+describe implementation and usage. Verification is UI-only: launch pinned
 APKs as real windows, drive the visible task, and record screenshots, logs
-and exit status in `progress.json`. Historical M0–M6 completion reports are
-retained there as historical claims.
+and exit status in the owning task file. Historical M0–M6 reports and reuse
+research are preserved in [HISTORY.md](progress/HISTORY.md).
 
 ## Build and install (development preview)
 
 Host requirements: Linux x86_64, Zig 0.17 + a C toolchain, JDK 17+
 (`javac` to build, `java` to run), and the JNI system libraries
-`libxkbcommon`, `pulseaudio` (`libpulse-simple`), `sqlite3` — plus
+`libxkbcommon`, `pulseaudio` (`libpulse-simple`), `sqlite3`, ICU development
+libraries for SQLite collation — plus
 `polkit`/`pkexec` for privileged app isolation. Full detail:
 `docs/HOST_REQUIREMENTS.md`.
 
@@ -105,7 +108,7 @@ verify failed), 2 usage error. Global `--work` overrides `ISAKAI_WORK`.
 - `translate-test [--dump-lines] [--keep-going] <dex> <outdir>` — batch
   DEX→JVM translation; `--keep-going` reports per-class failures.
 - `verify-test <apk>` — print all v2 fingerprints (sorted, per-signer) or the `SigError` (P-521/RSA>4096/digest mismatch).
-- `tools/compat-report.py <apk>` — machine-readable ABI/linkage gap report for a pinned APK.
+- `tools/compat-report.py <apk> --output <report.json>` — machine-readable ABI/linkage gap report, including bounded ELF-header checks. Installation rejects invalid or mismatched x86_64 headers; this does not prove Bionic/JNI compatibility.
 - `tools/e2e-privileged.sh --required` — app-side isolation and live window acceptance; missing prerequisites and failed launches fail the required gate. See [verification instructions](verify-isakai/SKILL.md).
 - `verify-isakai/sway-flow.py`, `flow-drive.py`, `observe-app.py` — drive pinned APKs through visible UI flows on a compositor and retain screenshots/logs.
 
@@ -127,17 +130,21 @@ verify failed), 2 usage error. Global `--work` overrides `ISAKAI_WORK`.
 - `verify-isakai/` — UI verification drivers (isolated sway flows, observer) + instructions
 - `polkit/` — privilege policy source (staged by the build)
 - `docs/` — architecture, host requirements, supported APIs
+- `progress/` — shared plan, pinned apps, research history and one Markdown file per task
 
 ## Development
 
 There are no automated test suites; verification is UI-only. Build with
 `zig build`, install a pinned APK, launch it as a real window, drive the
-visible task from [progress.json](progress.json), and record screenshots,
-logs and exit status there as evidence.
+visible task from the [progress index](progress/README.md), and record screenshots,
+logs and exit status in that task's Markdown file. Review the final changes
+and update the task status before reporting completion, as required by the
+[verification skill](verify-isakai/SKILL.md).
+Its [verification-artifact policy](verify-isakai/SKILL.md#verification-artifact-policy)
+also governs what development files may be created.
 
-- [Progress tracker](progress.json): the only scope, task-status and evidence record.
-- [Runtime reuse assessment](docs/REUSE_ASSESSMENT.md): ATL, ART Standalone,
-  Bionic Translation, and the staged integration decision.
+- [Project plan, research and progress](progress/README.md): the single entry
+  point; task files own statuses, acceptance gates, evidence and reviews.
 - [Architecture](docs/ARCHITECTURE.md): system map and host interface index.
 - [Host requirements](docs/HOST_REQUIREMENTS.md): dependencies and environment.
 - [API catalog](docs/SUPPORTED_APIS.md): available classes and behavioral limits.

@@ -1027,6 +1027,9 @@ pub const Window = struct {
         }
         self.xkb_map = new_map;
         self.xkb_state = new_state;
+        // Modifier events can precede a usable keymap. Apply the retained
+        // masks to every replacement state before decoding another key.
+        xkb.updateMask(new_state, self.mods_depressed, self.mods_latched, self.mods_locked, self.mods_group);
         self.disarmRepeat();
     }
 
@@ -2213,4 +2216,3 @@ pub const Cursor = struct {
         return self.nextLenPrefixed(false);
     }
 };
-

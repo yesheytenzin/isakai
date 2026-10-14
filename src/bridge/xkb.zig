@@ -166,9 +166,9 @@ const RealDecls = if (use_fake) struct {} else struct {
         depressed_mods: u32,
         latched_mods: u32,
         locked_mods: u32,
-        depressed_layout: i32,
-        latched_layout: i32,
-        locked_layout: i32,
+        depressed_layout: u32,
+        latched_layout: u32,
+        locked_layout: u32,
     ) c_int;
     pub extern fn xkb_state_key_get_utf32(state: ?*OpaqueState, key: u32) u32;
     pub extern fn xkb_state_mod_name_is_active(
@@ -244,14 +244,15 @@ pub fn updateMask(
         }
         return;
     }
+    const ready_state = state orelse return;
     _ = RealDecls.xkb_state_update_mask(
-        state,
+        ready_state,
         depressed,
         latched,
         locked,
-        @intCast(group),
         0,
         0,
+        group,
     );
 }
 
@@ -264,7 +265,7 @@ pub fn keyGetUtf32(state: ?State, xkb_keycode: u32) u32 {
         }
         return e.utf32;
     }
-    return RealDecls.xkb_state_key_get_utf32(state, xkb_keycode);
+    return RealDecls.xkb_state_key_get_utf32(state orelse return 0, xkb_keycode);
 }
 
 pub const Mod = enum { shift, ctrl, alt, logo };
@@ -299,7 +300,7 @@ pub fn modActive(state: ?State, m: Mod, side: u8, depressed: u32) bool {
             .logo => s.logo or ((depressed & 0x40) != 0),
         };
     }
-    const active = RealDecls.xkb_state_mod_name_is_active(state, modName(m), MODS_EFFECTIVE);
+    const active = RealDecls.xkb_state_mod_name_is_active(state orelse return false, modName(m), MODS_EFFECTIVE);
     if (active != 1) return false;
     // Side refinement comes from the depressed mask tracked by the caller.
     return true;
@@ -316,7 +317,7 @@ pub fn keyRepeats(map: ?Keymap, xkb_keycode: u32) bool {
         if (fake_map.no_repeat_key != 0 and fake_map.no_repeat_key == xkb_keycode) return false;
         return fake_map.repeats_default;
     }
-    return RealDecls.xkb_keymap_key_repeats(map, xkb_keycode) == 1;
+    return RealDecls.xkb_keymap_key_repeats(map orelse return false, xkb_keycode) == 1;
 }
 
 // ---------------------------------------------------------------------------
@@ -729,4 +730,3 @@ pub fn androidKeyCode(evdev: u32) i32 {
 // ---------------------------------------------------------------------------
 // Tests (fake backend).
 // ---------------------------------------------------------------------------
-

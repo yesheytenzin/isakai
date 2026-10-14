@@ -1,15 +1,17 @@
 #!/usr/bin/env python3
 """Capture a pinned real APK window and its launch outcome without declaring acceptance."""
-import argparse,json,os,signal,subprocess,time,threading
+import argparse,json,os,signal,subprocess,sys,time,threading
 from pathlib import Path
 ROOT=Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / 'tools'))
+from pinned_apps import load_apps
 parser=argparse.ArgumentParser()
 parser.add_argument('app',type=int)
 parser.add_argument('--work',type=Path,help='Use a separately installed fresh work tree')
 parser.add_argument('--startup-timeout',type=float,default=180,help='Bound cold translation plus window startup (seconds)')
 args=parser.parse_args()
 if not 0 < args.startup_timeout <= 600:parser.error('--startup-timeout must be in (0, 600]')
-app=json.loads((ROOT/'progress.json').read_text())['apps'][args.app]
+app=load_apps()[args.app]
 evidence=ROOT/'.cache/isakai/evidence'
 evidence.mkdir(parents=True,exist_ok=True)
 work=args.work or ROOT/'.cache/isakai/baseline'/app['package']

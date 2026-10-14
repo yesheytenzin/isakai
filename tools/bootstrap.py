@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Install checksum-pinned local build dependencies, without global changes."""
-import argparse,hashlib,json,os,shutil,tarfile,time,urllib.request,zipfile
+import argparse,hashlib,json,shutil,tarfile,time,urllib.request
 from pathlib import Path
 ROOT=Path(__file__).resolve().parents[1]
 parser=argparse.ArgumentParser()
@@ -13,7 +13,7 @@ def digest(path):
 for name in args.names:
     if name not in lock:raise SystemExit('Unknown dependency: '+name)
     spec=lock[name]
-    archive=base/(name+('.zip' if name=='dex_tools' else '.tar.gz' if name=='jdk' else '.tar.xz'))
+    archive=base/(name+('.tar.gz' if name=='jdk' else '.tar.xz'))
     if archive.exists() and digest(archive)!=spec['sha256']:
         print('Discarding incomplete or corrupt cached archive:',archive,flush=True);archive.unlink()
     if not archive.exists():
@@ -35,21 +35,15 @@ for name in args.names:
         if staging.exists():shutil.rmtree(staging)
         staging.mkdir()
         try:
-            if name=='dex_tools':
-                with zipfile.ZipFile(archive) as z:z.extractall(staging)
-                for f in staging.rglob('*.sh'):f.chmod(0o755)
-            else:
-                with tarfile.open(archive) as t:t.extractall(staging,filter='data')
+            with tarfile.open(archive) as t:t.extractall(staging,filter='data')
             staging.replace(dest)
         finally:
             if staging.exists():shutil.rmtree(staging)
     print('VERIFIED:',name,spec['version'],spec['sha256'],flush=True)
 zig=next((base/'zig').glob('*/zig'),None)
 java=next((base/'jdk').glob('*/bin/java'),None)
-dex=next((base/'dex_tools').glob('*/d2j-smali.sh'),None)
 lines=[]
 if zig:lines.append('export PATH="'+str(zig.parent)+':$PATH"')
 if java:lines+=['export JAVA_HOME="'+str(java.parent.parent)+'"','export PATH="$JAVA_HOME/bin:$PATH"']
-if dex:lines.append('export D2J="'+str(dex.parent)+'"')
 (base/'env.sh').write_text('\n'.join(lines)+'\n')
 print('Run: source .cache/toolchain/env.sh')

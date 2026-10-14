@@ -188,9 +188,10 @@ fn storePropLocked(name: []const u8, value: []const u8) void {
 }
 
 fn writePropValue(buf: [*]u8, v: []const u8) c_int {
-    @memcpy(buf[0..v.len], v);
-    buf[v.len] = 0;
-    return @intCast(v.len);
+    const n = @min(v.len, prop_value_max - 1);
+    @memcpy(buf[0..n], v[0..n]);
+    buf[n] = 0;
+    return @intCast(n);
 }
 
 /// Returns the value length (like bionic), or 0 when unset.
@@ -220,9 +221,14 @@ export fn property_set(name: [*:0]const u8, value: [*:0]const u8) c_int {
 const PropCallback = *const fn (name: [*:0]const u8, value: [*:0]const u8, arg: ?*anyopaque) callconv(.c) void;
 
 export fn property_list(cb: PropCallback, cookie: ?*anyopaque) c_int {
+    // Callers may read or change properties from their callback. Retain a
+    // bounded snapshot, then release the lock before entering caller code.
+    var snapshot: [prop_max]PropEntry = undefined;
     propLock();
-    defer propUnlock();
-    for (props[0..props_len]) |*kv| {
+    const count = props_len;
+    @memcpy(snapshot[0..count], props[0..count]);
+    propUnlock();
+    for (snapshot[0..count]) |*kv| {
         var name_buf: [prop_value_max]u8 = undefined;
         var value_buf: [prop_value_max]u8 = undefined;
         @memcpy(name_buf[0..kv.name_len], kv.name[0..kv.name_len]);
@@ -253,4 +259,3 @@ export fn android_dlopen_ext(file_name: ?[*:0]const u8, flags: c_int, extinfo: ?
     _ = extinfo;
     return dlopen(file_name, flags);
 }
-

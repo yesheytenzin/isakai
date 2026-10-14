@@ -20,6 +20,9 @@ from sway_backend.compositor import SwayCompositor, SwayError, isolated_env  # n
 from sway_backend import flows_opencalc, flows_calculator, flows_notes  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / 'tools'))
+from pinned_apps import load_apps  # noqa: E402
+
 APP_INDEX = {'opencalc': 0, 'calculator': 1, 'notes': 2}
 FLOWS = {
     'opencalc': flows_opencalc.run,
@@ -111,7 +114,7 @@ def main():
     parser.add_argument('--evidence', type=Path, default=ROOT / '.cache/isakai/evidence')
     parser.add_argument('--startup-timeout', type=float, default=240)
     args = parser.parse_args()
-    apps = json.loads((ROOT / 'progress.json').read_text())['apps']
+    apps = load_apps()
     app = apps[APP_INDEX[args.app]]
     args.evidence.mkdir(parents=True, exist_ok=True)
     work = args.work or ROOT / '.cache/isakai/baseline' / app['package']

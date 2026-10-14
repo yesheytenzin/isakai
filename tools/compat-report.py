@@ -1,9 +1,58 @@
 #!/usr/bin/env python3
 """Report APK ABI, translation and linkage gaps as JSON without running private app code."""
-import argparse,hashlib,json,re,shutil,subprocess,tempfile,zipfile
+import argparse,hashlib,json,platform,re,shutil,subprocess,tempfile,zipfile
 from pathlib import Path
 from classfile import ClassFile
 ROOT=Path(__file__).resolve().parents[1]
+
+def native_inventory(archive):
+    """Inspect headers without loading untrusted libraries or inferring Bionic support."""
+    expected={'x86_64':(2,62),'x86':(1,3),'arm64-v8a':(2,183),'armeabi-v7a':(1,40)}
+    libraries=sorted(n for n in archive.namelist() if n.startswith('lib/') and n.endswith('.so'))
+    abis=sorted({n.split('/')[1] for n in libraries})
+    details=[]
+    for name in libraries:
+        parts=name.split('/')
+        item={'path':name,'abi':parts[1],'selected':parts[1]=='x86_64','problems':[]}
+        with archive.open(name) as entry: header=entry.read(64)
+        if len(parts)!=3:item['problems'].append('invalid_library_path')
+        if len(header)<16 or header[:4]!=b'\x7fELF':
+            item['problems'].append('invalid_elf_header')
+        elif header[4] not in (1,2) or header[5] not in (1,2) or header[6]!=1:
+            item['problems'].append('invalid_elf_identification')
+        else:
+            elf_class=header[4]; size=64 if elf_class==2 else 52
+            item.update(elf_class=32 if elf_class==1 else 64,
+                        endian='little' if header[5]==1 else 'big')
+            if len(header)<size:item['problems'].append('truncated_elf_header')
+            else:
+                endian=item['endian']
+                machine=int.from_bytes(header[18:20],endian)
+                elf_type=int.from_bytes(header[16:18],endian)
+                item.update(machine=machine,elf_type=elf_type)
+                if elf_type!=3:item['problems'].append('not_shared_object')
+                if int.from_bytes(header[20:24],endian)!=1:item['problems'].append('invalid_elf_version')
+                ehsize_offset=52 if elf_class==2 else 40
+                if int.from_bytes(header[ehsize_offset:ehsize_offset+2],endian)!=size:
+                    item['problems'].append('invalid_elf_header_size')
+                if parts[1] in expected and ((elf_class,machine)!=expected[parts[1]] or endian!='little'):
+                    item['problems'].append('directory_elf_abi_mismatch')
+        details.append(item)
+    status='bytecode_only' if not abis else 'supported_subset' if 'x86_64' in abis else 'unsupported'
+    if any(item['selected'] and item['problems'] for item in details):status='invalid_native_libraries'
+    host=platform.machine()
+    result={'available':abis,'selected':'x86_64' if 'x86_64' in abis else None,
+            'status':status,'libraries':libraries,'elf_libraries':details,
+            'host_arch':host,'host_supported':host in ('x86_64','AMD64'),
+            'installer_selection':'x86_64_directory_and_elf_header',
+            'notice':'ELF headers do not establish dependency, relocation, Bionic ABI, JNI or execution compatibility.'}
+    if status=='unsupported':
+        result['next_action']='Requires a native/foreign-ISA backend (F3); a matching directory alone cannot supply one.'
+    elif status=='invalid_native_libraries':
+        result['next_action']='Fix selected library paths/ELF headers; the installer rejects mismatched or invalid host libraries.'
+    if not result['host_supported']:
+        result['host_limitation']='The runtime, seccomp policy and packaging currently target x86_64 Linux only.'
+    return result
 
 class ClassPath:
     def __init__(self,roots,java):
@@ -53,7 +102,8 @@ def main():
             'runtime_failure':None,'runtime_failures':[],
             'capabilities':{'activity_navigation':'partial','message_queue':'implemented_subset',
                             'unicode_text':'partial_host_shaping_no_compositor_ime','webview':'unavailable_renderer',
-                            'sensors_location':'simulated','native':'x86_64_symbol_subset'}}
+                            'sensors_location':'unavailable_without_host_provider_test_fakes_opt_in',
+                            'native':'x86_64_symbol_subset'}}
     inspect=subprocess.run([str(ROOT/'zig-out/bin/inspect-test'),str(args.apk)],capture_output=True,text=True,timeout=30)
     output=inspect.stdout+inspect.stderr
     report['inspection']['exit_code']=inspect.returncode
@@ -61,12 +111,7 @@ def main():
         report['inspection'][key]=value
     report['inspection']['errors']=re.findall(r'INSPECT FAIL: ([A-Za-z0-9_]+)',output)
     with zipfile.ZipFile(args.apk) as z:
-        libraries=sorted(n for n in z.namelist() if n.startswith('lib/') and n.endswith('.so'))
-        abis=sorted({n.split('/')[1] for n in libraries})
-        report['abi']={'available':abis,'selected':'x86_64' if 'x86_64' in abis else None,
-                       'status':'bytecode_only' if not abis else 'supported_subset' if 'x86_64' in abis else 'unsupported',
-                       'libraries':libraries}
-        if report['abi']['status']=='unsupported':report['abi']['next_action']='Requires ARM/native backend (F3); use a host ABI build if upstream provides one.'
+        report['abi']=native_inventory(z)
         with tempfile.TemporaryDirectory(prefix='isakai-report-') as tmp:
             classes=args.classes_dir or Path(tmp)/'classes'
             if not args.classes_dir:

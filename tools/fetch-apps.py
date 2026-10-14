@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""Fetch only the immutable, checksum-pinned APKs in the single tracker."""
+"""Fetch only the immutable, checksum-pinned APKs in progress/APPS.md."""
 import hashlib
-import json
 from pathlib import Path
 import urllib.request
+from pinned_apps import load_apps
 ROOT = Path(__file__).resolve().parents[1]
-for app in json.loads((ROOT / 'progress.json').read_text())['apps']:
+for app in load_apps():
     target = ROOT / app['artifact']
     target.parent.mkdir(parents=True, exist_ok=True)
     if not target.exists():

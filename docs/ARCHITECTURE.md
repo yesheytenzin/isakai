@@ -1,16 +1,19 @@
 # Isakai architecture
 
-How the pieces fit. [progress.json](../progress.json) is the only progress
-tracker; scope and acceptance criteria live in it.
+How the pieces fit. This is an implementation reference.
+[progress/](../progress/README.md) is the sole planning and progress source;
+each task Markdown file owns its status and acceptance evidence.
 This guide describes implementation mechanisms, not proof of production readiness.
 
 ## Behavioral boundaries
 
-The activity loop runs until close/back. Handler posts
-run immediately on the caller, and ordinary in-app activity navigation is not
-implemented. WebView is a history/HTTP HEAD/reflection shell with no rendering
-engine. Sensor and location helpers return synthetic readings; their real
-D-Bus providers are not implemented. See the plan for the corresponding work.
+The activity loop runs until close/back. Handler posts use thread-owned
+queues, monotonic delays and cancellation; the window loop pumps the main
+queue. In-app activity navigation exists as a partial implementation.
+WebView is a history/HTTP HEAD/reflection shell with no rendering engine.
+Sensors and location report unavailable providers by default; synthetic
+readings require explicit test switches. Real host providers are not wired.
+See the [progress index](../progress/README.md) for acceptance evidence and remaining work.
 
 ## Module map
 
@@ -38,7 +41,7 @@ framework/ (javac, --release 17)
 ├── android.app / view / widget / graphics / text   android.* subset
 ├── android.media       MediaPlayer + MediaMetadataRetriever + IsakaiMedia (ffmpeg)
 ├── android.webkit      WebView + WebViewClient + WebSettings + CookieManager + JS bridge
-├── android.hardware/location  Sensor/Location + managers via IsakaiSensor/IsakaiLocation (virtual fallback)
+├── android.hardware/location  Sensor/Location + managers via IsakaiSensor/IsakaiLocation (unavailable by default)
 └── org.isakai.bridge   IsakaiWindow + IsakaiAudio + IsakaiMedia + IsakaiSensor/IsakaiLocation + IsakaiDesktop
     + org.isakai.runtime IsakaiMain + org.isakai.db + prefs
 ```
@@ -94,7 +97,7 @@ abstract/native/interface flags, and annotations-adjacent attributes
 are preserved so translated classes verify and link.
 
 Translator output is proven through real pinned-app UI flows recorded in
-[progress.json](../progress.json): install a pinned APK, launch it as a real
+[task evidence](../progress/C6.md): install a pinned APK, launch it as a real
 window, drive the visible task, and compare expected vs observed behavior
 with screenshots and logs.
 
@@ -117,7 +120,7 @@ via `nPollInput` (no upcalls). The JVM needs
 `--enable-native-access=ALL-UNNAMED` (JEP 412/472).
 
 The framework (`android.view/viewGroup`, widgets, `Canvas` software
-raster, `BitmapFont` 5x7 glyphs) renders into the posted buffers; the
+raster, host Java2D shaping/fonts and a bitmap-font fallback) renders into the posted buffers; the
 Activity pump dispatches `KeyEvent`/`MotionEvent` to the focused /
 hit-tested view and redraws on the dirty flag.
 
@@ -149,7 +152,7 @@ by the helper at install.
 
 This reference replaces the separate interface checklist. It identifies code,
 not completion status; current work and evidence live only in
-[progress.json](../progress.json).
+the owning [task file](../progress/README.md).
 
 | Host interface | Implementation location / boundary |
 |---|---|
@@ -169,7 +172,7 @@ not completion status; current work and evidence live only in
 | Desktop notifications, URI and file portals | `src/bridge/desktop.zig`, `src/bridge/dbus.zig`, `src/dbus_bridge.zig` |
 | Selected Android native symbols | `src/native/bionic_shim.zig`; LD_PRELOAD, not full bionic |
 | Audio decoding and frame extraction | `framework/org/isakai/bridge/IsakaiMedia.java`; host ffmpeg/ffprobe subprocesses |
-| Application event pumping | `framework/android/app/Activity.java`; Java queue semantics require C3 |
+| Application event pumping | `framework/android/app/Activity.java`, `framework/android/os/Looper.java`; bounded owning-thread queue dispatch |
 
 The current pump polls native input instead of making JNI input upcalls.
 A new epoll/timerfd/eventfd architecture is not required by the delivery plan.

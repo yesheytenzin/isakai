@@ -5,9 +5,11 @@ Build/install commands are in [README.md](../README.md). `make install`
 uses the intended FHS layout; `zig build --prefix` alone uses a development
 layout and is not a substitute for package installation.
 
+This is a technical reference; plans, research decisions and progress live
+only in [progress/](../progress/README.md).
 Runtime verification commands and host-specific prerequisites are in
 [verify-isakai/SKILL.md](../verify-isakai/SKILL.md); results belong in
-[progress.json](../progress.json).
+the owning [task file](../progress/README.md).
 
 ## OS
 
@@ -62,7 +64,8 @@ Linked by `build.zig` into `libisakai_jni.so`:
 Optional runtime dependencies: `ffmpeg`/`ffprobe` for partial local-file audio
 decode and frame extraction. Missing tools produce exceptions or null results.
 WebView has no engine integration; installing webkit2gtk does not enable web
-rendering. Sensors and location currently use synthetic values, not host services.
+rendering. Sensors and location report unavailable providers by default;
+synthetic values require the explicit test switches listed below.
 
 Build also needs Zig 0.17 and a C toolchain (the native modules use
 `link_libc`). The framework classes compile with the host `javac`
@@ -121,5 +124,7 @@ All `ISAKAI_*` names read anywhere in `src/` + JNI (`grep -rho
 | `ISAKAI_BRIDGE` | launcher → app | — | bridge dir inside the sandbox; the JVM's `IsakaiDesktop` connects to `$ISAKAI_BRIDGE/bridge.sock`. Never set by hand. |
 | `ISAKAI_STAGE` | launcher → app | — | stage dir inside the sandbox. Never set by hand. |
 | `ISAKAI_SENSOR_LIGHT` | test | `100` | light sensor virtual lux for `SensorManager` (M6d) |
+| `ISAKAI_FAKE_SENSORS` | test | unset | `1` opts into synthetic accelerometer/light readings; no host provider is wired |
+| `ISAKAI_FAKE_LOCATION` | test | unset | `1` opts into synthetic location readings; no host provider is wired |
 | `ISAKAI_WEBVIEW` | user | unset | `0`/`false` = disable `WebView.loadUrl` (M6c, fail-closed via onReceivedError) |
 | `JAVA_HOME` | user | unset | first JVM candidate (`$JAVA_HOME/bin/java`) |

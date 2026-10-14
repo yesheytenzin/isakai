@@ -24,6 +24,9 @@ import time
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / 'tools'))
+from pinned_apps import load_apps  # noqa: E402
+
 APP_INDEX = {'opencalc': 0, 'calculator': 1, 'notes': 2}
 YDOTOOL_SOCKET = '/tmp/isakai-flow-ydotool.sock'
 
@@ -482,7 +485,7 @@ def main():
     parser.add_argument('--evidence', type=Path, default=ROOT / '.cache/isakai/evidence')
     parser.add_argument('--startup-timeout', type=float, default=240)
     args = parser.parse_args()
-    apps = json.loads((ROOT / 'progress.json').read_text())['apps']
+    apps = load_apps()
     key = args.app.split('-')[0]
     app = apps[APP_INDEX[key]]
     args.evidence.mkdir(parents=True, exist_ok=True)

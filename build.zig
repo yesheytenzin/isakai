@@ -728,22 +728,6 @@ pub fn build(b: *std.Build) void {
     tprobe_mod.addImport("translate", translate_mod);
     const tprobe_exe = b.addExecutable(.{ .name = "translate-test", .root_module = tprobe_mod });
     b.installArtifact(tprobe_exe);
-    const fprobe_mod = b.createModule(.{
-        .root_source_file = b.path("tools/findA.zig"),
-        .target = target,
-        .optimize = optimize,
-    });
-    fprobe_mod.addImport("dex", dex_mod);
-    const fprobe_exe = b.addExecutable(.{ .name = "findA", .root_module = fprobe_mod });
-    b.installArtifact(fprobe_exe);
-    const mprobe_mod = b.createModule(.{
-        .root_source_file = b.path("tools/findM.zig"),
-        .target = target,
-        .optimize = optimize,
-    });
-    mprobe_mod.addImport("dex", dex_mod);
-    const mprobe_exe = b.addExecutable(.{ .name = "findM", .root_module = mprobe_mod });
-    b.installArtifact(mprobe_exe);
     const vprobe_mod = b.createModule(.{
         .root_source_file = b.path("tools/verify-test.zig"),
         .target = target,
@@ -752,14 +736,6 @@ pub fn build(b: *std.Build) void {
     vprobe_mod.addImport("apksig", apksig_mod);
     const vprobe_exe = b.addExecutable(.{ .name = "verify-test", .root_module = vprobe_mod });
     b.installArtifact(vprobe_exe);
-    const runtime_probe_mod = b.createModule(.{
-        .root_source_file = b.path("tools/runtime-probe.zig"),
-        .target = target,
-        .optimize = optimize,
-    });
-    runtime_probe_mod.addImport("uid_helper", helper_mod);
-    const runtime_probe = b.addExecutable(.{ .name = "runtime-probe", .root_module = runtime_probe_mod });
-    b.installArtifact(runtime_probe);
     // `zig build run` (no args pass-through on 0.17; use zig-out/bin/isakai).
     const run_step = b.step("run", "Run the isakai CLI");
     const run_cmd = b.addRunArtifact(exe);

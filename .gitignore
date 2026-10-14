@@ -4,3 +4,7 @@ zig-out/
 .cache/
 
 __pycache__/
+
+# Generated packaging stage and app data from direct development launches.
+/.stage-install/
+/com.*/

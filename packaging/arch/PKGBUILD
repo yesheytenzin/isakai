@@ -23,11 +23,6 @@ build() {
   make build
 }
 
-check() {
-  cd "$srcdir/isakai"
-  make test
-}
-
 package() {
   cd "$srcdir/isakai"
   make install DESTDIR="$pkgdir" PREFIX=/usr

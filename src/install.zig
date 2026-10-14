@@ -88,6 +88,8 @@ pub const ApkError = error{
     NoClassesDex,
     NoX86_64,
     NativeUnsupported,
+    InvalidNativeLibrary,
+    NativeAbiMismatch,
     NoManifest,
     ManifestTooLarge,
     Truncated,
@@ -727,15 +729,34 @@ pub fn inspect(
         }
     }
     if (!has_dex) return error.NoClassesDex;
-    // M6a: native libs for the host ABI (lib/x86_64) are supported via the
-    // JVM's own dlopen + the bionic shim (src/native.zig). Any other ABI
+    // The current loader accepts only an x86_64 symbol subset, not general
+    // Android/Bionic libraries. Any other ABI
     // (arm64-v8a, armeabi-v7a, x86, mips...) still has no execution path:
     // reject loudly rather than installing an app that dies at launch
-    // (ARM execution is deferred, see progress.json task F3).
+    // (ARM execution is deferred, see progress/F3.md).
     if (native and !x86) return error.NativeUnsupported;
+    for (entries.items) |e| {
+        if (!std.mem.startsWith(u8, e.name, "lib/x86_64/") or !std.mem.endsWith(u8, e.name, ".so")) continue;
+        if (std.mem.indexOfScalar(u8, e.name["lib/x86_64/".len..], '/') != null) return error.InvalidNativeLibrary;
+        const library = try readEntry(io, gpa, apk_path, e.name, max_entry);
+        defer gpa.free(library);
+        try validateNativeHeader(library);
+    }
     const bytes = try readEntry(io, gpa, apk_path, "AndroidManifest.xml", max_manifest);
     defer gpa.free(bytes);
     return parseManifest(gpa, bytes);
+}
+
+/// A directory name cannot establish ELF architecture. This is a bounded
+/// structural gate only: dependencies, relocations and Bionic/JNI semantics
+/// still require a real native backend and execution evidence.
+fn validateNativeHeader(bytes: []const u8) ApkError!void {
+    if (bytes.len < 64 or !std.mem.eql(u8, bytes[0..4], "\x7fELF")) return error.InvalidNativeLibrary;
+    // ELFCLASS64, ELFDATA2LSB, EM_X86_64.
+    if (bytes[4] != 2 or bytes[5] != 1 or try u16At(bytes, 18) != 62) return error.NativeAbiMismatch;
+    // EV_CURRENT, ET_DYN and the ELF64 header size.
+    if (bytes[6] != 1 or try u32At(bytes, 20) != 1 or
+        try u16At(bytes, 16) != 3 or try u16At(bytes, 52) != 64) return error.InvalidNativeLibrary;
 }
 
 pub fn sha256File(io: std.Io, gpa: std.mem.Allocator, path: []const u8) ![]u8 {
@@ -1011,4 +1032,3 @@ pub fn uninstall(
     try reg.save(io, gpa, work);
     return name;
 }
-
