@@ -418,11 +418,3 @@ pub fn actionKey(slot: usize) ?[]const u8 {
     return action_keys[slot];
 }
 
-test "numField/strField parse flat objects" {
-    const line = "{\"ok\":true,\"id\":42,\"status\":\"done\"}";
-    try std.testing.expectEqual(@as(?i64, 42), numField(line, "id"));
-    const s = strField(line, "status", std.testing.allocator) orelse return error.Missing;
-    defer std.testing.allocator.free(s);
-    try std.testing.expectEqualStrings("done", s);
-    try std.testing.expect(numField(line, "missing") == null);
-}

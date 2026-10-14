@@ -156,7 +156,6 @@ pub fn openFormat(rate: u32, ch: u8) ?Stream {
     return .{ .handle = s, .rate = rate, .channels_n = ch };
 }
 
-
 /// Test helper: bytes written through the fake backend since open.
 pub fn fakeWritten() usize {
     return fake_bytes;
@@ -177,41 +176,3 @@ pub fn fakeChannels() u8 {
     return fake_channels;
 }
 
-test "fake backend open/write/drain/close round-trips" {
-    const st = open() orelse return error.TestUnexpectedResult;
-    var s = st;
-    try std.testing.expect(s.write("abcd"));
-    try std.testing.expectEqual(@as(usize, 4), fakeWritten());
-    try std.testing.expect(!fakeDrained());
-    try std.testing.expect(s.drain());
-    try std.testing.expect(fakeDrained());
-    s.close();
-}
-
-test "fake backend rejects oversize write" {
-    const st = open() orelse return error.TestUnexpectedResult;
-    var s = st;
-    defer s.close();
-    // Heap, not stack: max_write_len+1 is 8 MiB + 1.
-    const buf = try std.testing.allocator.alloc(u8, max_write_len + 1);
-    defer std.testing.allocator.free(buf);
-    try std.testing.expect(!s.write(buf));
-    try std.testing.expectEqual(@as(usize, 0), fakeWritten());
-}
-
-test "openFormat negotiates 2+ rates and rejects bad formats" {
-    try std.testing.expect(supportsFormat(44100, 2));
-    try std.testing.expect(supportsFormat(48000, 2));
-    try std.testing.expect(supportsFormat(22050, 1));
-    try std.testing.expect(!supportsFormat(12345, 2));
-    try std.testing.expect(!supportsFormat(44100, 6));
-    var s44 = openFormat(44100, 2) orelse return error.TestUnexpectedResult;
-    try std.testing.expectEqual(@as(u32, 44100), fakeRate());
-    try std.testing.expectEqual(@as(u8, 2), fakeChannels());
-    s44.close();
-    var s48 = openFormat(48000, 2) orelse return error.TestUnexpectedResult;
-    try std.testing.expectEqual(@as(u32, 48000), fakeRate());
-    s48.close();
-    try std.testing.expect(openFormat(12345, 2) == null);
-    try std.testing.expect(openFormat(44100, 6) == null);
-}

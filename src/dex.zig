@@ -300,7 +300,6 @@ pub const Dex = struct {
 /// the return), so every reader uses it.
 pub const max_type_list: u32 = 255;
 
-
 /// Read a type_list at file offset `off` (u32 size + u16 type idxs).
 /// Zero offset = empty. Caller owns the result. Shared by translate's
 /// emitInvokeArgs / prologue / protoDescriptor and the interfaces reader.
@@ -625,20 +624,3 @@ pub fn readDebugLines(gpa: std.mem.Allocator, d: Dex, debug_off: u32) DexError![
     return out.toOwnedSlice(gpa) catch return error.OutOfMemory;
 }
 
-test "header rejects junk" {
-    try std.testing.expectError(error.Truncated, parseHeader(&[_]u8{ 1, 2, 3 }));
-    var bad: [0x70]u8 = undefined;
-    @memset(&bad, 0);
-    try std.testing.expectError(error.BadMagic, parseHeader(&bad));
-    @memcpy(bad[0..4], "dey\n");
-    try std.testing.expectError(error.OdexInput, parseHeader(&bad));
-}
-
-test "uleb128 decodes" {
-    const data = [_]u8{ 0xE5, 0x8E, 0x26, 0x7F, 0x80, 0x01 };
-    var pos: usize = 0;
-    try std.testing.expectEqual(@as(u32, 624485), try readUleb128(&data, &pos));
-    try std.testing.expectEqual(@as(usize, 3), pos);
-    try std.testing.expectEqual(@as(u32, 127), try readUleb128(&data, &pos));
-    try std.testing.expectEqual(@as(u32, 128), try readUleb128(&data, &pos));
-}

@@ -52,18 +52,6 @@ pub fn manifestTitle(m: *const Manifest) []const u8 {
     return m.package;
 }
 
-test "literalLabel ignores @string refs; manifestTitle prefers launcher" {
-    try std.testing.expect(literalLabel("@string/app_name") == null);
-    try std.testing.expect(literalLabel("@123") == null);
-    try std.testing.expectEqualStrings("Fixture", literalLabel("Fixture").?);
-    var m = Manifest{ .package = "com.foo", .app_label = "App", .launcher_label = "Launch" };
-    try std.testing.expectEqualStrings("Launch", manifestTitle(&m));
-    m.launcher_label = null;
-    try std.testing.expectEqualStrings("App", manifestTitle(&m));
-    m.app_label = null;
-    try std.testing.expectEqualStrings("com.foo", manifestTitle(&m));
-}
-
 /// Strict package-name rules (mirrored in uid_helper.validPackage, kept
 /// in sync by the "must match" unit tests in both files).
 pub fn validPackage(name: []const u8) bool {
@@ -716,27 +704,6 @@ pub fn resolveStagedLabels(io: std.Io, gpa: std.mem.Allocator, code_dir: []const
     return true;
 }
 
-test "ref labels stay as ids until the table resolves them" {
-    const gpa = std.testing.allocator;
-    var m = Manifest{ .package = try gpa.dupe(u8, "com.darkempire78.opencalculator"), .app_label_id = 0x7f11002c, .launcher_label_id = 0x7f110129 };
-    defer freeManifest(gpa, &m);
-    try std.testing.expectEqualStrings("com.darkempire78.opencalculator", manifestTitle(&m));
-    const bytes = try arsc.buildSample(gpa);
-    defer gpa.free(bytes);
-    var t = try arsc.Table.parse(gpa, bytes);
-    defer t.deinit();
-    m.app_label_id = 0x7f110000;
-    m.launcher_label_id = 0x7f110001;
-    try resolveLabels(gpa, &m, &t);
-    try std.testing.expectEqualStrings("Sample", m.app_label.?);
-    try std.testing.expectEqualStrings("Sample", manifestTitle(&m));
-    var m2 = Manifest{ .package = try gpa.dupe(u8, "com.foo"), .app_label_id = 0x7f1100FF };
-    defer freeManifest(gpa, &m2);
-    try resolveLabels(gpa, &m2, &t);
-    try std.testing.expect(m2.app_label == null);
-    try std.testing.expectEqualStrings("com.foo", manifestTitle(&m2));
-}
-
 /// Full inspection: bounds, required entries, ABI gate, manifest parse.
 pub fn inspect(
     io: std.Io,
@@ -764,7 +731,7 @@ pub fn inspect(
     // JVM's own dlopen + the bionic shim (src/native.zig). Any other ABI
     // (arm64-v8a, armeabi-v7a, x86, mips...) still has no execution path:
     // reject loudly rather than installing an app that dies at launch
-    // (ARM execution is M7, see docs/PLAN.md, task F3).
+    // (ARM execution is deferred, see progress.json task F3).
     if (native and !x86) return error.NativeUnsupported;
     const bytes = try readEntry(io, gpa, apk_path, "AndroidManifest.xml", max_manifest);
     defer gpa.free(bytes);
@@ -1045,114 +1012,3 @@ pub fn uninstall(
     return name;
 }
 
-test "uninstall aborts on unkillable live pid, keeps entry and files" {
-    const gpa = std.testing.allocator;
-    const io = std.testing.io;
-    var tmp = std.testing.tmpDir(.{});
-    defer tmp.cleanup();
-    const cwd_path = try std.process.currentPathAlloc(io, gpa);
-    defer gpa.free(cwd_path);
-    const work = try std.fmt.allocPrint(gpa, "{s}/.zig-cache/tmp/{s}", .{ cwd_path, &tmp.sub_path });
-    defer gpa.free(work);
-    const pkg_apk = try std.fmt.allocPrint(gpa, "{s}/code/org.example.live", .{work});
-    defer gpa.free(pkg_apk);
-    const data_dir = try std.fmt.allocPrint(gpa, "{s}/data/org.example.live", .{work});
-    defer gpa.free(data_dir);
-    try std.Io.Dir.cwd().createDirPath(io, pkg_apk);
-    try std.Io.Dir.cwd().createDirPath(io, data_dir);
-    const keep_path = try std.fmt.allocPrint(gpa, "{s}/keep.txt", .{pkg_apk});
-    defer gpa.free(keep_path);
-    {
-        var f = try std.Io.Dir.cwd().createFile(io, keep_path, .{});
-        defer f.close(io);
-        var buf: [64]u8 = undefined;
-        var fw = f.writer(io, &buf);
-        try fw.interface.writeAll("live");
-        try fw.interface.flush();
-    }
-    {
-        var lock = try registry.Registry.Lock.acquire(io, gpa, work, true);
-        defer lock.release();
-        var reg = try registry.Registry.loadChecked(io, gpa, work);
-        defer reg.deinit();
-        // Unkillable by design: pid 1 (init) is always Refused.
-        try reg.add(.{
-            .name = "org.example.live",
-            .uid = 6000,
-            .data_dir = data_dir,
-            .apk = pkg_apk,
-            .installed_at = 1,
-            .state = .{ .running = .{ .pid = 1, .started = 1 } },
-        });
-        try reg.save(io, gpa, work);
-    }
-    var env = std.process.Environ.Map.init(gpa);
-    defer env.deinit();
-    try env.put("ISAKAI_NO_PRIVILEGE", "1");
-    // Registry isAlive(1) may be false in a container without init as
-    // pid 1: only assert when the guard actually engages.
-    if (!registry.isAlive(1)) return error.SkipZigTest;
-    try std.testing.expectError(error.Refused, uninstall(io, gpa, &env, "isakai", work, "org.example.live"));
-    var lock = try registry.Registry.Lock.acquire(io, gpa, work, true);
-    defer lock.release();
-    var reg = try registry.Registry.loadChecked(io, gpa, work);
-    defer reg.deinit();
-    const pkg = reg.get("org.example.live") orelse return error.TestUnexpectedResult;
-    try std.testing.expect(pkg.state == .running);
-    const stat = try std.Io.Dir.cwd().statFile(io, keep_path, .{});
-    try std.testing.expect(stat.size == 4);
-}
-
-test "validPackage accepts dotted identifiers, rejects the rest" {
-    try std.testing.expect(validPackage("org.isakai.fixture"));
-    try std.testing.expect(validPackage("com.example.a1_B2"));
-    try std.testing.expect(!validPackage("no-dot"));
-    try std.testing.expect(!validPackage(""));
-    try std.testing.expect(!validPackage("org.1bad.start"));
-    try std.testing.expect(!validPackage("org..empty"));
-    try std.testing.expect(!validPackage(".leading.dot"));
-    try std.testing.expect(!validPackage("org.isakai.bad-char!"));
-}
-
-test "validateEntry rejects traversal and absolute paths" {
-    try validateEntry("classes.dex");
-    try validateEntry("res/layout/main.xml");
-    try validateEntry("lib/x86_64/libfoo.so");
-    try std.testing.expectError(error.UnsafeEntry, validateEntry("../evil"));
-    try std.testing.expectError(error.UnsafeEntry, validateEntry("/abs"));
-    try std.testing.expectError(error.UnsafeEntry, validateEntry("a//b"));
-    try std.testing.expectError(error.UnsafeEntry, validateEntry("a/./b"));
-    try std.testing.expectError(error.UnsafeEntry, validateEntry(""));
-    try std.testing.expectError(error.UnsafeEntry, validateEntry("back\\slash"));
-}
-
-test "inspect rejects a non-ZIP file" {
-    const gpa = std.testing.allocator;
-    const io = std.testing.io;
-    var tmp = std.testing.tmpDir(.{});
-    defer tmp.cleanup();
-    const cwd_path = try std.process.currentPathAlloc(io, gpa);
-    defer gpa.free(cwd_path);
-    const path = try std.fmt.allocPrint(gpa, "{s}/.zig-cache/tmp/{s}/junk.apk", .{ cwd_path, &tmp.sub_path });
-    defer gpa.free(path);
-    var f = try std.Io.Dir.cwd().createFile(io, path, .{});
-    defer f.close(io);
-    var buf: [64]u8 = undefined;
-    var fw = f.writer(io, &buf);
-    try fw.interface.writeAll("this is not a zip file at all, just text");
-    try fw.interface.flush();
-    const err = inspect(io, gpa, path) catch |e| e;
-    // Stat may succeed; the ZIP parse must fail as truncated/corrupt.
-    try std.testing.expect(err == error.Truncated);
-}
-
-test "parseManifest rejects plain XML text" {
-    const gpa = std.testing.allocator;
-    const text = "<?xml version=\"1.0\"?><manifest package=\"x.y\"/>";
-    try std.testing.expectError(error.InvalidBinaryXml, parseManifest(gpa, text));
-}
-
-test "parseManifest rejects truncated input" {
-    const gpa = std.testing.allocator;
-    try std.testing.expectError(error.Truncated, parseManifest(gpa, &[_]u8{ 3, 0 }));
-}

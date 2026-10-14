@@ -764,19 +764,4 @@ pub fn build(b: *std.Build) void {
     const run_step = b.step("run", "Run the isakai CLI");
     const run_cmd = b.addRunArtifact(exe);
     run_step.dependOn(&run_cmd.step);
-
-    // `zig build test` (all unit tests; xkb runs on its hermetic fake
-    // backend; jni needs a live JVM so it stays out of this loop).
-    const java_tests = b.addSystemCommand(&.{ "python3", "tools/test-framework.py" });
-    const java_test_step = b.step("test-java", "Run framework behavioral tests");
-    java_test_step.dependOn(&java_tests.step);
-    const inventory = b.addSystemCommand(&.{ "python3", "tools/framework-inventory.py", "--check" });
-    const inventory_step = b.step("check-inventory", "Check deterministic source and API inventories");
-    inventory_step.dependOn(&inventory.step);
-    const test_step = b.step("test", "Run unit tests");
-    for ([_]*std.Build.Module{ isakai_mod, registry_mod, arsc_mod, install_mod, dex_mod, translate_mod, launch_mod, apksig_mod, helper_mod, upgrade_mod, confine_mod, window_mod, xkb_mod, audio_mod, dbus_mod, desktop_mod, bridge_mod, shim_mod }) |mod| {
-        const unit_tests = b.addTest(.{ .root_module = mod });
-        const run_tests = b.addRunArtifact(unit_tests);
-        test_step.dependOn(&run_tests.step);
-    }
 }

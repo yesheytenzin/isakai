@@ -3,8 +3,8 @@
 This inventory is generated from framework source paths. Presence here means an API surface exists, not that Android behavior is
 complete. Some classes are shells returning null/empty/false or doing nothing;
 those defaults can still break apps. Current task status and test evidence live
-only in [progress.json](../progress.json); delivery criteria are in [PLAN.md](PLAN.md).
-Regenerate with `python3 tools/framework-inventory.py`; CI uses `--check`.
+only in [progress.json](../progress.json), which also holds the delivery criteria.
+Maintained by hand alongside framework changes.
 Behavioral limits below are maintained separately from the generated names.
 
 ## Important behavioral limits

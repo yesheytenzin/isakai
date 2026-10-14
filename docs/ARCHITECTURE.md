@@ -1,7 +1,7 @@
 # Isakai architecture
 
 How the pieces fit. [progress.json](../progress.json) is the only progress
-tracker; [PLAN.md](PLAN.md) defines delivery scope and acceptance criteria.
+tracker; scope and acceptance criteria live in it.
 This guide describes implementation mechanisms, not proof of production readiness.
 
 ## Behavioral boundaries
@@ -93,10 +93,10 @@ constant pools (Modified UTF-8, CESU-8 astral). Interface lists,
 abstract/native/interface flags, and annotations-adjacent attributes
 are preserved so translated classes verify and link.
 
-Translator behavior is compared by the differential oracle (`oracle/diff.sh`):
-smali corpus → DEX → our translator vs dex2jar → execute both on the
-host JVM → diff stdout. `oracle/lines.sh` additionally checks line
-tables against baksmali and `javap -l`.
+Translator output is proven through real pinned-app UI flows recorded in
+[progress.json](../progress.json): install a pinned APK, launch it as a real
+window, drive the visible task, and compare expected vs observed behavior
+with screenshots and logs.
 
 ## Wayland / JNI bridge
 

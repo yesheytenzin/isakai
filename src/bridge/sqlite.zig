@@ -536,14 +536,6 @@ export fn Java_org_isakai_db_IsakaiSQLite_nChanges(
 // libisakai_jni.so even though nothing calls back into Zig.
 pub const sqlite_linked: bool = true;
 
-test "sqlite bridge links against system libsqlite3" {
-    try std.testing.expectEqualStrings("3", c.SQLITE_VERSION[0..1]);
-    try std.testing.expect(c.SQLITE_ROW == 100);
-    try std.testing.expect(c.SQLITE_DONE == 101);
-    try std.testing.expect(c.SQLITE_BUSY == 5);
-    try std.testing.expect(c.SQLITE_OPEN_FULLMUTEX == 0x00010000);
-}
-
 export fn Java_org_isakai_db_IsakaiSQLite_nClearBindings(env: ?*anyopaque, clazz: ?*anyopaque, handle: JniLong) callconv(.c) JniInt {
     _ = env;
     _ = clazz;

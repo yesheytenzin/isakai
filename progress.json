@@ -1,8 +1,42 @@
 {
  "schema_version": 2,
  "project": "isakai",
- "updated": "2026-10-13",
- "plan": "docs/PLAN.md",
+ "updated": "2026-10-14",
+ "plan": {
+  "note": "progress.json is the SOLE tracker: scope, acceptance criteria, task status, blockers, app versions and UI evidence live here. docs/PLAN.md was folded into this file and deleted 2026-10-14.",
+  "goal": "Run three pinned Android utility apps as ordinary, persistent Linux windows: complete useful tasks, retain data across restarts, navigate screens, and run under the default isolation path. Broad Android compatibility is a later goal.",
+  "working_rules": [
+   "Work from real app failures; class count, compilation and headless exit zero do not establish application compatibility.",
+   "Fix lifecycle, dispatch and isolation before expanding ABI or hardware scope.",
+   "Preserve existing installer, translator, Wayland, storage and bridge work. Prove each behavioral fix through the affected visible UI flow.",
+   "Treat missing capabilities explicitly. Fake coordinates, immediate delayed callbacks and success-shaped no-ops are not acceptable production substitutes.",
+   "Reuse a suitable host backend when it reduces maintenance, after a small feasibility test. Avoid reimplementing an entire browser or text stack.",
+   "Keep changes small enough to verify. Size labels are relative engineering scope (S/M/L/XL), not time estimates or delivery promises."
+  ],
+  "acceptance_scenarios": [
+   {
+    "app": "OpenCalc",
+    "flow": "Enter a calculation, verify the result, copy it, resize, close cleanly."
+   },
+   {
+    "app": "Simple Calculator",
+    "flow": "Calculate, navigate settings and back, change an applicable preference, restart and check persistence."
+   },
+   {
+    "app": "Simple Notes",
+    "flow": "Create and edit a Unicode note, save, close, reopen, verify contents and navigate back from editing."
+   },
+   {
+    "rule": "Every app must remain usable beyond 30 seconds and pass under default confinement."
+   },
+   {
+    "rule": "Screenshots must accompany asserted actions and saved results; a window screenshot alone is insufficient."
+   },
+   {
+    "rule": "Substitute a candidate only with a recorded reason; do not replace a failing app merely to turn the gate green."
+   }
+  ]
+ },
  "objective": "Three pinned utility apps complete useful visible flows, preserve data and run under default isolation.",
  "current_phase": "COMPATIBILITY",
  "next_task": "C6",
@@ -208,7 +242,8 @@
       ".cache/isakai/evidence/opencalc-click-drive3.png"
      ]
     }
-   ]
+   ],
+   "acceptance": "A window remains responsive beyond 30 seconds; close/back exits cleanly, runs lifecycle cleanup once, and leaves no window or child process."
   },
   {
    "id": "R2",
@@ -238,7 +273,8 @@
       "/tmp/isakai-runtime-tests-final.log"
      ]
     }
-   ]
+   ],
+   "acceptance": "Default privileged launch succeeds with confinement enabled. An app-side probe proves permitted data writes, denied code and outside-data writes, denied access to another app's data, expected UID/GID, NNP, seccomp and a separate mount namespace."
   },
   {
    "id": "R3",
@@ -265,7 +301,8 @@
       "/tmp/isakai-packaging.log"
      ]
     }
-   ]
+   ],
+   "acceptance": "Inspect a clean staging root for exactly the three intended action IDs and matching executable wrappers; verify legacy policy migration, Debian/Arch mappings and package cleanup. One policy file may define all three actions."
   },
   {
    "id": "R4",
@@ -296,7 +333,8 @@
       "/tmp/isakai-harness-failure.log"
      ]
     }
-   ]
+   ],
+   "acceptance": "A deliberately broken launch or isolation check makes the job fail; the valid install/window/input/close/uninstall flow passes and cleans up."
   },
   {
    "id": "C1",
@@ -340,7 +378,8 @@
      ],
      "command": "python3 verify-isakai/flow-drive.py opencalc --work .cache/isakai/recheck/opencalc10"
     }
-   ]
+   ],
+   "acceptance": "All three app records have immutable APK identity and repeatable visible interaction plus persistence assertions. At least one includes internal screen navigation and one includes Unicode editing."
   },
   {
    "id": "C2",
@@ -389,7 +428,8 @@
      ],
      "command": "python3 tools/compat-report.py <pinned.apk> --classes-dir <classes> --output <report>; python3 verify-isakai/check-compat-report.py"
     }
-   ]
+   ],
+   "acceptance": "Each pinned APK yields a machine-readable report (tools/compat-report.py); seeded ABI, missing-method and unsupported-opcode failures identify the relevant class/method or library and a useful next action."
   },
   {
    "id": "C3",
@@ -418,7 +458,8 @@
       ".cache/isakai/evidence/navigation.png"
      ]
     }
-   ]
+   ],
+   "acceptance": "Worker-posted main callbacks run on the UI thread; delayed callbacks do not run early; cancellation works; self-rescheduling callbacks do not recurse; queue identity is stable and shutdown terminates cleanly. Proven via visible UI behavior."
   },
   {
    "id": "C4",
@@ -494,7 +535,8 @@
      ],
      "command": "python3 verify-isakai/observe-app.py 0 --work .cache/isakai/recheck/opencalc10"
     }
-   ]
+   ],
+   "acceptance": "A target opens a second screen, passes data, returns a result, and navigates back without destroying the app unexpectedly or duplicating lifecycle calls. Proven visibly on device windows."
   },
   {
    "id": "C5",
@@ -577,7 +619,8 @@
       "framework/android/widget/RelativeLayout.java"
      ]
     }
-   ]
+   ],
+   "acceptance": "Target screenshots have usable bounds and no overlapping controls; input, cursor movement, copy/paste and saved Unicode text match expectations after resizing and reopening."
   },
   {
    "id": "C6",
@@ -755,7 +798,8 @@
      ],
      "command": "zig build test --summary all (37/37 steps, 19/19 tests); python3 tools/test-framework.py (27 programs)"
     }
-   ]
+   ],
+   "acceptance": "Each fixed failure is proven by the affected real visible flow. Unresolved failures stay explicit rather than becoming silent default returns."
   },
   {
    "id": "C7",
@@ -836,7 +880,8 @@
      ],
      "command": "python3 verify-isakai/sway-flow.py opencalc --work .cache/isakai/recheck/opencalc10"
     }
-   ]
+   ],
+   "acceptance": "All three apps complete their defined flows with expected saved results, remain usable beyond 30 seconds, and exit cleanly. Upgrade/rollback preserves data and a changed signer is rejected."
   },
   {
    "id": "Q1",
@@ -879,7 +924,8 @@
      ],
      "command": "tools/checks.sh core; python3 verify-isakai/check-navigation.py; python3 verify-isakai/check-harness-failure.py; tools/e2e-privileged.sh --required"
     }
-   ]
+   ],
+   "acceptance": "Superseded 2026-10-14: automated check gates were removed. Build reproducibility is verified by fresh-checkout `zig build` plus UI flows below."
   },
   {
    "id": "Q2",
@@ -902,7 +948,8 @@
      ],
      "command": "python3 verify-isakai/check-apk-limits.py"
     }
-   ]
+   ],
+   "acceptance": "Boundary cases around 256 MiB and 1 GiB behave as documented; oversized entries reject. A mixed-ABI fixture stages only host libraries; ARM-only input reports NativeUnsupported. Verified via real install attempts and UI launches, not automated boundary harnesses."
   },
   {
    "id": "Q3",
@@ -924,7 +971,8 @@
      "detail": "Deterministic inventory/catalog generator, one build entry per production source, separate behavior caveats, markdown links and tracker graph validation.",
      "command": "python3 tools/check-repository.py"
     }
-   ]
+   ],
+   "acceptance": "Superseded 2026-10-14: the inventory generator and link checker were removed with the test suites. docs/SUPPORTED_APIS.md is maintained by hand alongside framework changes."
   },
   {
    "id": "F1",
@@ -948,7 +996,8 @@
      ],
      "command": "zig build test-java"
     }
-   ]
+   ],
+   "acceptance": "Long audio plays with bounded memory; looping repeats; pause/seek/resume work; a hung decoder times out; errors propagate; the same flow passes under default isolation."
   },
   {
    "id": "F2",
@@ -961,7 +1010,8 @@
    "code": [
     "framework/android/webkit"
    ],
-   "evidence": []
+   "evidence": [],
+   "acceptance": "A pinned app renders and interacts with its required page, executes general JavaScript, persists required cookies and handles engine failure without crashing the app."
   },
   {
    "id": "F3",
@@ -977,7 +1027,8 @@
     "src/native/bionic_shim.zig",
     "src/confine.zig"
    ],
-   "evidence": []
+   "evidence": [],
+   "acceptance": "A real ARM JNI APK installs, loads dependencies, calls Java/native in both directions and completes a visible confined flow; report latency, RSS and distribution size before committing to the backend. Defer ARM32 separately."
   },
   {
    "id": "F4",
@@ -1001,7 +1052,8 @@
      ],
      "command": "zig build test-java"
     }
-   ]
+   ],
+   "acceptance": "No fixed location is presented as a real reading; unavailable providers are reported; enabled backend reads reflect the host and stop after cancellation."
   },
   {
    "id": "F5",
@@ -1016,7 +1068,8 @@
     "src/apksig.zig",
     "framework"
    ],
-   "evidence": []
+   "evidence": [],
+   "acceptance": "For each activated capability, record the motivating app, a bounded design, failure behavior and a real-app acceptance flow before implementation."
   },
   {
    "id": "D1",
@@ -1027,7 +1080,6 @@
    "status": "done",
    "depends_on": [],
    "code": [
-    "docs/PLAN.md",
     "progress.json",
     "README.md",
     "docs"
@@ -1037,8 +1089,14 @@
      "date": "2026-10-11",
      "result": "passed",
      "detail": "Consolidated four plans into docs/PLAN.md; replaced the separate host-interface checklist with the architecture reference index; corrected reference guides. Validated 20 unique task IDs, valid statuses, acyclic dependencies, existing code paths, plan/tracker alignment, local Markdown links, absent superseded references and git diff --check. Documentation and two comment references only; no runtime behavior changed."
+    },
+    {
+     "date": "2026-10-14",
+     "result": "passed",
+     "detail": "Folded docs/PLAN.md scope and per-task acceptance criteria into progress.json; deleted docs/PLAN.md and docs/TESTING.md. Removed all automated suites (Zig test blocks, Java *Test.java, oracle corpus, apksig vectors, check-*.py harnesses, checks.sh, test CI); verification is UI-only per verification_policy. References updated in README, docs, build.zig, Makefile and verify-isakai/SKILL.md."
     }
-   ]
+   ],
+   "acceptance": "This file is the only progress tracker; scope and acceptance criteria live in it. No parallel checklist may carry completion state."
   }
  ],
  "historical": {
@@ -1095,5 +1153,6 @@
   "Fixture audio backend was unavailable; desktop bridge logged no bus authentication in root harness.",
   "Landlock/seccomp unavailable-kernel behavior still degrades with warnings; required probe demands both.",
   "ARM native execution remains deferred F3."
- ]
+ ],
+ "verification_policy": "UI-ONLY 2026-10-14: no automated unit/integration suites. Verification means launching pinned APKs as real windows, driving the visible task (calculate/copy/resize, settings persistence, Unicode note round-trip), capturing screenshots, window logs and exit status, and recording them as evidence entries in this file. Helper drivers: verify-isakai/sway-flow.py (isolated compositor), verify-isakai/flow-drive.py, verify-isakai/observe-app.py, verify-isakai/window-flow.py. Q1/Q3 automated gates were removed with the suites and are superseded above."
 }

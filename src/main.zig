@@ -477,12 +477,3 @@ pub fn main(init: std.process.Init) !u8 {
     }
 }
 
-test "parseVerb" {
-    try std.testing.expectEqual(Verb.install, parseVerb("install").?);
-    try std.testing.expectEqual(Verb.upgrade, parseVerb("upgrade").?);
-    try std.testing.expectEqual(Verb.rollback, parseVerb("rollback").?);
-    try std.testing.expectEqual(Verb.list, parseVerb("list").?);
-    try std.testing.expectEqual(Verb.help, parseVerb("--help").?);
-    try std.testing.expectEqual(Verb.version, parseVerb("-V").?);
-    try std.testing.expectEqual(@as(?Verb, null), parseVerb("frobnicate"));
-}

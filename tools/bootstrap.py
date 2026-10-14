@@ -4,7 +4,7 @@ import argparse,hashlib,json,os,shutil,tarfile,time,urllib.request,zipfile
 from pathlib import Path
 ROOT=Path(__file__).resolve().parents[1]
 parser=argparse.ArgumentParser()
-parser.add_argument('names',nargs='*',default=['zig','jdk','dex_tools'])
+parser.add_argument('names',nargs='*',default=['zig','jdk'])
 args=parser.parse_args()
 lock=json.loads((ROOT/'tools/dependencies.json').read_text())
 base=ROOT/'.cache/toolchain';base.mkdir(parents=True,exist_ok=True)

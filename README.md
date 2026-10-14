@@ -12,10 +12,12 @@ requires dispatch, navigation and app-specific compatibility work. Windows now
 remain open until closed; WebView has no rendering engine.
 
 The next delivery target is **three pinned utility apps completing useful
-visible tasks under default isolation**. [The delivery plan](docs/PLAN.md)
-defines the work and acceptance criteria; [progress.json](progress.json) is the
-single tracker for status, blockers, app versions and verification evidence.
-Historical M0–M6 completion reports are retained there as historical claims.
+visible tasks under default isolation**. [progress.json](progress.json) is the
+single tracker for scope, acceptance criteria, task status, blockers, app
+versions and verification evidence. Verification is UI-only: launch pinned
+APKs as real windows, drive the visible task, and record screenshots, logs
+and exit status in `progress.json`. Historical M0–M6 completion reports are
+retained there as historical claims.
 
 ## Build and install (development preview)
 
@@ -28,7 +30,6 @@ Host requirements: Linux x86_64, Zig 0.17 + a C toolchain, JDK 17+
 ```sh
 git clone https://github.com/yesheytenzin/isakai && cd isakai
 make build            # ReleaseSafe binaries + framework + policy (zig-out/)
-make test             # unit tests
 sudo make install     # /usr/bin/isakai, /usr/bin/isakai-dbus-bridge,
                       # /usr/share/isakai/framework, polkit policy
 isakai install app.apk
@@ -62,7 +63,6 @@ export ISAKAI_FRAMEWORK=$PWD/zig-out/framework
 zig-out/bin/isakai install /tmp/fixture.apk
 zig-out/bin/isakai launch org.isakai.fixture            # headless
 ISAKAI_WINDOW=1 zig-out/bin/isakai launch org.isakai.fixture  # windowed
-./oracle/diff.sh                             # differential translator oracle
 ```
 
 `zig build` installs to `zig-out/` (`-p <prefix>` overrides): `bin/isakai`,
@@ -105,19 +105,15 @@ verify failed), 2 usage error. Global `--work` overrides `ISAKAI_WORK`.
 - `translate-test [--dump-lines] [--keep-going] <dex> <outdir>` — batch
   DEX→JVM translation; `--keep-going` reports per-class failures.
 - `verify-test <apk>` — print all v2 fingerprints (sorted, per-signer) or the `SigError` (P-521/RSA>4096/digest mismatch).
-- `oracle/diff.sh [case...]` — smali corpus → DEX → our translator vs
-  dex2jar → execute both, diff stdout. Needs dex-tools at
-  `$D2J` (default `/tmp/oracle/dex2jar/dex-tools-v2.4`); see
-  `docs/TESTING.md`. `oracle/lines.sh` checks LineNumberTables.
-- `tools/fetch-apksig-vectors.sh` — one-time re-vendor of the AOSP golden
-  APKs into `testdata/apksig/` (tests themselves are offline).
+- `tools/compat-report.py <apk>` — machine-readable ABI/linkage gap report for a pinned APK.
 - `tools/e2e-privileged.sh --required` — app-side isolation and live window acceptance; missing prerequisites and failed launches fail the required gate. See [verification instructions](verify-isakai/SKILL.md).
+- `verify-isakai/sway-flow.py`, `flow-drive.py`, `observe-app.py` — drive pinned APKs through visible UI flows on a compositor and retain screenshots/logs.
 
 ## Layout
 
 - `src/main.zig` — CLI dispatch
 - `src/install.zig` — APK inspect/verify/stage/install/uninstall (x86_64 .so allow, other ABIs NativeUnsupported)
-- `src/apksig.zig` — APK Signature Scheme v2 verifier + golden tests (multi-signer ≤16, P-521 unsupported)
+- `src/apksig.zig` — APK Signature Scheme v2 verifier (multi-signer ≤16, P-521 unsupported)
 - `src/registry.zig` — package registry, state machine, terminatePid
 - `src/dex.zig` — DEX parser
 - `src/translate.zig` — DEX→JVM translator + class writer
@@ -127,25 +123,25 @@ verify failed), 2 usage error. Global `--work` overrides `ISAKAI_WORK`.
 - `src/bridge/` — `window.zig` (Wayland client), `jni.zig` (natives),
   `xkb.zig` (keymap/keycodes), `audio.zig` (PulseAudio), `desktop.zig`/`dbus.zig`
 - `framework/` — Java `android.*` (media/WebView/hardware/location) + `org.isakai` bridge/runtime
-- `tools/` — fixture builder, debug probes, vector fetch script
-- `oracle/` — differential translator corpus + harnesses
-- `testdata/apksig/` — vendored AOSP v2 golden vectors
+- `tools/` — fixture builder, APK debug probes, compat-report, UI flow drivers
+- `verify-isakai/` — UI verification drivers (isolated sway flows, observer) + instructions
 - `polkit/` — privilege policy source (staged by the build)
-- `docs/` — fix plan, testing guide, architecture, host requirements, supported APIs
+- `docs/` — architecture, host requirements, supported APIs
 
 ## Development
 
-`zig build test` (all unit tests) and `./oracle/diff.sh` (translator
-parity) are baseline checks; real-app flow evidence is also required.
+There are no automated test suites; verification is UI-only. Build with
+`zig build`, install a pinned APK, launch it as a real window, drive the
+visible task from [progress.json](progress.json), and record screenshots,
+logs and exit status there as evidence.
 
-- [Delivery plan](docs/PLAN.md): scope, sequencing and acceptance criteria.
+- [Progress tracker](progress.json): the only scope, task-status and evidence record.
 - [Runtime reuse assessment](docs/REUSE_ASSESSMENT.md): ATL, ART Standalone,
   Bionic Translation, and the staged integration decision.
-- [Progress tracker](progress.json): the only task-status and evidence record.
 - [Architecture](docs/ARCHITECTURE.md): system map and host interface index.
-- [Testing](docs/TESTING.md): commands, limitations and acceptance rules.
 - [Host requirements](docs/HOST_REQUIREMENTS.md): dependencies and environment.
 - [API catalog](docs/SUPPORTED_APIS.md): available classes and behavioral limits.
+- [Verification instructions](verify-isakai/SKILL.md): UI drivers and evidence rules.
 
 ## License
 

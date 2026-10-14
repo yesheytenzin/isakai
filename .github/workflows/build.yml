@@ -1,0 +1,28 @@
+name: Isakai build
+on: [push, pull_request, workflow_dispatch]
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - name: Host dependencies
+        run: sudo apt-get update && sudo apt-get install -y libxkbcommon-dev libpulse-dev libsqlite3-dev libicu-dev libfontconfig1 libfreetype6 fonts-noto-core fonts-noto-cjk unzip
+      - name: Pinned toolchain
+        run: python3 tools/bootstrap.py zig jdk
+      - name: Build
+        shell: bash
+        run: |
+          set -euo pipefail
+          source .cache/toolchain/env.sh
+          zig build -Doptimize=ReleaseSafe
+      - name: Compile framework
+        shell: bash
+        run: |
+          set -euo pipefail
+          source .cache/toolchain/env.sh
+          fw_check=$(mktemp -d)
+          find framework -name '*.java' -print > "$fw_check/sources.txt"
+          javac --release 17 -d "$fw_check/classes" @"$fw_check/sources.txt"

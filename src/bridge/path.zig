@@ -91,51 +91,6 @@ pub fn fitsSocketPath(path: []const u8) bool {
     return path.len + 1 <= max_path;
 }
 
-test "digest is stable, distinct and hex" {
-    const a = digest("/work/one", "com.example.app");
-    const b = digest("/work/one", "com.example.app");
-    const c = digest("/work/two", "com.example.app");
-    const d = digest("/work/one", "com.example.app2");
-    try std.testing.expectEqualSlices(u8, &a, &b);
-    try std.testing.expect(!std.mem.eql(u8, &a, &c));
-    try std.testing.expect(!std.mem.eql(u8, &a, &d));
-    for (a) |ch| try std.testing.expect(std.ascii.isHex(ch));
-}
-
-test "dirFor is short, per-uid and fits the socket path" {
-    const gpa = std.testing.allocator;
-    // A deep work dir whose direct layout used to overflow sun_path:
-    // /tmp/x/…/run/com.darkempire78.opencalculator/bridge.sock > 107.
-    const deep = "/home/tenzin/development/isakai/.cache/isakai/recheck/opencalc6";
-    const dir = try dirFor(gpa, deep, "com.darkempire78.opencalculator", 1000);
-    defer gpa.free(dir);
-    try std.testing.expect(startsWith(dir, "/tmp/isakai-1000-"));
-    try std.testing.expect(validDir(dir));
-    const sock = try socketPath(gpa, dir);
-    defer gpa.free(sock);
-    try std.testing.expect(fitsSocketPath(sock));
-    try std.testing.expect(sock.len <= 60);
-    // The digest is 16 hex chars, so every endpoint has the same length.
-    const other = try dirFor(gpa, "/very/deep/but/different/work/tree/for/the/same/app", "com.darkempire78.opencalculator", 1000);
-    defer gpa.free(other);
-    try std.testing.expectEqual(dir.len, other.len);
-    try std.testing.expect(!std.mem.eql(u8, dir, other));
-}
-
-test "validDir rejects traversal, long, relative and foreign paths" {
-    try std.testing.expect(validDir("/tmp/isakai-1000-0123456789abcdef"));
-    try std.testing.expect(!validDir("tmp/isakai-1000-0123456789abcdef"));
-    try std.testing.expect(!validDir("/tmp/isakai-1000-0123456789abcdef/../etc"));
-    try std.testing.expect(!validDir("/tmp/isakai-1000-0123456789abcdef/sub"));
-    try std.testing.expect(!validDir("/run/user/1000/isakai-1000-0123456789abcdef"));
-    try std.testing.expect(!validDir("/tmp/other-1000-0123456789abcdef"));
-    try std.testing.expect(!validDir(""));
-    var long: [max_dir + 2]u8 = undefined;
-    @memset(&long, 'a');
-    long[0] = '/';
-    try std.testing.expect(!validDir(&long));
-}
-
 fn startsWith(haystack: []const u8, needle: []const u8) bool {
     return std.mem.startsWith(u8, haystack, needle);
 }

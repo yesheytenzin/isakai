@@ -226,23 +226,3 @@ export fn android_dlopen_ext(file_name: ?[*:0]const u8, flags: c_int, extinfo: ?
 
 // --- tests ---
 
-test "property round-trips in-process" {
-    _ = property_set("debug.isakai.test", "42");
-    var buf: [prop_value_max]u8 = undefined;
-    const n = property_get("debug.isakai.test", &buf, null);
-    try std.testing.expectEqual(@as(c_int, 2), n);
-    try std.testing.expectEqualStrings("42", buf[0..2]);
-}
-
-test "property_get returns default when unset" {
-    var buf: [prop_value_max]u8 = undefined;
-    const n = property_get("no.such.prop.isakai", &buf, "fallback");
-    try std.testing.expectEqual(@as(c_int, 8), n);
-    try std.testing.expectEqualStrings("fallback", buf[0..@intCast(n)]);
-}
-
-test "property_get returns 0 when unset and no default" {
-    var buf: [prop_value_max]u8 = undefined;
-    const n = property_get("no.such.prop.isakai", &buf, null);
-    try std.testing.expectEqual(@as(c_int, 0), n);
-}

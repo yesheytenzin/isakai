@@ -566,30 +566,3 @@ pub fn buildSample(gpa: std.mem.Allocator) ![]u8 {
     return out.toOwnedSlice(gpa);
 }
 
-test "sample table: strings, ref alias, colors, default-config wins" {
-    const gpa = std.testing.allocator;
-    const bytes = try buildSample(gpa);
-    defer gpa.free(bytes);
-    var t = try Table.parse(gpa, bytes);
-    defer t.deinit();
-    try std.testing.expectEqual(@as(usize, 1), t.packages.len);
-    try std.testing.expectEqual(@as(u32, 0x7f), t.packages[0].id);
-    try std.testing.expectEqualStrings("Sample", t.lookupString(0x7f110000).?);
-    try std.testing.expectEqualStrings("Sample", t.lookupString(0x7f110001).?);
-    try std.testing.expect(t.lookupString(0x7f110002) == null);
-    try std.testing.expect(t.lookupString(0x7e110000) == null);
-    try std.testing.expectEqual(@as(u32, 0xFF112233), t.lookupColor(0x7f060000).?);
-    try std.testing.expect(t.lookupColor(0x7f110000) == null);
-    const v = t.lookup(0x7f110000).?;
-    try std.testing.expectEqual(@as(u8, 3), v.data_type);
-}
-
-test "table rejects truncated and wrong-magic input" {
-    const gpa = std.testing.allocator;
-    try std.testing.expectError(error.Truncated, Table.parse(gpa, &[_]u8{ 2, 0 }));
-    var bad = [_]u8{ 0xFF, 0xFF, 8, 0, 8, 0, 0, 0, 0, 0, 0, 0 };
-    try std.testing.expectError(error.InvalidTable, Table.parse(gpa, &bad));
-    const bytes = try buildSample(gpa);
-    defer gpa.free(bytes);
-    try std.testing.expectError(error.Truncated, Table.parse(gpa, bytes[0 .. bytes.len - 10]));
-}

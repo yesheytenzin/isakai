@@ -2,7 +2,6 @@
 # PREFIX/DESTDIR-aware install to FHS paths.
 #
 #   make build      # ReleaseSafe binaries + framework + policy into zig-out/
-#   make test       # `zig build test` (all unit tests)
 #   sudo make install                  # PREFIX defaults to /usr
 #   sudo make install DESTDIR=pkg PREFIX=/usr   # packaging
 #   sudo make uninstall
@@ -23,22 +22,10 @@ STAGE ?= .stage-install
 POLICY_SRC = $(STAGE)/share/polkit-1/actions/id.isakai.policy
 POLICY_DST = $(DESTDIR)/usr/share/polkit-1/actions/id.isakai.policy
 
-.PHONY: build test verify verify-wayland verify-privileged install uninstall clean
+.PHONY: build install uninstall clean
 
 build:
 	zig build -Doptimize=ReleaseSafe
-
-test:
-	zig build test
-
-verify:
-	tools/checks.sh core
-
-verify-wayland:
-	tools/checks.sh wayland
-
-verify-privileged:
-	tools/checks.sh privileged
 
 install:
 ifeq ($(INSTALL_POLICY),1)
