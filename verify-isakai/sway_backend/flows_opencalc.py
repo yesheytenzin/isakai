@@ -45,9 +45,12 @@ def run(run_app, comp):
                 steps['copy_hit'] = '%d,%d' % (dx, dy)
                 steps['copy_value'] = copied[:40]
             equation = last_equation(run_app.read_log())
-            if equation != '12+34':
-                raise SwayError('the app input changed to %r (panel top y=%d, press %d,%d): '
-                                'a press reached the keypad' % (equation, display_limit, dx, dy))
+            # After evaluation the display holds the result, which the app
+            # also logs as an equation line; both states are legitimate.
+            # Anything else means a press reached the keypad.
+            if equation != '12+34' and equation != expected:
+                raise SwayError('the app input changed to %r (expression %r, result %r; panel top y=%d, press %d,%d): '
+                                'a press reached the keypad' % (equation, '12+34', expected, display_limit, dx, dy))
             if copied == expected:
                 break
         if copied == expected:

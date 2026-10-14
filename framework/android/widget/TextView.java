@@ -127,6 +127,11 @@ public class TextView extends View {
     }
     public void setFilters(android.text.InputFilter[] filters) {}
     public android.text.InputFilter[] getFilters() { return new android.text.InputFilter[0]; }
+    private boolean cursorVisible = true;
+    public void setCursorVisible(boolean visible) {
+        if (cursorVisible != visible) { cursorVisible = visible; invalidate(); }
+    }
+    public boolean isCursorVisible() { return cursorVisible; }
     public void setInputType(int type) {}
     public int getInputType() { return 0; }
     public void setRawInputType(int type) {}

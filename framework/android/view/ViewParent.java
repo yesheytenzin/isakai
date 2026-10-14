@@ -9,6 +9,8 @@ public interface ViewParent {
     boolean isLayoutRequested();
     /** Disallow (or re-allow) interception for the current gesture. */
     default void requestDisallowInterceptTouchEvent(boolean disallowIntercept) {}
+    /** Bubble an accessibility event toward the root; no host backend consumes it. */
+    default boolean requestSendAccessibilityEvent(View child, android.view.accessibility.AccessibilityEvent event) { return false; }
     default boolean onStartNestedScroll(View child, View target, int axes) { return false; }
     default void onNestedScrollAccepted(View child, View target, int axes) {}
     default void onStopNestedScroll(View target) {}

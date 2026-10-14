@@ -81,21 +81,50 @@ export fn __android_log_vprint(priority: c_int, tag: [*:0]const u8, fmt: [*:0]co
     return 1;
 }
 
-export fn __android_log_assert(cond: c_int, tag: [*:0]const u8, fmt: [*:0]const u8, ...) void {
-    if (cond != 0) return; // condition holds → no abort
+// AOSP android/log.h: void __android_log_assert(const char *cond,
+// const char *tag, const char *fmt, ...). The condition is a string; the
+// call always logs (including the failed condition) and aborts.
+export fn __android_log_assert(cond: [*:0]const u8, tag: [*:0]const u8, fmt: [*:0]const u8, ...) void {
     var buf: [4096]u8 = undefined;
     var ap = @cVaStart();
     defer @cVaEnd(&ap);
     _ = vsnprintf(&buf, buf.len, fmt, @ptrCast(&ap));
     const tag_s = std.mem.sliceTo(tag, 0);
-    std.debug.print("{s}: assertion failed: {s}\n", .{ tag_s, std.mem.sliceTo(&buf, 0) });
+    const cond_s = std.mem.sliceTo(cond, 0);
+    std.debug.print("{s}: assertion '{s}' failed: {s}\n", .{ tag_s, cond_s, std.mem.sliceTo(&buf, 0) });
     std.process.abort();
 }
 
-export fn __android_log_is_loggable(tag: [*:0]const u8, prio: c_int, default_prio: c_int) c_int {
-    _ = tag;
-    // Real bionic reads the "log.tag.<TAG>" system property; without a
-    // property store backing files, defer to the default threshold.
+// AOSP android/log.h: int __android_log_is_loggable(int prio,
+// const char *tag, int def). Honours the in-process "log.tag.<TAG>"
+// property (single level letter or name, as bionic does) and otherwise
+// defers to the default threshold.
+export fn __android_log_is_loggable(prio: c_int, tag: [*:0]const u8, default_prio: c_int) c_int {
+    propLock();
+    defer propUnlock();
+    const tag_s = std.mem.sliceTo(tag, 0);
+    var key_buf: [8 + prop_value_max]u8 = undefined; // "log.tag." + name
+    const prefix = "log.tag.";
+    if (tag_s.len + prefix.len < key_buf.len) {
+        @memcpy(key_buf[0..prefix.len], prefix);
+        @memcpy(key_buf[prefix.len..][0..tag_s.len], tag_s);
+        const key = key_buf[0 .. prefix.len + tag_s.len];
+        if (findPropLocked(key)) |v| {
+            if (v.len > 0) {
+                const level: c_int = switch (std.ascii.toUpper(v[0])) {
+                    'V' => 2,
+                    'D' => 3,
+                    'I' => 4,
+                    'W' => 5,
+                    'E' => 6,
+                    'F' => 7,
+                    'S' => 100, // silent: nothing is loggable
+                    else => default_prio,
+                };
+                return @intFromBool(prio >= level);
+            }
+        }
+    }
     return @intFromBool(prio >= default_prio);
 }
 
@@ -186,21 +215,21 @@ export fn property_set(name: [*:0]const u8, value: [*:0]const u8) c_int {
     return 0;
 }
 
-const PropCallback = *const fn (prop_info: [*:0]const u8, arg: ?*anyopaque) callconv(.c) void;
+// AOSP cutils/properties.h: the callback receives separate name, value
+// and cookie (not a single "name=value" string).
+const PropCallback = *const fn (name: [*:0]const u8, value: [*:0]const u8, arg: ?*anyopaque) callconv(.c) void;
 
 export fn property_list(cb: PropCallback, cookie: ?*anyopaque) c_int {
     propLock();
     defer propUnlock();
-    // Format: "name=value\0" per bionic's property list callback contract.
     for (props[0..props_len]) |*kv| {
-        var buf: [2 * prop_value_max]u8 = undefined;
-        const n = kv.name_len + 1 + kv.value_len;
-        if (n + 1 > buf.len) continue;
-        @memcpy(buf[0..kv.name_len], kv.name[0..kv.name_len]);
-        buf[kv.name_len] = '=';
-        @memcpy(buf[kv.name_len + 1 ..][0..kv.value_len], kv.value[0..kv.value_len]);
-        buf[n] = 0;
-        cb(buf[0..n :0].ptr, cookie);
+        var name_buf: [prop_value_max]u8 = undefined;
+        var value_buf: [prop_value_max]u8 = undefined;
+        @memcpy(name_buf[0..kv.name_len], kv.name[0..kv.name_len]);
+        name_buf[kv.name_len] = 0;
+        @memcpy(value_buf[0..kv.value_len], kv.value[0..kv.value_len]);
+        value_buf[kv.value_len] = 0;
+        cb(name_buf[0..kv.name_len :0].ptr, value_buf[0..kv.value_len :0].ptr, cookie);
     }
     return 0;
 }
@@ -211,8 +240,9 @@ export fn __system_property_get(name: [*:0]const u8, value: [*]u8) c_int {
     return property_get(name, value, null);
 }
 
-export fn __system_property_set(name: [*:0]const u8, value: [*:0]const u8) void {
-    _ = property_set(name, value);
+// AOSP sys/system_properties.h: int __system_property_set(...).
+export fn __system_property_set(name: [*:0]const u8, value: [*:0]const u8) c_int {
+    return property_set(name, value);
 }
 
 // --- dlext: NDK-adjacent code sometimes calls android_dlopen_ext ---
@@ -223,6 +253,4 @@ export fn android_dlopen_ext(file_name: ?[*:0]const u8, flags: c_int, extinfo: ?
     _ = extinfo;
     return dlopen(file_name, flags);
 }
-
-// --- tests ---
 

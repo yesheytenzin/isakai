@@ -120,7 +120,9 @@ public class EditText extends TextView {
         if (action == MotionEvent.ACTION_DOWN
                 && containsPoint(event.getX(), event.getY())) {
             requestFocus();
-            return true;
+            // Fall through to the standard machinery so press state and
+            // the long-press arm behave like every other view; focusing
+            // alone must not swallow click/long-click delivery.
         }
         return super.onTouchEvent(event);
     }
@@ -215,7 +217,7 @@ public class EditText extends TextView {
             if(end>start)canvas.fillRect(x+Canvas.measureText(line.substring(0,start),getTextPixelSize()),y,
                     x+Canvas.measureText(line.substring(0,end),getTextPixelSize()),y+lineHeight,0xffbbd7ff);
             canvas.drawText(line,x,y,getTextPixelSize(),getTextColor());
-            if(isFocused() && cursor>=offset && cursor<=offset+line.length()) {
+            if(isFocused() && isCursorVisible() && cursor>=offset && cursor<=offset+line.length()) {
                 int cx=x+Canvas.measureText(line.substring(0,cursor-offset),getTextPixelSize());
                 canvas.fillRect(cx,y,cx+1,y+lineHeight,Color.BLACK);
             }

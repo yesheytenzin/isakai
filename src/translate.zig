@@ -1596,9 +1596,13 @@ fn emitInvokeArgs(
                 skip = true;
             } else if (super_internal) |sup| {
                 if (std.mem.eql(u8, owner_internal, sup)) skip = true;
-            } else {
-                if (std.mem.eql(u8, owner_internal, "java/lang/Object")) skip = true;
             }
+            // Narrowing to java/lang/Object is never needed for
+            // verification (every reference is already assignable to it)
+            // and it breaks protected access: e.g. an array receiver
+            // narrowed to Object before Object.clone() fails with
+            // "Bad access to protected data". Always skip it.
+            if (std.mem.eql(u8, owner_internal, "java/lang/Object")) skip = true;
         }
         if (!skip) {
             // A param already typed as the current class must also keep its

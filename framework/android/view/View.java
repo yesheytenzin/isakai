@@ -1225,6 +1225,37 @@ public class View {
         return accessibilityDelegate;
     }
 
+    /**
+     * Fire-and-forget accessibility notification, AOSP-shaped: when the
+     * manager reports disabled (the honest state: Isakai has no host
+     * accessibility backend), this returns without delivering, exactly as
+     * Android does with the service off. Callers such as sliding panels
+     * continue normally after the call.
+     */
+    public void sendAccessibilityEvent(int eventType) {
+        Object service = getContext() == null ? null
+                : getContext().getSystemService(android.content.Context.ACCESSIBILITY_SERVICE);
+        if (!(service instanceof android.view.accessibility.AccessibilityManager)) return;
+        android.view.accessibility.AccessibilityManager manager =
+                (android.view.accessibility.AccessibilityManager) service;
+        if (!manager.isEnabled()) return;
+        android.view.accessibility.AccessibilityEvent event =
+                android.view.accessibility.AccessibilityEvent.obtain(eventType);
+        event.setPackageName(getContext().getPackageName());
+        event.setClassName(getClass().getName());
+        sendAccessibilityEventUnchecked(event);
+    }
+
+    public void sendAccessibilityEventUnchecked(android.view.accessibility.AccessibilityEvent event) {
+        if (event == null) return;
+        try {
+            ViewParent parent = getParent();
+            if (parent != null) parent.requestSendAccessibilityEvent(this, event);
+        } finally {
+            event.recycle();
+        }
+    }
+
     public void setKeepScreenOn(boolean keepScreenOn) {
         this.keepScreenOn = keepScreenOn;
     }

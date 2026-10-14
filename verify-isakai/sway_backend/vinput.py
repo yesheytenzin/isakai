@@ -12,14 +12,22 @@ import time
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 COMPOSITOR = os.path.join(ROOT, '.cache/isakai/compositor')
 RUNTIME = '/tmp/isakai-wayland-iy7f4069'
-SWAYSOCK = os.path.join(RUNTIME, 'sway-ipc.1000.232640.sock')
+
+
+def sway_socket():
+    """Resolve the live sway IPC socket; its PID suffix changes per launch."""
+    import glob
+    found = sorted(glob.glob(os.path.join(RUNTIME, 'sway-ipc.*.sock')))
+    if not found:
+        raise RuntimeError('no sway IPC socket in ' + RUNTIME + ' (isolated sway not running?)')
+    return found[0]
 
 
 def isolated_env():
     env = dict(os.environ)
     env['XDG_RUNTIME_DIR'] = RUNTIME
     env['WAYLAND_DISPLAY'] = 'wayland-1'
-    env['SWAYSOCK'] = SWAYSOCK
+    env['SWAYSOCK'] = sway_socket()
     env['LD_LIBRARY_PATH'] = os.path.join(COMPOSITOR, 'root/usr/lib') + ':' + env.get('LD_LIBRARY_PATH', '')
     return env
 

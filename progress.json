@@ -83,7 +83,20 @@
    }
   ]
  },
- "blockers": [],
+ "blockers": [
+  {
+   "id": "B-copy-hit",
+   "detail": "OpenCalc copy needs hittable history result rows: panel inner layout offsets rows off-screen as history accumulates and a filler View intercepts the visible strip; long-press has no target. Blocks C7 copy step. Routing evidence in the sway-opencalc window log."
+  },
+  {
+   "id": "B-xkb-race",
+   "detail": "Key events arriving before the bridge xkb keymap is ready crash the JVM (SIGSEGV in xkb_state_update_mask; observed 3x during rapid ad-hoc probing, never on the vinput-first flow path). Needs a drop/queue guard in the key path. Not a regression from current work; pre-existing latent race.",
+   "artifacts": [
+    ".cache/isakai/evidence/xkb-segv-574913.log",
+    ".cache/isakai/evidence/hs_err_pid577110.log"
+   ]
+  }
+ ],
  "apps": [
   {
    "name": "OpenCalc",
@@ -377,6 +390,17 @@
       "verify-isakai/flow-drive.py"
      ],
      "command": "python3 verify-isakai/flow-drive.py opencalc --work .cache/isakai/recheck/opencalc10"
+    },
+    {
+     "date": "2026-10-14",
+     "result": "partial",
+     "detail": "Harness fixes from live runs: copy-sweep guard now accepts the recorded result as legitimate input state (the app logs its own result as an equation line); isolated-env SWAYSOCK resolves the live sway IPC socket instead of a stale PID-suffixed path. Calculation is verified end to end repeatedly (typed 12+34, app history records 12+34->46, visible result screenshots, exit paths clean).",
+     "artifacts": [
+      ".cache/isakai/evidence/opencalc-01-initial.png",
+      ".cache/isakai/evidence/opencalc-02-result.png",
+      ".cache/isakai/evidence/com.darkempire78.opencalculator.sway-opencalc.log"
+     ],
+     "command": "python3 verify-isakai/sway-flow.py opencalc --work .cache/isakai/recheck/opencalc10"
     }
    ],
    "acceptance": "All three app records have immutable APK identity and repeatable visible interaction plus persistence assertions. At least one includes internal screen navigation and one includes Unicode editing."
@@ -618,6 +642,14 @@
       "framework/android/widget/FrameLayout.java",
       "framework/android/widget/RelativeLayout.java"
      ]
+    },
+    {
+     "date": "2026-10-14",
+     "result": "partial",
+     "detail": "Closed three measured live-flow framework gaps: TextView.setCursorVisible/isCursorVisible (default true, gates EditText cursor paint), View.sendAccessibilityEvent(int)/Unchecked plus ViewParent.requestSendAccessibilityEvent default (AOSP-shaped, no-ops honestly while the manager reports disabled), and EditText touch delegation (DOWN now flows to the standard press/long-press machinery instead of focus-only short-circuit; behavior unchanged unless the app opts into long-click). All three NoSuchMethodError crash sites from live runs are gone; the flow proceeds crash-free to the copy step.",
+     "artifacts": [
+      ".cache/isakai/evidence/com.darkempire78.opencalculator.sway-opencalc.log"
+     ]
     }
    ],
    "acceptance": "Target screenshots have usable bounds and no overlapping controls; input, cursor movement, copy/paste and saved Unicode text match expectations after resizing and reopening."
@@ -797,6 +829,15 @@
       "framework/android/view/TouchOffsetTest.java"
      ],
      "command": "zig build test --summary all (37/37 steps, 19/19 tests); python3 tools/test-framework.py (27 programs)"
+    },
+    {
+     "date": "2026-10-14",
+     "result": "partial",
+     "detail": "REUSE_ASSESSMENT PoC-1 (native ABI honesty): fixed 4 shim contract mismatches in src/native/bionic_shim.zig (log_assert string-cond+always-abort, is_loggable (prio,tag,def) order with log.tag.* lookup, property_list 3-arg callback, system_property_set int return). Throwaway C caller with exact AOSP android-15 prototypes: 10/10 checks pass (script kept out of repo under UI-only policy). Fixed a latent translator regression the first rebuild exposed: receiver narrowing to java/lang/Object breaks protected access (B0/a.values() VerifyError 'Bad access to protected data'); Object-narrowing is now always skipped since every reference is already assignable. javap confirms the known-good shape; headless OpenCalc launch exits 0 with full lifecycle.",
+     "artifacts": [
+      ".cache/isakai/evidence/com.darkempire78.opencalculator.sway-opencalc.log"
+     ],
+     "command": "zig build; python3 verify-isakai/sway-flow.py opencalc --work .cache/isakai/recheck/opencalc10"
     }
    ],
    "acceptance": "Each fixed failure is proven by the affected real visible flow. Unresolved failures stay explicit rather than becoming silent default returns."
@@ -876,6 +917,15 @@
       ".cache/isakai/evidence/opencalc-02-result.png",
       ".cache/isakai/evidence/opencalc-04-shrunk.png",
       ".cache/isakai/evidence/opencalc-05-grown.png",
+      ".cache/isakai/evidence/com.darkempire78.opencalculator.sway-opencalc.log"
+     ],
+     "command": "python3 verify-isakai/sway-flow.py opencalc --work .cache/isakai/recheck/opencalc10"
+    },
+    {
+     "date": "2026-10-14",
+     "result": "partial",
+     "detail": "Gate still open at the OpenCalc copy step. Calculation is proven (history, visible 46, screenshots). Copy fails: clipboard stays empty after the full long-press sweep. Measured cause: long-press never fires anywhere (touched views are not long-clickable; EditText previously bypassed arming, now fixed) and the history result rows are not hittable \u2014 with accumulated history the panel inner layout sits at offset -551 so presses in the visible strip land on a filler View, and the 8px history TextView predates this work (C5). Next: panel hit-test/layout work to make result rows reachable (or scroll them into reach), then rerun this exact flow.",
+     "artifacts": [
       ".cache/isakai/evidence/com.darkempire78.opencalculator.sway-opencalc.log"
      ],
      "command": "python3 verify-isakai/sway-flow.py opencalc --work .cache/isakai/recheck/opencalc10"
