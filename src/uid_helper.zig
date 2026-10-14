@@ -1037,7 +1037,27 @@ fn brokerWaylandSock(sock: []const u8, data_dir: []const u8, name_buf: *[108]u8)
                 _ = linux.write(linux.STDERR_FILENO, msg, msg.len);
                 return null;
             }
-            _ = linux.close(@bitCast(@as(u32, @truncate(probe))));
+            const probe_fd: i32 = @bitCast(@as(u32, @truncate(probe)));
+            {
+                var stx: linux.Statx = undefined;
+                const src = linux.statx(probe_fd, "", linux.AT.EMPTY_PATH, .{ .TYPE = true, .MODE = true }, &stx);
+                _ = linux.close(probe_fd);
+                if (linux.errno(src) != .SUCCESS) {
+                    const msg = "uid-helper run: wayland target not statable\n";
+                    _ = linux.write(linux.STDERR_FILENO, msg, msg.len);
+                    return null;
+                }
+                if (stx.mode & linux.S.IFMT != linux.S.IFREG) {
+                    const msg = "uid-helper run: wayland target not a regular file\n";
+                    _ = linux.write(linux.STDERR_FILENO, msg, msg.len);
+                    return null;
+                }
+                if (stx.mode & 0o077 != 0) {
+                    const msg = "uid-helper run: wayland target too permissive\n";
+                    _ = linux.write(linux.STDERR_FILENO, msg, msg.len);
+                    return null;
+                }
+            }
         } else {
             _ = linux.close(@bitCast(@as(u32, @truncate(rc))));
         }
@@ -1060,4 +1080,3 @@ fn brokerWaylandSock(sock: []const u8, data_dir: []const u8, name_buf: *[108]u8)
     }
     return name_buf[0..base.len];
 }
-

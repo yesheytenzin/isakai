@@ -597,8 +597,8 @@ public class View {
     }
 
     public boolean post(Runnable action) {
-        if (action != null) action.run();
-        return true;
+        if (action == null) return false;
+        return postDelayed(action, 0);
     }
 
     /** Main-looper handler for this view's actions (Compose recomposer cleanup). */
@@ -625,7 +625,7 @@ public class View {
      * messages by their Handler target, so posting and removing must use the
      * same instance.
      */
-    private static android.os.Handler mainHandler() {
+    private static synchronized android.os.Handler mainHandler() {
         android.os.Handler cached = MAIN_HANDLER;
         if (cached != null) return cached;
         android.os.Looper looper = android.os.Looper.getMainLooper();
@@ -642,7 +642,8 @@ public class View {
     }
 
     public void postOnAnimationDelayed(Runnable action, long delayMillis) {
-        post(action);
+        if (action == null) return;
+        postDelayed(action, Math.max(0, delayMillis));
     }
 
     public void postInvalidateOnAnimation() {

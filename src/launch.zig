@@ -584,6 +584,7 @@ pub fn validAbsPath(s: []const u8) bool {
     if (s.len == 0 or s.len > 4000) return false;
     if (s[0] != '/') return false;
     if (std.mem.indexOf(u8, s, "..") != null) return false;
+    if (std.mem.indexOfScalar(u8, s, 0) != null) return false;
     return true;
 }
 
@@ -899,6 +900,7 @@ pub fn launch(
             if (!waitBridgeSocket(io, gpa, bridge_dir)) {
                 std.log.warn("bridge socket {s}/bridge.sock never appeared (see bridge stderr above); continuing without desktop integration", .{bridge_dir});
                 var bc = bridge_child.?;
+                if (bc.id) |pid_v| linuxKill(pid_v, 15);
                 _ = bc.wait(io) catch {};
                 bridge_child = null;
             } else {
@@ -988,4 +990,3 @@ pub fn launch(
     }
     return .{ .code = code };
 }
-

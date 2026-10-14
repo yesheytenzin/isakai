@@ -13,4 +13,4 @@ Description: Run Android apps as native Linux processes
  Translates Android DEX to JVM bytecode at install time and runs the
  app on the host JVM with a reimplemented android.* framework on
  Wayland. No Android OS, no container, no runtime bundle download.
- Privileged app isolation goes through a pkexec polkit action.
+ Privileged app isolation goes through three pkexec polkit actions.

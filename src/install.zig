@@ -170,9 +170,9 @@ pub fn listEntries(
         try validateEntry(raw_name);
         const gop = try seen.getOrPut(gpa, raw_name);
         if (gop.found_existing) return error.DuplicateEntry;
-        gop.key_ptr.* = try gpa.dupe(u8, raw_name);
         total = std.math.add(u64, total, entry.uncompressed_size) catch return error.SizeOverflow;
         if (entry.uncompressed_size > max_entry or total > max_total) return error.EntryTooLarge;
+        gop.key_ptr.* = try gpa.dupe(u8, raw_name);
         try entries.append(gpa, .{ .name = gop.key_ptr.*, .size = entry.uncompressed_size });
     }
 }
@@ -738,9 +738,11 @@ pub fn inspect(
     for (entries.items) |e| {
         if (!std.mem.startsWith(u8, e.name, "lib/x86_64/") or !std.mem.endsWith(u8, e.name, ".so")) continue;
         if (std.mem.indexOfScalar(u8, e.name["lib/x86_64/".len..], '/') != null) return error.InvalidNativeLibrary;
-        const library = try readEntry(io, gpa, apk_path, e.name, max_entry);
-        defer gpa.free(library);
-        try validateNativeHeader(library);
+        {
+            const library = try readEntry(io, gpa, apk_path, e.name, max_entry);
+            defer gpa.free(library);
+            try validateNativeHeader(library);
+        }
     }
     const bytes = try readEntry(io, gpa, apk_path, "AndroidManifest.xml", max_manifest);
     defer gpa.free(bytes);
@@ -826,21 +828,23 @@ pub fn stage(
     for (entries.items) |e| {
         if (std.mem.endsWith(u8, e.name, "/")) continue;
         if (!wantEntry(e.name)) continue;
-        const bytes = try readEntry(io, gpa, apk_path, e.name, max_entry);
-        defer gpa.free(bytes);
-        const out_path = try std.fmt.allocPrint(gpa, "{s}/{s}", .{ dest, e.name });
-        defer gpa.free(out_path);
-        if (std.fs.path.dirname(out_path)) |dir| {
-            try std.Io.Dir.cwd().createDirPath(io, dir);
+        {
+            const bytes = try readEntry(io, gpa, apk_path, e.name, max_entry);
+            defer gpa.free(bytes);
+            const out_path = try std.fmt.allocPrint(gpa, "{s}/{s}", .{ dest, e.name });
+            defer gpa.free(out_path);
+            if (std.fs.path.dirname(out_path)) |dir| {
+                try std.Io.Dir.cwd().createDirPath(io, dir);
+            }
+            var f = try std.Io.Dir.cwd().createFile(io, out_path, .{ .exclusive = true });
+            defer f.close(io);
+            var wbuf: [8192]u8 = undefined;
+            var fw = f.writer(io, &wbuf);
+            try fw.interface.writeAll(bytes);
+            try fw.interface.flush();
+            try f.sync(io);
+            try std.Io.Dir.cwd().setFilePermissions(io, out_path, .fromMode(0o644), .{});
         }
-        var f = try std.Io.Dir.cwd().createFile(io, out_path, .{ .exclusive = true });
-        defer f.close(io);
-        var wbuf: [8192]u8 = undefined;
-        var fw = f.writer(io, &wbuf);
-        try fw.interface.writeAll(bytes);
-        try fw.interface.flush();
-        try f.sync(io);
-        try std.Io.Dir.cwd().setFilePermissions(io, out_path, .fromMode(0o644), .{});
     }
 }
 

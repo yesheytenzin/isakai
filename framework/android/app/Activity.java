@@ -67,7 +67,8 @@ public class Activity extends android.content.Context implements android.view.Wi
     public void runOnUiThread(Runnable action) {
         if (action == null) return;
         android.os.Looper main = android.os.Looper.getMainLooper();
-        if (main != null && main.isCurrentThread()) action.run();
+        if (main == null) throw new IllegalStateException("Main looper not prepared");
+        if (main.isCurrentThread()) action.run();
         else new android.os.Handler(main).post(action);
     }
 
@@ -553,7 +554,7 @@ public class Activity extends android.content.Context implements android.view.Wi
     private static final class Navigator {
         IsakaiWindow.Window window;
         final java.util.ArrayList<Activity> stack = new java.util.ArrayList<>();
-        final java.util.ArrayDeque<Runnable> pending = new java.util.ArrayDeque<>();
+        final java.util.Queue<Runnable> pending = new java.util.concurrent.ConcurrentLinkedQueue<>();
         Activity top() { return stack.get(stack.size() - 1); }
         void launch(Activity caller, Intent intent, int code) {
             Intent deliveredIntent = new Intent(intent);
@@ -590,7 +591,11 @@ public class Activity extends android.content.Context implements android.view.Wi
         }
         void advance() {
             // Bound dispatch so repeated navigation cannot starve the host pump.
-            for (int i = 0; i < 64 && !pending.isEmpty(); i++) pending.remove().run();
+            for (int i = 0; i < 64; i++) {
+                Runnable next = pending.poll();
+                if (next == null) break;
+                next.run();
+            }
             // Finished, stopped activities must not remain as a back destination.
             for (int index=stack.size()-2; index>=0; index--) {
                 Activity stopped=stack.get(index);

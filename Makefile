@@ -6,12 +6,12 @@
 #   sudo make install DESTDIR=pkg PREFIX=/usr   # packaging
 #   sudo make uninstall
 #
-# Layout: $(DESTDIR)$(PREFIX)/bin/{isakai,isakai-dbus-bridge},
+# Layout: $(DESTDIR)$(PREFIX)/bin/{isakai,isakai-dbus-bridge,isakai-allocate-uid,isakai-remove-uid,isakai-run-app},
 # $(DESTDIR)$(PREFIX)/share/isakai/framework (classes +
 # lib/libisakai_jni.so), $(DESTDIR)/usr/share/polkit-1/actions/*.policy.
 #
 # The polkit policy pins org.freedesktop.policykit.exec.path to
-# /usr/bin/isakai-*-uid, so install refuses any PREFIX other than /usr unless
+# /usr/bin/isakai-{allocate-uid,remove-uid,run-app}, so install refuses any PREFIX other than /usr unless
 # INSTALL_POLICY=0 skips the policy (dev relocatable installs).
 
 PREFIX ?= /usr

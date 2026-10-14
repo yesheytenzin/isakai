@@ -61,6 +61,8 @@ public final class Looper {
         private final java.util.ArrayList<Message> messages = new java.util.ArrayList<>();
         private boolean quitting;
         synchronized boolean enqueue(Message m, long when, boolean front) {
+            if (m == null) return false;
+            if (m.target == null) throw new IllegalArgumentException("Message target must not be null");
             if (m.inUse) throw new IllegalStateException("Message already in use");
             if (quitting) return false;
             m.inUse = true;
@@ -81,7 +83,7 @@ public final class Looper {
                     else wait(Math.max(1, messages.get(0).when - now));
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
-                    return null;
+                    continue;
                 }
             }
         }

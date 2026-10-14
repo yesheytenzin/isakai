@@ -51,7 +51,6 @@ const BPF_JA_K: u16 = BPF_JMP | 0x00 | BPF_K; // unconditional jump
 // nr: c_int @0, arch: u32 @4, instruction_pointer: u64 @8, args: u64 @16.
 const OFF_NR: u32 = 0;
 const OFF_ARCH: u32 = 4;
-const OFF_ARGS: u32 = 16;
 
 /// seccomp RET actions (std.os.linux.seccomp.RET).
 const RET_ERRNO_EPERM: u32 = linux.SECCOMP.RET.ERRNO | 1; // EPERM=1
@@ -61,7 +60,7 @@ const RET_ALLOW: u32 = linux.SECCOMP.RET.ALLOW;
 /// group; the filter is a linear allowlist so order is free. Numbers are
 /// the x86_64 ABI values (checked at comptime against std's SYS table).
 pub const allowed_syscalls = [_]linux.SYS{
-    // --- exec + process basics (helper tail runs AFTER the filter) ---
+    // --- exec + process basics ---
     linux.SYS.execve,
     linux.SYS.execveat,
     linux.SYS.exit,
@@ -77,7 +76,8 @@ pub const allowed_syscalls = [_]linux.SYS{
     linux.SYS.getegid,
     linux.SYS.getgroups,
     linux.SYS.getrlimit,
-    // --- privilege drop tail (helper still runs these post-filter) ---
+    // --- privilege drop tail (helper runs these BEFORE the filter;
+    // keeping them allowed is harmless: post-drop they are no-ops) ---
     linux.SYS.setgroups,
     linux.SYS.setresgid,
     linux.SYS.setresuid,
@@ -255,7 +255,7 @@ pub fn buildFilter(buf: []SockFilter, syscalls: []const linux.SYS) []const SockF
     // [2] load nr
     buf[2] = .{ .code = BPF_LD_W_ABS, .jt = 0, .jf = 0, .k = OFF_NR };
     // [3..3+N) allowlist compares; match jumps to the ALLOW ret at [5+N]:
-    // jt = (5+N) - (3+j+1) = N - j + 2.
+    // jt = (5+N) - (3+j+1) = N - j + 1.
     for (syscalls, 0..) |n_sys, j| {
         buf[3 + j] = .{ .code = BPF_JEQ_K, .jt = @intCast(n - j + 1), .jf = 0, .k = @truncate(@backingInt(n_sys)) };
     }
@@ -373,14 +373,23 @@ pub fn applyLandlock(rules: []const Rule, pathbuf: []u8) !void {
             return error.LandlockOpenPathFailed;
         }
         const fd: i32 = @intCast(opened);
-        defer _ = linux.close(fd);
         var st: linux.Statx = undefined;
-        if (linux.errno(linux.statx(fd, "", linux.AT.EMPTY_PATH, .{ .TYPE = true }, &st)) != .SUCCESS) return error.LandlockStatFailed;
+        if (linux.errno(linux.statx(fd, "", linux.AT.EMPTY_PATH, .{ .TYPE = true }, &st)) != .SUCCESS) {
+            _ = linux.close(fd);
+            return error.LandlockStatFailed;
+        }
         var access = r.access & handled;
         if (st.mode & linux.S.IFMT != linux.S.IFDIR) access &= file_rights;
-        if (access == 0) continue;
+        if (access == 0) {
+            _ = linux.close(fd);
+            continue;
+        }
         var rule = LandlockPathBeneath{ .allowed_access = access, .parent_fd = fd };
-        if (linux.errno(linux.syscall4(.landlock_add_rule, @intCast(ruleset_fd), 1, @intFromPtr(&rule), 0)) != .SUCCESS) return error.LandlockAddRuleFailed;
+        if (linux.errno(linux.syscall4(.landlock_add_rule, @intCast(ruleset_fd), 1, @intFromPtr(&rule), 0)) != .SUCCESS) {
+            _ = linux.close(fd);
+            return error.LandlockAddRuleFailed;
+        }
+        _ = linux.close(fd);
     }
     if (linux.errno(linux.syscall2(.landlock_restrict_self, @intCast(ruleset_fd), 0)) != .SUCCESS) return error.LandlockRestrictFailed;
 }
@@ -407,4 +416,3 @@ pub fn confineAndRestrict(rules: []const Rule, disabled: bool) !void {
 fn warn(msg: []const u8) void {
     _ = linux.write(linux.STDERR_FILENO, msg.ptr, msg.len);
 }
-

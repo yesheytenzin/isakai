@@ -59,7 +59,7 @@ public class Handler {
     public boolean hasMessages(int what) { return looper.getQueue().matches(this, null, what, null, false); }
     public boolean hasCallbacks(Runnable r) { return looper.getQueue().matches(this, r, null, null, false); }
     public void removeCallbacks(Runnable r) { removeCallbacks(r, null); }
-    public void removeCallbacks(Runnable r, Object token) { if (r != null) looper.getQueue().matches(this, r, null, token, true); }
+    public void removeCallbacks(Runnable r, Object token) { looper.getQueue().matches(this, r, null, token, true); }
     public void removeMessages(int what) { removeMessages(what, null); }
     public void removeMessages(int what, Object token) { looper.getQueue().matches(this, null, what, token, true); }
     public void removeCallbacksAndMessages(Object token) { looper.getQueue().matches(this, null, null, token, true); }
