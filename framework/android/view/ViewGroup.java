@@ -314,6 +314,22 @@ public class ViewGroup extends View implements ViewParent {
 
     public void setClipToPadding(boolean clip) {}
     public void setClipChildren(boolean clipChildren) {}
+
+    /**
+     * Record whether this group's drawable state merges its children's
+     * states. Retained for API shape; drawable-state merging itself is
+     * unimplemented (View.drawableStateChanged is a no-op), so setting
+     * the flag currently changes no rendering.
+     */
+    public void setAddStatesFromChildren(boolean addsStates) {
+        addStatesFromChildren = addsStates;
+    }
+
+    public boolean addStatesFromChildren() {
+        return addStatesFromChildren;
+    }
+
+    private boolean addStatesFromChildren;
     public void startViewTransition(View view) {}
     public void endViewTransition(View view) {}
     public android.animation.LayoutTransition getLayoutTransition() { return null; }

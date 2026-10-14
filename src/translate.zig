@@ -781,8 +781,7 @@ fn paramKind(nregs: usize, nins: usize, is_static: bool, param_kinds: []const u8
 
 /// Param-list index of a reg, or null for `this`/non-param regs. Mirrors
 /// paramKind's layout walk (wide halves map to the same index).
-fn paramRegIndex(nregs: usize, nins: usize, is_static: bool,
-    param_kinds: []const u8, rx: u16) ?usize {
+fn paramRegIndex(nregs: usize, nins: usize, is_static: bool, param_kinds: []const u8, rx: u16) ?usize {
     var sri: usize = nregs -| nins;
     if (!is_static) {
         if (rx == sri) return null; // this
@@ -799,8 +798,7 @@ fn paramRegIndex(nregs: usize, nins: usize, is_static: bool,
 }
 
 /// True when reg holds `this` (directly or via a move chain from it).
-fn receiverIsThis(insns: []const u16, call_pc: usize, rx: u16,
-    nregs: usize, nins: usize, is_static: bool) bool {
+fn receiverIsThis(insns: []const u16, call_pc: usize, rx: u16, nregs: usize, nins: usize, is_static: bool) bool {
     if (is_static or nins == 0 or nregs < nins) return false;
     const this_reg: u16 = @intCast(nregs - nins);
     if (rx == this_reg) return true;
@@ -810,8 +808,7 @@ fn receiverIsThis(insns: []const u16, call_pc: usize, rx: u16,
 /// True when a param reg's descriptor names the current class (protected
 /// calls through it must keep the subclass type; narrowing to a super
 /// owner breaks verification).
-fn paramIsThisType(gpa: std.mem.Allocator, d: dex.Dex, parameters_off: u32,
-    param_index: usize, this_internal: []const u8) bool {
+fn paramIsThisType(gpa: std.mem.Allocator, d: dex.Dex, parameters_off: u32, param_index: usize, this_internal: []const u8) bool {
     const tids = dex.readTypeList(gpa, d, parameters_off) catch return false;
     defer if (tids.len > 0) gpa.free(tids);
     if (param_index >= tids.len) return false;
@@ -916,10 +913,12 @@ fn reachingDefsAllInt(
 /// disagreed. Backward DFS like reachingDefsAllInt: linear wide_comp is
 /// clobbered by stores on paths that never reach the read (e.g. a
 /// `new IllegalArgumentException` into the same reg on a throwing branch
-/// before a float[] read). Sources: new-array (descriptor element),
-/// move-object chains (recurse), check-cast to [X, param [X seeding.
-/// move-result/iget/sget/aget-object/new-instance yield unknown (0);
-/// callers fall back to the linear tracker, then int.
+/// before a float[] read). Sources: new-array/check-cast descriptors,
+/// move-object chains (recurse), static/instance field loads (field type),
+/// aget-object (recurse into the source array, then peel one dimension),
+/// param [X seeding. invoke-result/iget/sget (non-array)/new-instance and
+/// anything else yield unknown (0); callers fall back to the linear
+/// tracker, then int.
 fn reachingArrayComponent(
     gpa: std.mem.Allocator,
     d: dex.Dex,
@@ -933,11 +932,15 @@ fn reachingArrayComponent(
     use_pc: usize,
     rx: u16,
 ) u8 {
-    return reachingArrayComponentDepth(gpa, d, insns, preds, nregs, nins,
-        is_static, param_kinds, parameters_off, use_pc, rx, 0);
+    const desc = reachingArrayDesc(gpa, d, insns, preds, nregs, nins, is_static, param_kinds, parameters_off, use_pc, rx, 0) orelse return 0;
+    defer gpa.free(desc);
+    return if (desc.len >= 2) desc[1] else 0;
 }
 
-fn reachingArrayComponentDepth(
+/// Backward reaching-definitions search for the array descriptor (e.g.
+/// "[F", "[[F") stored into register rx at use_pc. Returns an owned
+/// slice, or null when unknown or disagreed across paths.
+fn reachingArrayDesc(
     gpa: std.mem.Allocator,
     d: dex.Dex,
     insns: []const u16,
@@ -950,13 +953,13 @@ fn reachingArrayComponentDepth(
     use_pc: usize,
     rx: u16,
     depth: u8,
-) u8 {
-    if (depth > 8) return 0;
-    if (use_pc >= preds.len or rx >= nregs) return 0;
-    const visited = gpa.alloc(bool, insns.len) catch return 0;
+) ?[]u8 {
+    if (depth > 8) return null;
+    if (use_pc >= preds.len or rx >= nregs) return null;
+    const visited = gpa.alloc(bool, insns.len) catch return null;
     defer gpa.free(visited);
     @memset(visited, false);
-    const stack = gpa.alloc(u32, insns.len) catch return 0;
+    const stack = gpa.alloc(u32, insns.len) catch return null;
     defer gpa.free(stack);
     var top: usize = 0;
     for (preds[use_pc].items) |p| {
@@ -966,8 +969,7 @@ fn reachingArrayComponentDepth(
             top += 1;
         }
     }
-    var found: u8 = 0;
-    var saw_unknown = false;
+    var found: ?[]u8 = null;
     while (top > 0) {
         top -= 1;
         const pc: usize = stack[top];
@@ -977,51 +979,54 @@ fn reachingArrayComponentDepth(
         const w2: u16 = if (pc + 2 < insns.len) insns[pc + 2] else 0;
         if (storeDestKind(op, unit0, w1, w2)) |st| {
             if (st.dst == rx) {
-                const comp: u8 = switch (op) {
-                    .new_array => blk: {
-                        const td = d.getTypeDescriptor(gpa, w1) catch "";
-                        defer if (td.len > 0) gpa.free(td);
-                        break :blk if (td.len == 2 and td[0] == '[') td[1] else 0;
+                const desc: ?[]u8 = switch (op) {
+                    .new_array, .check_cast => blk: {
+                        const td = d.getTypeDescriptor(gpa, w1) catch break :blk null;
+                        defer gpa.free(td);
+                        if (td.len >= 2 and td[0] == '[') break :blk gpa.dupe(u8, td) catch null;
+                        break :blk null;
                     },
-                    .check_cast => blk: {
-                        const td = d.getTypeDescriptor(gpa, w1) catch "";
-                        defer if (td.len > 0) gpa.free(td);
-                        break :blk if (td.len == 2 and td[0] == '[') td[1] else 0;
-                    },
-                    .move_object, .move_object_from16, .move_object16 => {
-                        // Recurse into the source on this path: handled by
-                        // continuing the walk with rx := src below.
+                    .move_object, .move_object_from16, .move_object16 => blk: {
+                        // Recurse into the source on this path.
                         const src: u16 = if (op == .move_object) regB(unit0) else blk2: {
                             const mr = moveRegs16(op, unit0, w1, w2);
                             break :blk2 if (mr.src > 65535) rx else @as(u16, @intCast(mr.src));
                         };
-                        if (src == rx) {
-                            saw_unknown = true;
-                            continue;
-                        }
-                        const sub = reachingArrayComponentDepth(gpa, d, insns, preds, nregs, nins,
-                            is_static, param_kinds, parameters_off, pc, src, depth + 1);
-                        if (sub == 0) {
-                            saw_unknown = true;
-                            continue;
-                        }
-                        if (found == 0) {
-                            found = sub;
-                        } else if (found != sub) {
-                            return 0;
-                        }
-                        continue;
+                        if (src == rx) break :blk null;
+                        break :blk reachingArrayDesc(gpa, d, insns, preds, nregs, nins, is_static, param_kinds, parameters_off, pc, src, depth + 1);
                     },
-                    else => 0,
+                    .sget_object, .iget_object => blk: {
+                        // 21c/22c: field reference in the next unit.
+                        const fid = d.fieldId(w1) catch break :blk null;
+                        const fd = d.getTypeDescriptor(gpa, fid.type_idx) catch break :blk null;
+                        defer gpa.free(fd);
+                        if (fd.len >= 2 and fd[0] == '[') break :blk gpa.dupe(u8, fd) catch null;
+                        break :blk null;
+                    },
+                    .aget_object => blk: {
+                        // Element of the source array: resolve its
+                        // descriptor, then peel one dimension.
+                        const arr: u16 = regs23x(unit0, w1).b;
+                        const sub = reachingArrayDesc(gpa, d, insns, preds, nregs, nins, is_static, param_kinds, parameters_off, pc, arr, depth + 1) orelse break :blk null;
+                        defer gpa.free(sub);
+                        if (sub.len >= 2 and sub[0] == '[') break :blk gpa.dupe(u8, sub[1..]) catch null;
+                        break :blk null;
+                    },
+                    else => null,
                 };
-                if (comp == 0) {
-                    saw_unknown = true;
-                    continue;
-                }
-                if (found == 0) {
-                    found = comp;
-                } else if (found != comp) {
-                    return 0;
+                if (desc) |dd| {
+                    if (found) |fd2| {
+                        if (!std.mem.eql(u8, fd2, dd)) {
+                            gpa.free(fd2);
+                            gpa.free(dd);
+                            return null;
+                        }
+                        gpa.free(dd);
+                    } else {
+                        found = dd;
+                    }
+                } else {
+                    // Unknown source on this path; keep walking others.
                 }
                 continue;
             }
@@ -1036,31 +1041,37 @@ fn reachingArrayComponentDepth(
                 }
             }
         } else if (pc == 0) {
-            // Entry: param [X seeds the component.
+            // Entry: param [X seeds the descriptor.
             if (paramRegIndex(nregs, nins, is_static, param_kinds, rx)) |pi| {
                 const tids = dex.readTypeList(gpa, d, parameters_off) catch &.{};
                 defer if (tids.len > 0) gpa.free(tids);
                 if (pi < tids.len) {
                     const pd = d.getTypeDescriptor(gpa, tids[pi]) catch null;
-                    if (pd) |desc| {
-                        defer gpa.free(desc);
-                        if (desc.len >= 2 and desc[0] == '[') {
-                            if (found == 0) {
-                                found = desc[1];
-                            } else if (found != desc[1]) {
-                                return 0;
+                    if (pd) |pdesc| {
+                        defer gpa.free(pdesc);
+                        if (pdesc.len >= 2 and pdesc[0] == '[') {
+                            const dd = gpa.dupe(u8, pdesc) catch continue;
+                            if (found) |fd2| {
+                                if (!std.mem.eql(u8, fd2, dd)) {
+                                    gpa.free(fd2);
+                                    gpa.free(dd);
+                                    return null;
+                                }
+                                gpa.free(dd);
+                            } else {
+                                found = dd;
                             }
                             continue;
                         }
                     }
                 }
             }
-            saw_unknown = true;
         }
     }
-    if (found != 0 and !saw_unknown) return found;
-    if (found != 0) return found;
-    return 0;
+    if (found) |fd3| {
+        return fd3;
+    }
+    return null;
 }
 
 /// Store an int literal. Conflicted regs dual-write const-0 (0 to the
@@ -1788,8 +1799,7 @@ fn emitInvokeCall(
     caller_param_kinds: []const u8,
     caller_parameters_off: u32,
 ) TranslateError!void {
-    try emitInvokeArgs(e, gpa, rm, d, method_idx, regs, is_static, types, uses, jop,
-        this_internal, super_internal, nregs, nins, caller_param_kinds, caller_parameters_off, insns, call_pc);
+    try emitInvokeArgs(e, gpa, rm, d, method_idx, regs, is_static, types, uses, jop, this_internal, super_internal, nregs, nins, caller_param_kinds, caller_parameters_off, insns, call_pc);
     // Uninitialized-instance <init>: name the ALLOCATION type (R8 may
     // declare a supertype owner, which the JVM rejects). Any <init>
     // call consumes the pending allocation.
@@ -1869,8 +1879,7 @@ fn emitInvokeCall(
             // dispatch virtually to the override. Route through a framework
             // static helper with identical semantics (args already on stack:
             // receiver first, exactly the helper's parameter order).
-            try emitPoolRef(e, gpa, uses, 0xb8, -@as(i32, @intCast(regs.len)),
-                .{ .raw_method = .{ .cls = helper.cls, .name = helper.name, .desc = helper.desc } });
+            try emitPoolRef(e, gpa, uses, 0xb8, -@as(i32, @intCast(regs.len)), .{ .raw_method = .{ .cls = helper.cls, .name = helper.name, .desc = helper.desc } });
         } else {
             try emitPoolRef(e, gpa, uses, jop, -@as(i32, @intCast(regs.len)), .{ .method = .{ .idx = method_idx, .iface = is_interface } });
         }
@@ -3158,8 +3167,7 @@ pub fn translateMethod(
                 const r = regs23x(unit0, insns[pc + 1]);
                 var acomp: u8 = if (r.b < wide_comp.len) wide_comp[r.b] else 0;
                 if (acomp != 'F') {
-                    const reach = reachingArrayComponent(gpa, d, insns, preds,
-                        code.registers, code.ins, is_static, param_kinds, proto.parameters_off, pc, r.b);
+                    const reach = reachingArrayComponent(gpa, d, insns, preds, code.registers, code.ins, is_static, param_kinds, proto.parameters_off, pc, r.b);
                     if (reach != 0) acomp = reach;
                 }
                 try emitLoadRef(&e, gpa, rm, r.b);
@@ -3218,8 +3226,7 @@ pub fn translateMethod(
                 const r = regs23x(unit0, insns[pc + 1]);
                 var acomp: u8 = if (r.b < wide_comp.len) wide_comp[r.b] else 0;
                 if (acomp != 'F') {
-                    const reach = reachingArrayComponent(gpa, d, insns, preds,
-                        code.registers, code.ins, is_static, param_kinds, proto.parameters_off, pc, r.b);
+                    const reach = reachingArrayComponent(gpa, d, insns, preds, code.registers, code.ins, is_static, param_kinds, proto.parameters_off, pc, r.b);
                     if (reach != 0) acomp = reach;
                 }
                 const afl = acomp == 'F' or (acomp != 'I' and acomp != 'J' and acomp != 'D' and r.a < types.len and types[r.a] == .float);
@@ -5070,4 +5077,3 @@ pub fn translateClass(
         .bytes = try out.toOwnedSlice(gpa),
     };
 }
-

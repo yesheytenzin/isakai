@@ -868,6 +868,42 @@ public class Resources {
         }
 
         @Override
+        public int getAttributeListValue(int index, String[] options, int defaultValue) {
+            return getAttributeListValue(getAttributeNamespace(index), getAttributeName(index),
+                    options, defaultValue);
+        }
+
+        @Override
+        public boolean getAttributeBooleanValue(int index, boolean defaultValue) {
+            return getAttributeBooleanValue(getAttributeNamespace(index), getAttributeName(index),
+                    defaultValue);
+        }
+
+        @Override
+        public int getAttributeResourceValue(int index, int defaultValue) {
+            return getAttributeResourceValue(getAttributeNamespace(index), getAttributeName(index),
+                    defaultValue);
+        }
+
+        @Override
+        public int getAttributeIntValue(int index, int defaultValue) {
+            return getAttributeIntValue(getAttributeNamespace(index), getAttributeName(index),
+                    defaultValue);
+        }
+
+        @Override
+        public int getAttributeUnsignedIntValue(int index, int defaultValue) {
+            return getAttributeUnsignedIntValue(getAttributeNamespace(index), getAttributeName(index),
+                    defaultValue);
+        }
+
+        @Override
+        public float getAttributeFloatValue(int index, float defaultValue) {
+            return getAttributeFloatValue(getAttributeNamespace(index), getAttributeName(index),
+                    defaultValue);
+        }
+
+        @Override
         public int getStyleAttribute() {
             return 0;
         }
@@ -1094,6 +1130,10 @@ public class Resources {
         }
 
         public TypedArray obtainStyledAttributes(android.util.AttributeSet set, int[] attrs, int defStyleAttr, int defStyleRes) {
+            if (System.getProperty("isakai.diagAttrs") != null && defStyleAttr == 2130968618) {
+                TypedValue _v = themeValue(defStyleAttr);
+                System.err.println("DIAG theme defStyleAttr present=" + (_v != null) + " overlaySize=" + overlay.size());
+            }
             if ((defStyleAttr != 0 || defStyleRes != 0) && resources != null && resources.table != null) {
                 // defStyleAttr/defStyleRes layer under the tag literals.
                 Theme t = new Theme(resources);
@@ -1541,10 +1581,21 @@ public class Resources {
                     if (dtype == TypedValue.TYPE_REFERENCE) {
                         item = lookupDepth(data, 1);
                         if (item == null) {
+                            // Keep the dangling reference instead of dropping
+                            // the item: AOSP resolves references lazily
+                            // against the merged theme, and dropping them
+                            // here made styles look empty (e.g. dialog
+                            // styles whose entries point at other styles).
+                            // Consumers degrade to defaults for
+                            // unresolvable ids.
+                            item = simple(dtype, data);
+                        } else if (item.resourceId == 0) {
+                            item.resourceId = data;
+                        }
+                        if (item == null) {
                             mp += 12;
                             continue;
                         }
-                        if (item.resourceId == 0) item.resourceId = data;
                     } else {
                         item = simple(dtype, data);
                         if (item == null) {

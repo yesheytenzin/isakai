@@ -199,6 +199,9 @@ public class TypedArray {
         if(value.type>=TypedValue.TYPE_FIRST_COLOR_INT && value.type<=TypedValue.TYPE_LAST_COLOR_INT)
             return new android.graphics.drawable.ColorDrawable(value.data);
         if(value.resourceId!=0 && resources!=null)return resources.getDrawable(value.resourceId);
+        // A reference the theme cannot finish (dangling style/?attr link)
+        // degrades to null like a missing value; anything else stays loud.
+        if(value.type==TypedValue.TYPE_REFERENCE || value.type==TypedValue.TYPE_ATTRIBUTE)return null;
         throw new UnsupportedOperationException("Drawable attribute is not a color or resource reference");
     }
 

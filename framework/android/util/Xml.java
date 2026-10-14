@@ -67,6 +67,24 @@ public class Xml {
             if(value==null)return fallback;
             try{return Float.parseFloat(value);}catch(NumberFormatException e){return fallback;}
         }
+        public int getAttributeListValue(int index,String[] options,int fallback){
+            return getAttributeListValue(parser.getAttributeNamespace(index),parser.getAttributeName(index),options,fallback);
+        }
+        public boolean getAttributeBooleanValue(int index,boolean fallback){
+            return getAttributeBooleanValue(parser.getAttributeNamespace(index),parser.getAttributeName(index),fallback);
+        }
+        public int getAttributeResourceValue(int index,int fallback){
+            return getAttributeResourceValue(parser.getAttributeNamespace(index),parser.getAttributeName(index),fallback);
+        }
+        public int getAttributeIntValue(int index,int fallback){
+            return getAttributeIntValue(parser.getAttributeNamespace(index),parser.getAttributeName(index),fallback);
+        }
+        public int getAttributeUnsignedIntValue(int index,int fallback){
+            return getAttributeUnsignedIntValue(parser.getAttributeNamespace(index),parser.getAttributeName(index),fallback);
+        }
+        public float getAttributeFloatValue(int index,float fallback){
+            return getAttributeFloatValue(parser.getAttributeNamespace(index),parser.getAttributeName(index),fallback);
+        }
         public int getStyleAttribute(){return getAttributeResourceValue(null,"style",0);}
         public void recycle(){}
     }

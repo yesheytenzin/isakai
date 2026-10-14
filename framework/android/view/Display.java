@@ -26,11 +26,26 @@ public class Display {
         }
     }
 
+    public void getRealSize(android.graphics.Point outSize) {
+        getSize(outSize);
+    }
+
+    public void getRealMetrics(android.util.DisplayMetrics outMetrics) {
+        getMetrics(outMetrics);
+    }
+
     public int getRotation() {
         return 0;
     }
 
     public float getRefreshRate() {
         return 60.0f;
+    }
+
+    /** Singleton for service lookups; fixed metrics (see class doc). */
+    private static final Display DEFAULT = new Display(0);
+
+    public static Display getDefault() {
+        return DEFAULT;
     }
 }

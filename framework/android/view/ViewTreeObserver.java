@@ -21,6 +21,8 @@ public class ViewTreeObserver {
     public boolean isAlive(){return true;}
     public void addOnGlobalLayoutListener(OnGlobalLayoutListener l){if(l!=null)layout.addIfAbsent(l);}
     public void removeOnGlobalLayoutListener(OnGlobalLayoutListener l){layout.remove(l);}
+    /** Deprecated spelling; identical removal. */
+    public void removeGlobalOnLayoutListener(OnGlobalLayoutListener l){layout.remove(l);}
     public void addOnPreDrawListener(OnPreDrawListener l){if(l!=null)preDraw.addIfAbsent(l);}
     public void removeOnPreDrawListener(OnPreDrawListener l){preDraw.remove(l);}
     public void addOnDrawListener(OnDrawListener l){if(l!=null)draw.addIfAbsent(l);}

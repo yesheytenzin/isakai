@@ -191,6 +191,8 @@ pub fn build(b: *std.Build) void {
     fw.addFileArg(b.path("framework/android/accessibilityservice/AccessibilityServiceInfo.java"));
     fw.addFileArg(b.path("framework/android/accounts/Account.java"));
     fw.addFileArg(b.path("framework/android/accounts/AccountManager.java"));
+    fw.addFileArg(b.path("framework/android/accounts/AccountsException.java"));
+    fw.addFileArg(b.path("framework/android/accounts/NetworkErrorException.java"));
     fw.addFileArg(b.path("framework/android/animation/Animator.java"));
     fw.addFileArg(b.path("framework/android/animation/AnimatorListenerAdapter.java"));
     fw.addFileArg(b.path("framework/android/animation/AnimatorSet.java"));
@@ -515,6 +517,7 @@ pub fn build(b: *std.Build) void {
     fw.addFileArg(b.path("framework/android/util/SparseBooleanArray.java"));
     fw.addFileArg(b.path("framework/android/util/SparseIntArray.java"));
     fw.addFileArg(b.path("framework/android/util/SparseLongArray.java"));
+    fw.addFileArg(b.path("framework/android/util/StateSet.java"));
     fw.addFileArg(b.path("framework/android/util/TypedValue.java"));
     fw.addFileArg(b.path("framework/android/util/Xml.java"));
     fw.addFileArg(b.path("framework/android/view/AbsSavedState.java"));

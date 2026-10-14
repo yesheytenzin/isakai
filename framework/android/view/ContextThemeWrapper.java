@@ -29,6 +29,12 @@ public class ContextThemeWrapper extends ContextWrapper {
     public android.content.res.Resources.Theme getTheme() {
         if (theme == null) {
             theme = getResources().newTheme();
+            android.content.Context base = getBaseContext();
+            if (base != null) {
+                android.content.res.Resources.Theme parent = base.getTheme();
+                if (parent != null) theme.setTo(parent);
+            }
+            if (themeResId != 0) theme.applyStyle(themeResId, true);
         }
         return theme;
     }

@@ -10,6 +10,7 @@ public class ViewConfiguration {
     }
 
     public int getScaledTouchSlop() { return 8; }
+    public int getScaledWindowTouchSlop() { return 16; }
     public int getScaledMinimumFlingVelocity() { return 50; }
     public int getScaledMaximumFlingVelocity() { return 8000; }
     public int getScaledDoubleTapTimeout() { return 300; }

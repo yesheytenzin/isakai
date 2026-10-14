@@ -386,6 +386,7 @@ public abstract class LayoutInflater {
             if ("RatingBar".equals(cls)) return new android.widget.RatingBar(c, attrs);
             if ("CheckBox".equals(cls)) return new android.widget.CheckBox(c, attrs);
             if ("RadioButton".equals(cls)) return new android.widget.RadioButton(c, attrs);
+            if ("RadioGroup".equals(cls)) return new android.widget.RadioGroup(c, attrs);
             if ("CompoundButton".equals(cls)) return new android.widget.CompoundButton(c, attrs);
             if ("ToggleButton".equals(cls)) return new android.widget.ToggleButton(c, attrs);
             if ("CheckedTextView".equals(cls)) {

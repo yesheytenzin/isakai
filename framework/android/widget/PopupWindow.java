@@ -29,6 +29,7 @@ public class PopupWindow {
     private boolean clippedToScreen = true;
     private int inputMethodMode = INPUT_METHOD_FROM_FOCUSABLE;
     private int animationStyle;
+    private int windowLayoutType;
     private OnDismissListener dismissListener;
     private View.OnTouchListener touchInterceptor;
     private Rect epicenterBounds;
@@ -46,6 +47,9 @@ public class PopupWindow {
     }
 
     public PopupWindow(Context context, android.util.AttributeSet attrs, int defStyleAttr) {}
+
+    public PopupWindow(Context context, android.util.AttributeSet attrs, int defStyleAttr,
+            int defStyleRes) {}
 
     public View getContentView() { return contentView; }
 
@@ -141,6 +145,18 @@ public class PopupWindow {
 
     public int getMaxAvailableHeight(View anchor, int yOffset) {
         return 0;
+    }
+
+    public int getMaxAvailableHeight(View anchor, int yOffset, boolean ignoreBottomDecorations) {
+        return getMaxAvailableHeight(anchor, yOffset);
+    }
+
+    /**
+     * Retained window type (popups render inside the app window here, so
+     * the type changes no placement).
+     */
+    public void setWindowLayoutType(int layoutType) {
+        this.windowLayoutType = layoutType;
     }
 
     public void draw(Canvas canvas) {

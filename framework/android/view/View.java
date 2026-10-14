@@ -683,8 +683,16 @@ public class View {
         this.clickListener = l;
     }
 
+    public boolean hasOnClickListeners() {
+        return clickListener != null;
+    }
+
     public void setOnKeyListener(OnKeyListener l) {
         this.keyListener = l;
+    }
+
+    public boolean onCheckIsTextEditor() {
+        return false;
     }
 
     public void setOnTouchListener(OnTouchListener l) {
@@ -1196,6 +1204,69 @@ public class View {
     }
     protected void onScrollChanged(int l,int t,int oldl,int oldt) {}
     public void scrollBy(int x,int y){scrollTo(hostScrollX+x,hostScrollY+y);}
+
+    /**
+     * Nested-scroll child side: inert defaults (no parent cooperation),
+     * matching the ViewParent defaults. Views that need real nested
+     * scrolling override these.
+     */
+    private boolean nestedScrollingEnabled;
+
+    public void setNestedScrollingEnabled(boolean enabled) {
+        nestedScrollingEnabled = enabled;
+    }
+
+    public boolean isNestedScrollingEnabled() {
+        return nestedScrollingEnabled;
+    }
+
+    public boolean startNestedScroll(int axes) {
+        return startNestedScroll(axes, 0);
+    }
+
+    public boolean startNestedScroll(int axes, int type) {
+        return false;
+    }
+
+    public void stopNestedScroll() {}
+
+    public void stopNestedScroll(int type) {}
+
+    public boolean hasNestedScrollingParent() {
+        return false;
+    }
+
+    public boolean hasNestedScrollingParent(int type) {
+        return false;
+    }
+
+    public boolean dispatchNestedScroll(int dxConsumed, int dyConsumed,
+            int dxUnconsumed, int dyUnconsumed, int[] offsetInWindow) {
+        return false;
+    }
+
+    public boolean dispatchNestedScroll(int dxConsumed, int dyConsumed,
+            int dxUnconsumed, int dyUnconsumed, int[] offsetInWindow, int type) {
+        return false;
+    }
+
+    public boolean dispatchNestedPreScroll(int dx, int dy, int[] consumed,
+            int[] offsetInWindow) {
+        return false;
+    }
+
+    public boolean dispatchNestedPreScroll(int dx, int dy, int[] consumed,
+            int[] offsetInWindow, int type) {
+        return false;
+    }
+
+    public boolean dispatchNestedFling(float velocityX, float velocityY, boolean consumed) {
+        return false;
+    }
+
+    public boolean dispatchNestedPreFling(float velocityX, float velocityY) {
+        return false;
+    }
     public void dispatchHostLayout() {
         viewTreeObserver.dispatchOnGlobalLayout();
         if(this instanceof ViewGroup){
@@ -1269,6 +1340,12 @@ public class View {
         return false;
     }
 
+    /**
+     * UI click sounds have no host backend (like haptics above); accepted
+     * silently so sound-enabled widgets stay clickable.
+     */
+    public void playSoundEffect(int soundConstant) {}
+
     public boolean performHapticFeedback(int feedbackConstant, int flags) {
         return false;
     }
@@ -1322,6 +1399,7 @@ public class View {
     private int importantForAccessibility;
     private int importantForAutofill;
     private int importantForContentCapture;
+    private int accessibilityLiveRegion;
 
     public void setImportantForAccessibility(int mode) {
         this.importantForAccessibility = mode;
@@ -1345,6 +1423,14 @@ public class View {
 
     public int getImportantForContentCapture() {
         return importantForContentCapture;
+    }
+
+    public void setAccessibilityLiveRegion(int mode) {
+        this.accessibilityLiveRegion = mode;
+    }
+
+    public int getAccessibilityLiveRegion() {
+        return accessibilityLiveRegion;
     }
 
     public android.view.contentcapture.ContentCaptureSession getContentCaptureSession() {

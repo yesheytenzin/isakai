@@ -15,6 +15,12 @@ public interface AttributeSet {
     int getAttributeIntValue(String namespace, String attribute, int defaultValue);
     int getAttributeUnsignedIntValue(String namespace, String attribute, int defaultValue);
     float getAttributeFloatValue(String namespace, String attribute, float defaultValue);
+    int getAttributeListValue(int index, String[] options, int defaultValue);
+    boolean getAttributeBooleanValue(int index, boolean defaultValue);
+    int getAttributeResourceValue(int index, int defaultValue);
+    int getAttributeIntValue(int index, int defaultValue);
+    int getAttributeUnsignedIntValue(int index, int defaultValue);
+    float getAttributeFloatValue(int index, float defaultValue);
     int getStyleAttribute();
     void recycle();
 }

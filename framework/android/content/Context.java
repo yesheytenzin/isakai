@@ -272,6 +272,14 @@ public abstract class Context {
         return getResources().getString(resId);
     }
 
+    public android.os.Looper getMainLooper() {
+        return android.os.Looper.getMainLooper();
+    }
+
+    public CharSequence getText(int resId) {
+        return getResources().getText(resId);
+    }
+
     public android.content.Context getApplicationContext() {
         return this;
     }
@@ -291,6 +299,7 @@ public abstract class Context {
 
     public Object getSystemService(String name) {
         if ("shortcut".equals(name)) return new android.content.pm.ShortcutManager();
+        if ("window".equals(name)) return new WindowManagerImpl();
         if (LAYOUT_INFLATER_SERVICE.equals(name)) {
             return android.view.LayoutInflater.from(this);
         }
@@ -340,6 +349,14 @@ public abstract class Context {
     }
 
     public android.content.res.TypedArray obtainStyledAttributes(android.util.AttributeSet set, int[] attrs, int defStyleAttr, int defStyleRes) {
+        if (System.getProperty("isakai.diagAttrs") != null && defStyleAttr == 2130968618) {
+            StringBuilder sb = new StringBuilder();
+            sb.append("DIAG obtainStyled attrs=[");
+            if (attrs != null) for (int i = 0; i < Math.min(attrs.length, 10); i++) sb.append(Integer.toHexString(attrs[i])).append(',');
+            sb.append("] defStyleRes=0x").append(Integer.toHexString(defStyleRes));
+            sb.append(" theme=").append(getTheme());
+            System.err.println(sb);
+        }
         return getTheme().obtainStyledAttributes(set, attrs, defStyleAttr, defStyleRes);
     }
 
@@ -366,5 +383,29 @@ public abstract class Context {
         while ((n = in.read(buf)) >= 0) {
             out.write(buf, 0, n);
         }
+    }
+
+    /**
+     * Minimal window service: default display only. add/update/remove are
+     * unsupported (windows are owned by activities, not added ad hoc).
+     */
+    private static final class WindowManagerImpl implements android.view.WindowManager {
+        @Override
+        public android.view.Display getDefaultDisplay() {
+            return android.view.Display.getDefault();
+        }
+
+        @Override
+        public void addView(android.view.View view, android.view.ViewGroup.LayoutParams params) {
+            throw new UnsupportedOperationException("ad-hoc window views unsupported");
+        }
+
+        @Override
+        public void updateViewLayout(android.view.View view, android.view.ViewGroup.LayoutParams params) {
+            throw new UnsupportedOperationException("ad-hoc window views unsupported");
+        }
+
+        @Override
+        public void removeView(android.view.View view) {}
     }
 }

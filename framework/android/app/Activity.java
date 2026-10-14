@@ -654,6 +654,10 @@ public class Activity extends android.content.Context implements android.view.Wi
         return finishing;
     }
 
+    public boolean isDestroyed() {
+        return lifecycleState == -2;
+    }
+
     public boolean isChangingConfigurations() {
         return false;
     }

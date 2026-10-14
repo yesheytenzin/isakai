@@ -28,6 +28,16 @@ public abstract class AbsListView extends AdapterView<ListAdapter> {
 
     private int choiceMode = CHOICE_MODE_NONE;
     private final java.util.HashSet<Integer> checked = new java.util.HashSet<>();
+
+    /**
+     * Explicit override so translated calls targeting
+     * {@code AbsListView.setAdapter(ListAdapter)} link (erasure would
+     * otherwise leave only the generic {@code AdapterView} method).
+     */
+    @Override
+    public void setAdapter(ListAdapter adapter) {
+        super.setAdapter(adapter);
+    }
     private Drawable selector;
     private OnScrollListener scrollListener;
     private int firstVisible;

@@ -329,6 +329,30 @@ public class VectorDrawable extends Drawable {
                     int defaultValue) { return getAttributeIntValue(namespace, attribute, defaultValue); }
             @Override public float getAttributeFloatValue(String namespace, String attribute,
                     float defaultValue) { return parseFloat(getAttributeValue(namespace, attribute), defaultValue); }
+            @Override public int getAttributeListValue(int index, String[] options, int defaultValue) {
+                return getAttributeListValue(parser.getAttributeNamespace(index),
+                        parser.getAttributeName(index), options, defaultValue);
+            }
+            @Override public boolean getAttributeBooleanValue(int index, boolean defaultValue) {
+                return getAttributeBooleanValue(parser.getAttributeNamespace(index),
+                        parser.getAttributeName(index), defaultValue);
+            }
+            @Override public int getAttributeResourceValue(int index, int defaultValue) {
+                return getAttributeResourceValue(parser.getAttributeNamespace(index),
+                        parser.getAttributeName(index), defaultValue);
+            }
+            @Override public int getAttributeIntValue(int index, int defaultValue) {
+                return getAttributeIntValue(parser.getAttributeNamespace(index),
+                        parser.getAttributeName(index), defaultValue);
+            }
+            @Override public int getAttributeUnsignedIntValue(int index, int defaultValue) {
+                return getAttributeUnsignedIntValue(parser.getAttributeNamespace(index),
+                        parser.getAttributeName(index), defaultValue);
+            }
+            @Override public float getAttributeFloatValue(int index, float defaultValue) {
+                return getAttributeFloatValue(parser.getAttributeNamespace(index),
+                        parser.getAttributeName(index), defaultValue);
+            }
             @Override public int getStyleAttribute() { return 0; }
             @Override public void recycle() {}
         };

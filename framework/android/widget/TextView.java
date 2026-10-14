@@ -75,6 +75,34 @@ public class TextView extends View {
         return paint;
     }
 
+    private android.graphics.Typeface typeface;
+    private int typefaceStyle;
+
+    /**
+     * Retained for API shape; host text shaping does not switch families,
+     * so this currently changes no rendering.
+     */
+    public void setTypeface(android.graphics.Typeface typeface) {
+        this.typeface = typeface;
+        requestLayout();
+        invalidate();
+    }
+
+    public void setTypeface(android.graphics.Typeface typeface, int style) {
+        this.typeface = typeface;
+        this.typefaceStyle = style;
+        requestLayout();
+        invalidate();
+    }
+
+    public android.graphics.Typeface getTypeface() {
+        return typeface;
+    }
+
+    public int getTypefaceStyle() {
+        return typefaceStyle;
+    }
+
     public void setPaintFlags(int flags) {}
     public int getPaintFlags() { return 0; }
 
@@ -222,10 +250,51 @@ public class TextView extends View {
         this.textColor = color;
     }
 
+    private int linkTextColor = Color.BLUE;
+
+    public void setLinkTextColor(int color) {
+        this.linkTextColor = color;
+    }
+
+    public int getLinkTextColors() {
+        return linkTextColor;
+    }
+
     public android.content.res.ColorStateList getTextColors() { return android.content.res.ColorStateList.valueOf(textColor); }
     public int getCurrentTextColor() { return textColor; }
     public int getTextColor() {
         return textColor;
+    }
+
+    /**
+     * Apply a text-appearance style: resolves textColor/textSize through
+     * the theme and keeps the current values for anything unresolvable
+     * (typeface/family handling is unavailable, like the rest of styled
+     * text attributes).
+     */
+    public void setTextAppearance(android.content.Context context, int resId) {
+        if (context == null) return;
+        try {
+            android.content.res.Resources.Theme theme = context.getTheme();
+            if (theme == null) return;
+            int[] attrs = new int[]{16843087, 16843093};
+            android.content.res.TypedArray a = theme.obtainStyledAttributes(resId, attrs);
+            try {
+                textSize = a.getDimension(0, textSize);
+                textColor = a.getColor(1, textColor);
+            } finally {
+                a.recycle();
+            }
+            requestLayout();
+            invalidate();
+        } catch (RuntimeException e) {
+            // Unresolvable style: keep the current appearance.
+        }
+    }
+
+    /** Deprecated single-arg form: applies against the view's context. */
+    public void setTextAppearance(int resId) {
+        setTextAppearance(getContext(), resId);
     }
 
     public void setTextSize(int size) { setTextSize((float)size); }

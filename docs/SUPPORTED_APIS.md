@@ -32,6 +32,8 @@ Behavioral limits below are maintained separately from the listed names.
 
 - [`Account`](../framework/android/accounts/Account.java)
 - [`AccountManager`](../framework/android/accounts/AccountManager.java)
+- [`AccountsException`](../framework/android/accounts/AccountsException.java)
+- [`NetworkErrorException`](../framework/android/accounts/NetworkErrorException.java)
 
 ## android.animation
 
@@ -512,6 +514,7 @@ Behavioral limits below are maintained separately from the listed names.
 - [`SparseBooleanArray`](../framework/android/util/SparseBooleanArray.java)
 - [`SparseIntArray`](../framework/android/util/SparseIntArray.java)
 - [`SparseLongArray`](../framework/android/util/SparseLongArray.java)
+- [`StateSet`](../framework/android/util/StateSet.java)
 - [`TypedValue`](../framework/android/util/TypedValue.java)
 - [`Xml`](../framework/android/util/Xml.java)
 
