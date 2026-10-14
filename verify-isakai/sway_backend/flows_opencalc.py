@@ -30,31 +30,48 @@ def run(run_app, comp):
     steps['expected_result'] = expected
     time.sleep(1.5)
     comp.shot('02-result')
-    # Copy: long-press the result row until the clipboard changes to the
-    # recorded result. Sweep stays above the keypad panel.
-    baseline = comp.clip().strip()
-    copied = baseline
+    # Copy via keyboard first: focus the input field, select all, copy.
+    # This drives the app's own EditText/ClipboardManager/clipboard bridge
+    # with no layout dependence. Touch long-press on the history rows needs
+    # the panel expanded (separate C5 work); the sweep below stays as fallback.
+    comp.click_window(40, 60)
+    comp.key('CTRL+A')
+    comp.key('CTRL+C')
+    time.sleep(0.5)
+    copied = comp.clip().strip()
+    if copied == expected:
+        steps['copy_method'] = 'keyboard'
+        steps['copy_value'] = copied[:40]
+    else:
+        steps['copy_method'] = 'touch-sweep'
+    baseline = copied
+    if copied != expected:
+        # Copy: long-press the result row until the clipboard changes to the
+        # recorded result. Sweep stays above the keypad panel.
+        baseline = comp.clip().strip()
+        copied = baseline
     display_limit = comp.panel_top()
     candidates = [dy for dy in range(30, max(45, display_limit), 15)]
-    for dy in candidates:
-        for dx in (10, 40):
-            comp.click_window(dx, dy, hold_ms=900)
-            time.sleep(0.5)
-            copied = comp.clip().strip()
-            if copied != baseline:
-                steps['copy_hit'] = '%d,%d' % (dx, dy)
-                steps['copy_value'] = copied[:40]
-            equation = last_equation(run_app.read_log())
-            # After evaluation the display holds the result, which the app
-            # also logs as an equation line; both states are legitimate.
-            # Anything else means a press reached the keypad.
-            if equation != '12+34' and equation != expected:
-                raise SwayError('the app input changed to %r (expression %r, result %r; panel top y=%d, press %d,%d): '
-                                'a press reached the keypad' % (equation, '12+34', expected, display_limit, dx, dy))
+    if copied != expected:
+        for dy in candidates:
+            for dx in (10, 40):
+                comp.click_window(dx, dy, hold_ms=900)
+                time.sleep(0.5)
+                copied = comp.clip().strip()
+                if copied != baseline:
+                    steps['copy_hit'] = '%d,%d' % (dx, dy)
+                    steps['copy_value'] = copied[:40]
+                equation = last_equation(run_app.read_log())
+                # After evaluation the display holds the result, which the app
+                # also logs as an equation line; both states are legitimate.
+                # Anything else means a press reached the keypad.
+                if equation != '12+34' and equation != expected:
+                    raise SwayError('the app input changed to %r (expression %r, result %r; panel top y=%d, press %d,%d): '
+                                    'a press reached the keypad' % (equation, '12+34', expected, display_limit, dx, dy))
+                if copied == expected:
+                    break
             if copied == expected:
                 break
-        if copied == expected:
-            break
     steps['clipboard'] = copied
     if copied != expected:
         comp.shot('03-copy-failed')

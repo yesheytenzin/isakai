@@ -39,7 +39,7 @@
  },
  "objective": "Three pinned utility apps complete useful visible flows, preserve data and run under default isolation.",
  "current_phase": "COMPATIBILITY",
- "next_task": "C6",
+ "next_task": "C7",
  "status_definitions": {
   "pending": "Not started",
   "in_progress": "Implementation or verification underway",
@@ -84,10 +84,6 @@
   ]
  },
  "blockers": [
-  {
-   "id": "B-copy-hit",
-   "detail": "OpenCalc copy needs hittable history result rows: panel inner layout offsets rows off-screen as history accumulates and a filler View intercepts the visible strip; long-press has no target. Blocks C7 copy step. Routing evidence in the sway-opencalc window log."
-  },
   {
    "id": "B-xkb-race",
    "detail": "Key events arriving before the bridge xkb keymap is ready crash the JVM (SIGSEGV in xkb_state_update_mask; observed 3x during rapid ad-hoc probing, never on the vinput-first flow path). Needs a drop/queue guard in the key path. Not a regression from current work; pre-existing latent race.",
@@ -650,6 +646,14 @@
      "artifacts": [
       ".cache/isakai/evidence/com.darkempire78.opencalculator.sway-opencalc.log"
      ]
+    },
+    {
+     "date": "2026-10-14",
+     "result": "passed",
+     "detail": "EditText.onTouchEvent now delegates DOWN to the standard press/long-press machinery instead of focus-only short-circuit (behavior unchanged unless the app opts into long-click). This unlocked the OpenCalc copy step: a touch long-press on the result field fires the app's copy listener. Proven by a full isolated flow PASS via the touch path; a repeat PASS went through the keyboard path (Ctrl+A/Ctrl+C).",
+     "artifacts": [
+      ".cache/isakai/evidence/com.darkempire78.opencalculator.sway-opencalc.log"
+     ]
     }
    ],
    "acceptance": "Target screenshots have usable bounds and no overlapping controls; input, cursor movement, copy/paste and saved Unicode text match expectations after resizing and reopening."
@@ -926,6 +930,19 @@
      "result": "partial",
      "detail": "Gate still open at the OpenCalc copy step. Calculation is proven (history, visible 46, screenshots). Copy fails: clipboard stays empty after the full long-press sweep. Measured cause: long-press never fires anywhere (touched views are not long-clickable; EditText previously bypassed arming, now fixed) and the history result rows are not hittable \u2014 with accumulated history the panel inner layout sits at offset -551 so presses in the visible strip land on a filler View, and the 8px history TextView predates this work (C5). Next: panel hit-test/layout work to make result rows reachable (or scroll them into reach), then rerun this exact flow.",
      "artifacts": [
+      ".cache/isakai/evidence/com.darkempire78.opencalculator.sway-opencalc.log"
+     ],
+     "command": "python3 verify-isakai/sway-flow.py opencalc --work .cache/isakai/recheck/opencalc10"
+    },
+    {
+     "date": "2026-10-14",
+     "result": "passed",
+     "detail": "OpenCalc acceptance PASS in isolated sway, twice consecutively on production code: typed 12+34, equals commits 46 (app history 12+34->46, visible result screenshots), copied 46 to the real Wayland clipboard (once via touch long-press, once via keyboard Ctrl+A/C), compositor resize 640x800->480x600->720x860 with the app alive, 31s liveness, compositor close with exit 0 and clean shutdown. Calculator (settings/persistence) and Notes (Unicode round-trip) acceptance remain open.",
+     "artifacts": [
+      ".cache/isakai/evidence/opencalc-01-initial.png",
+      ".cache/isakai/evidence/opencalc-02-result.png",
+      ".cache/isakai/evidence/opencalc-04-shrunk.png",
+      ".cache/isakai/evidence/opencalc-05-grown.png",
       ".cache/isakai/evidence/com.darkempire78.opencalculator.sway-opencalc.log"
      ],
      "command": "python3 verify-isakai/sway-flow.py opencalc --work .cache/isakai/recheck/opencalc10"

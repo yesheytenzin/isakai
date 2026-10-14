@@ -124,6 +124,27 @@ class SwayCompositor:
         self.vinput.down(int(r['x'] + dx), int(r['y'] + dy))
         return node
 
+    def drag_window(self, dx1, dy1, dx2, dy2, steps=10, hold_ms=60):
+        """Drag inside the window from one window-relative point to another.
+
+        Used for panel gestures (e.g. expanding the history sheet), which
+        plain presses cannot trigger. Coordinates are window-relative.
+        """
+        import time as _time
+        node = self.ensure_focus()
+        r = node['rect']
+        x1, y1 = int(r['x'] + dx1), int(r['y'] + dy1)
+        x2, y2 = int(r['x'] + dx2), int(r['y'] + dy2)
+        self.vinput.down(x1, y1)
+        for i in range(1, steps + 1):
+            x = x1 + (x2 - x1) * i // steps
+            y = y1 + (y2 - y1) * i // steps
+            self.vinput.move(x, y)
+            _time.sleep(hold_ms / 1000.0)
+        self.vinput.up()
+        _time.sleep(0.5)
+        return node
+
     def up(self):
         self.vinput.up()
 
