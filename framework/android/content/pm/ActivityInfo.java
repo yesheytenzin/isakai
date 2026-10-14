@@ -16,4 +16,10 @@ public class ActivityInfo extends ComponentInfo {
     public String permission;
     public int launchMode;
     public int screenOrientation;
+    public int theme;
+    public ApplicationInfo applicationInfo;
+
+    public int getThemeResource() {
+        return theme != 0 ? theme : applicationInfo == null ? 0 : applicationInfo.theme;
+    }
 }

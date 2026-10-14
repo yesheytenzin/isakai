@@ -13,6 +13,12 @@ public class FrameLayout extends ViewGroup {
 
         public int gravity = UNSPECIFIED_GRAVITY;
 
+        public LayoutParams(Context context, android.util.AttributeSet attrs) {
+            super(context,attrs);
+            android.content.res.TypedArray values=context.obtainStyledAttributes(attrs,new int[]{0x010100b3});
+            gravity=values.getInt(0,UNSPECIFIED_GRAVITY);values.recycle();
+        }
+
         public LayoutParams(int width, int height) {
             super(width, height);
         }
@@ -26,6 +32,17 @@ public class FrameLayout extends ViewGroup {
             super(source);
         }
     }
+
+    @Override public LayoutParams generateLayoutParams(android.util.AttributeSet attrs) {
+        return new LayoutParams(getContext(),attrs);
+    }
+    @Override protected LayoutParams generateLayoutParams(ViewGroup.LayoutParams source) {
+        return new LayoutParams(source);
+    }
+    @Override protected LayoutParams generateDefaultLayoutParams() {
+        return new LayoutParams(LayoutParams.MATCH_PARENT,LayoutParams.MATCH_PARENT);
+    }
+    @Override public boolean checkLayoutParams(ViewGroup.LayoutParams params) { return params instanceof LayoutParams; }
 
     public FrameLayout(Context context) {
         super(context);
@@ -48,7 +65,7 @@ public class FrameLayout extends ViewGroup {
             if (child == null || child.getVisibility() == GONE) continue;
             int w = child.getMeasuredWidth();
             int h = child.getMeasuredHeight();
-            child.layout(left, top, left + w, top + h);
+            child.layout(getPaddingLeft(), getPaddingTop(), getPaddingLeft() + w, getPaddingTop() + h);
         }
     }
 
@@ -57,6 +74,14 @@ public class FrameLayout extends ViewGroup {
         for (int i = 0; i < getChildCount(); i++) {
             View child = getChildAt(i);
             if (child != null && child.getVisibility() == VISIBLE) child.draw(canvas);
+        }
+    }
+
+    @Override
+    protected void dispatchDrawAt(Canvas canvas, int offsetX, int offsetY) {
+        for (int i = 0; i < getChildCount(); i++) {
+            View child = getChildAt(i);
+            if (child != null && child.getVisibility() == VISIBLE) child.drawAt(canvas, offsetX, offsetY);
         }
     }
 }

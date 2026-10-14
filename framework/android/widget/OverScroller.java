@@ -60,4 +60,24 @@ public class OverScroller {
     public int getFinalY() { return scroller.getFinalY(); }
     public int getStartX() { return scroller.getStartX(); }
     public int getStartY() { return scroller.getStartY(); }
+
+    /**
+     * AOSP springBack: when outside [min,max], scroll back inside and return
+     * true; already inside resets the animation and returns false. Spring
+     * timing is approximated by Scroller, not AOSP's spline physics.
+     */
+    public boolean springBack(int startX, int startY, int minX, int maxX, int minY, int maxY) {
+        int dx = 0, dy = 0;
+        if (startX < minX) dx = minX - startX;
+        else if (startX > maxX) dx = maxX - startX;
+        if (startY < minY) dy = minY - startY;
+        else if (startY > maxY) dy = maxY - startY;
+        if (dx == 0 && dy == 0) {
+            scroller.startScroll(startX, startY, 0, 0, 0);
+            scroller.abortAnimation();
+            return false;
+        }
+        scroller.startScroll(startX, startY, dx, dy);
+        return true;
+    }
 }

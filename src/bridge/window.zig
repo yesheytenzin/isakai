@@ -284,6 +284,11 @@ pub const Window = struct {
         return self;
     }
 
+    pub fn setTitle(self: *Window, title: []const u8) !void {
+        if (std.mem.indexOfScalar(u8, title, 0) != null) return error.InvalidTitle;
+        try self.sendStr(self.toplevel, 2, title);
+    }
+
     /// Present one XRGB8888 frame. Row stride in pixels; rows may be
     /// padded (stride >= w). Recreates the pool when the size changes.
     pub fn post(self: *Window, pixels: []const u32, w: u31, h: u31, stride: u31) !void {

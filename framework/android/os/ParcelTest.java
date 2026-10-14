@@ -114,6 +114,16 @@ public final class ParcelTest {
         }
         check(threw, "bad seek rejected");
 
+        Bundle bundle=new Bundle();
+        android.util.SparseArray<Parcelable> sparse=new android.util.SparseArray<>();
+        Parcelable saved=android.view.AbsSavedState.EMPTY_STATE;
+        sparse.put(42,saved);bundle.putSparseParcelableArray("views",sparse);
+        check(bundle.getSparseParcelableArray("views").get(42)==saved,"sparse saved-state identity");
+        check(new Bundle(bundle).getSparseParcelableArray("views").get(42)==saved,"bundle copy preserves sparse state");
+        bundle.putString("wrong","not sparse");
+        check(bundle.getSparseParcelableArray("wrong")==null && bundle.getSparseParcelableArray("absent")==null,"sparse type/missing fallback");
+        bundle.putSparseParcelableArray("views",null);
+        check(bundle.getSparseParcelableArray("views")==null,"sparse null value");
         System.out.println("ParcelTest: all PASS");
     }
 }

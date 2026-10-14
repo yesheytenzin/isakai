@@ -2,34 +2,15 @@
 //! confinement + seccomp-BPF syscall allowlist, applied in the
 //! `uid-helper run` child before privilege drop and exec.
 //!
-//! Design (M5):
-//! - NO_NEW_PRIVS + CLONE_NEWNS already happen in `uid_helper.childMain`
-//!   (confineChild); this module adds the two kernel-enforced layers on
-//!   top. Order inside the child matters: seccomp filters survive execve
-//!   and are irreversible, so the filter must allow everything the JVM,
-//!   the JNI bridge, and exec itself need — and everything the helper
-//!   still does after confinement (setgroups/setresgid/setresuid, chdir,
-//!   umask, execve) must stay in the allowlist.
-//! - Landlock (syscalls 444–446, ABI v1): read-only execution on the JVM
-//!   + framework + code dirs, read/write on the app data dir. Kernels
-//!   without Landlock (ENOSYS) degrade with a warning — UID isolation and
-//!   NNP remain. A kernel that HAS Landlock but errors otherwise fails
-//!   closed (exit 127) from the caller.
-//! - Seccomp: cBPF program attached with prctl(PR_SET_SECCOMP, FILTER)
-//!   which requires NO_NEW_PRIVS (already set) and no CAP_SYS_ADMIN —
-//!   correct for our post-fork root child. Denied syscalls return
-//!   EPERM (RET_ERRNO), not SIGSYS kill, so JVM/library probes of newer
-//!   syscalls degrade the way they do on old kernels. Allowed set =
-//!   the syscall surface the runtime actually uses (enumerated from
-//!   src/bridge + JVM requirements: memory, threads, files, sockets,
-//!   wayland/dbus/pulse/sqlite traffic). Opt-out for debugging:
-//!   ISAKAI_CONFINEMENT=0 skips both layers with a warning.
-//! - Portability: seccomp filters execute as classic BPF with a 32-bit
-//!   ABI; the arch check pins AUDIT_ARCH_X86_64. Landlock uses raw
-//!   syscall numbers 444–446 (not in std as typed wrappers).
-//!
-//! Env gate is read by `confineAndRestrict`; all entry points are
-//! allocation-free (post-fork contract).
+//! Namespace setup and credential drop happen first. Landlock is installed
+//! before seccomp, then both restrictions survive the JVM exec and descendants.
+//! Landlock ABI probing follows the kernel UAPI (null/zero + VERSION); creation
+//! uses attributes + flags=0. REFER/TRUNCATE rights are negotiated on ABI 2/3.
+//! Missing kernel support warns; other failures abort launch. The debug-only
+//! ISAKAI_CONFINEMENT=0 opt-out skips both layers. Filesystem grants are built
+//! by uid_helper.applyRuntimeConfinement; no / or whole-home grants are used.
+//! The seccomp allowlist is x86_64-only and denies other syscalls with EPERM.
+//! These entry points are allocation-free for use after fork.
 
 const std = @import("std");
 const linux = std.os.linux;
@@ -90,6 +71,12 @@ pub const allowed_syscalls = [_]linux.SYS{
     linux.SYS.getpid,
     linux.SYS.getppid,
     linux.SYS.gettid,
+    linux.SYS.getuid,
+    linux.SYS.geteuid,
+    linux.SYS.getgid,
+    linux.SYS.getegid,
+    linux.SYS.getgroups,
+    linux.SYS.getrlimit,
     // --- privilege drop tail (helper still runs these post-filter) ---
     linux.SYS.setgroups,
     linux.SYS.setresgid,
@@ -145,6 +132,10 @@ pub const allowed_syscalls = [_]linux.SYS{
     linux.SYS.pwrite64,
     linux.SYS.lseek,
     linux.SYS.fstat,
+    linux.SYS.stat,
+    linux.SYS.lstat,
+    linux.SYS.newfstatat,
+    linux.SYS.access,
     linux.SYS.fstatfs,
     linux.SYS.statfs,
     linux.SYS.statx,
@@ -266,7 +257,7 @@ pub fn buildFilter(buf: []SockFilter, syscalls: []const linux.SYS) []const SockF
     // [3..3+N) allowlist compares; match jumps to the ALLOW ret at [5+N]:
     // jt = (5+N) - (3+j+1) = N - j + 2.
     for (syscalls, 0..) |n_sys, j| {
-        buf[3 + j] = .{ .code = BPF_JEQ_K, .jt = @intCast(n - j + 1), .jf = 0, .k = @truncate(@intFromEnum(n_sys)) };
+        buf[3 + j] = .{ .code = BPF_JEQ_K, .jt = @intCast(n - j + 1), .jf = 0, .k = @truncate(@backingInt(n_sys)) };
     }
     // [3+N] default deny with EPERM (graceful degrade like old kernels).
     buf[3 + n] = .{ .code = BPF_RET_K, .jt = 0, .jf = 0, .k = RET_ERRNO_EPERM };
@@ -330,160 +321,91 @@ const LANDLOCK_ACCESS_FS_MAKE_FIFO: u64 = 1 << 10;
 const LANDLOCK_ACCESS_FS_MAKE_BLOCK: u64 = 1 << 11;
 const LANDLOCK_ACCESS_FS_MAKE_SYM: u64 = 1 << 12;
 
-/// Rights we deny app-wide (make device nodes, sockets inside handled
-/// dirs, symlinks): everything except the handled RO/RW set.
-const handled_access: u64 =
-    LANDLOCK_ACCESS_FS_EXECUTE |
-    LANDLOCK_ACCESS_FS_WRITE_FILE |
-    LANDLOCK_ACCESS_FS_READ_FILE |
-    LANDLOCK_ACCESS_FS_READ_DIR |
-    LANDLOCK_ACCESS_FS_REMOVE_DIR |
-    LANDLOCK_ACCESS_FS_REMOVE_FILE |
-    LANDLOCK_ACCESS_FS_MAKE_CHAR |
-    LANDLOCK_ACCESS_FS_MAKE_DIR |
-    LANDLOCK_ACCESS_FS_MAKE_REG |
-    LANDLOCK_ACCESS_FS_MAKE_SOCK |
-    LANDLOCK_ACCESS_FS_MAKE_FIFO |
-    LANDLOCK_ACCESS_FS_MAKE_BLOCK |
-    LANDLOCK_ACCESS_FS_MAKE_SYM;
-
-const LANDLOCK_RULE_PATH_BENEATH: u32 = 1;
+// ABI 2/3 rights are negotiated rather than silently leaving rename/truncate
+// outside the policy. See docs.kernel.org/userspace-api/landlock.html.
+const LANDLOCK_ACCESS_FS_REFER: u64 = 1 << 13;
+const LANDLOCK_ACCESS_FS_TRUNCATE: u64 = 1 << 14;
+const handled_v1: u64 = (1 << 13) - 1;
+pub const read_only: u64 = LANDLOCK_ACCESS_FS_EXECUTE | LANDLOCK_ACCESS_FS_READ_FILE | LANDLOCK_ACCESS_FS_READ_DIR;
+pub const read_write: u64 = (handled_v1 | LANDLOCK_ACCESS_FS_REFER | LANDLOCK_ACCESS_FS_TRUNCATE) &
+    ~(LANDLOCK_ACCESS_FS_EXECUTE | LANDLOCK_ACCESS_FS_MAKE_CHAR | LANDLOCK_ACCESS_FS_MAKE_BLOCK);
+const file_rights: u64 = LANDLOCK_ACCESS_FS_EXECUTE | LANDLOCK_ACCESS_FS_READ_FILE | LANDLOCK_ACCESS_FS_WRITE_FILE | LANDLOCK_ACCESS_FS_TRUNCATE;
 
 const LandlockPathBeneath = extern struct {
     allowed_access: u64,
     parent_fd: i32,
 };
 
-
-const LANDLOCK_CREATE_RULESET_VERSION: u32 = 1;
-
-fn landlockCreateRuleset(handled: u64) usize {
-    return linux.syscall3(
-        .landlock_create_ruleset,
-        @intFromPtr(&handled),
-        @sizeOf(u64),
-        LANDLOCK_CREATE_RULESET_VERSION,
-    );
-}
-
-/// Open `path` as an O_PATH|O_CLOEXEC dirfd for a path-beneath rule.
-fn openPathFd(path: []const u8, buf: []u8) ?i32 {
-    if (path.len + 1 > buf.len) return null;
-    @memcpy(buf[0..path.len], path);
-    buf[path.len] = 0;
-    const z: [*:0]const u8 = @ptrCast(buf.ptr);
-    const rc = linux.openat(
-        linux.AT.FDCWD,
-        z,
-        .{ .PATH = true, .CLOEXEC = true },
-        0,
-    );
-    if (linux.errno(rc) != .SUCCESS) return null;
-    return @intCast(rc);
-}
-
-const Rule = struct {
+pub const Rule = struct {
     path: []const u8,
-    access: u64,
+    access: u64 = read_only,
+    // Only missing paths may be skipped (distro-specific runtime files).
+    optional: bool = false,
 };
 
-/// Apply Landlock: RO on runtime/code/framework/JVM trees, RW on the app
-/// data dir. Returns error.Unsupported when the kernel lacks Landlock
-/// (caller degrades with a warning); other errors propagate fail-closed.
-pub fn applyLandlock(data_dir: []const u8, readonly: []const []const u8, pathbuf: []u8) !void {
-    // 1. Probe ABI version; ENOSYS/EOPNOTSUPP = unsupported kernel.
-    const vrc = landlockCreateRuleset(0);
-    const verr = linux.errno(vrc);
-    switch (verr) {
-        .SUCCESS => {}, // vrc = highest supported ABI version
-        .NOSYS => return error.LandlockUnsupported,
-        .OPNOTSUPP => return error.LandlockUnsupported,
+pub fn landlockVersion() usize {
+    return linux.syscall3(.landlock_create_ruleset, 0, 0, 1);
+}
+
+pub fn applyLandlock(rules: []const Rule, pathbuf: []u8) !void {
+    const version = landlockVersion();
+    switch (linux.errno(version)) {
+        .SUCCESS => {},
+        .NOSYS, .OPNOTSUPP => return error.LandlockUnsupported,
         else => return error.LandlockProbeFailed,
     }
-    _ = linux.close(@intCast(vrc)); // probe fd
-
-    // 2. Create the ruleset with our handled access rights.
-    const rrc = landlockCreateRuleset(handled_access);
-    if (linux.errno(rrc) != .SUCCESS) return error.LandlockRulesetFailed;
-    const ruleset_fd: i32 = @intCast(rrc);
+    // VERSION returns an ABI number, never a file descriptor.
+    var handled = handled_v1;
+    if (version >= 2) handled |= LANDLOCK_ACCESS_FS_REFER;
+    if (version >= 3) handled |= LANDLOCK_ACCESS_FS_TRUNCATE;
+    const rc = linux.syscall3(.landlock_create_ruleset, @intFromPtr(&handled), @sizeOf(u64), 0);
+    if (linux.errno(rc) != .SUCCESS) return error.LandlockRulesetFailed;
+    const ruleset_fd: i32 = @intCast(rc);
     defer _ = linux.close(ruleset_fd);
-
-    // 3. Add path-beneath rules.
-    var rules: [16]Rule = undefined;
-    var n: usize = 0;
-    for (readonly) |p| {
-        if (n >= rules.len) return error.TooManyRules;
-        rules[n] = .{
-            .path = p,
-            .access = LANDLOCK_ACCESS_FS_EXECUTE |
-                LANDLOCK_ACCESS_FS_READ_FILE |
-                LANDLOCK_ACCESS_FS_READ_DIR,
-        };
-        n += 1;
-    }
-    if (n >= rules.len) return error.TooManyRules;
-    rules[n] = .{ .path = data_dir, .access = handled_access };
-    n += 1;
-
-    for (rules[0..n]) |r| {
-        const fd = openPathFd(r.path, pathbuf) orelse return error.LandlockOpenPathFailed;
+    for (rules) |r| {
+        if (r.path.len == 0 or r.path[0] != '/' or r.path.len + 1 > pathbuf.len) return error.BadLandlockPath;
+        @memcpy(pathbuf[0..r.path.len], r.path);
+        pathbuf[r.path.len] = 0;
+        const z: [*:0]const u8 = @ptrCast(pathbuf.ptr);
+        const opened = linux.openat(linux.AT.FDCWD, z, .{ .PATH = true, .CLOEXEC = true }, 0);
+        if (linux.errno(opened) != .SUCCESS) {
+            if (r.optional and linux.errno(opened) == .NOENT) continue;
+            return error.LandlockOpenPathFailed;
+        }
+        const fd: i32 = @intCast(opened);
         defer _ = linux.close(fd);
-        var rule = LandlockPathBeneath{ .allowed_access = r.access, .parent_fd = fd };
-        const arc = linux.syscall4(
-            .landlock_add_rule,
-            @intCast(ruleset_fd),
-            LANDLOCK_RULE_PATH_BENEATH,
-            @intFromPtr(&rule),
-            0,
-        );
-        if (linux.errno(arc) != .SUCCESS) return error.LandlockAddRuleFailed;
+        var st: linux.Statx = undefined;
+        if (linux.errno(linux.statx(fd, "", linux.AT.EMPTY_PATH, .{ .TYPE = true }, &st)) != .SUCCESS) return error.LandlockStatFailed;
+        var access = r.access & handled;
+        if (st.mode & linux.S.IFMT != linux.S.IFDIR) access &= file_rights;
+        if (access == 0) continue;
+        var rule = LandlockPathBeneath{ .allowed_access = access, .parent_fd = fd };
+        if (linux.errno(linux.syscall4(.landlock_add_rule, @intCast(ruleset_fd), 1, @intFromPtr(&rule), 0)) != .SUCCESS) return error.LandlockAddRuleFailed;
     }
-
-    // 4. Restrict self. Requires NO_NEW_PRIVS (already set in childMain).
-    const xrc = linux.syscall3(
-        .landlock_restrict_self,
-        @intCast(ruleset_fd),
-        0,
-        0,
-    );
-    if (linux.errno(xrc) != .SUCCESS) return error.LandlockRestrictFailed;
+    if (linux.errno(linux.syscall2(.landlock_restrict_self, @intCast(ruleset_fd), 0)) != .SUCCESS) return error.LandlockRestrictFailed;
 }
 
-// ---------------------------------------------------------------------------
-// Entry point (called from uid_helper.childMain)
-// ---------------------------------------------------------------------------
-
-fn warn(msg: []const u8) void {
-    _ = linux.write(linux.STDERR_FILENO, msg.ptr, msg.len);
-}
-
-/// Apply seccomp + Landlock for the sandboxed app child.
-/// `readonly` = trees the app may read+execute (framework, code, JVM).
-/// `disabled` is the ISAKAI_CONFINEMENT=0 gate read by the CLI main
-/// thread (pre-fork) from init.environ_map; here it is only honored.
-/// Seccomp/Landlock missing kernel support → warn and proceed (UID
-/// isolation + NNP still hold). Hard errors → error, caller exits 127.
-pub fn confineAndRestrict(
-    data_dir: []const u8,
-    readonly: []const []const u8,
-    disabled: bool,
-) !void {
+/// Called after privileged namespace/mount setup and credential drop. Install
+/// Landlock BEFORE seccomp: Landlock syscalls are not part of the app allowlist.
+pub fn confineAndRestrict(rules: []const Rule, disabled: bool) !void {
     if (disabled) {
         warn("uid-helper run: confinement disabled by ISAKAI_CONFINEMENT=0\n");
         return;
     }
-
+    var pathbuf: [4096]u8 = undefined;
+    applyLandlock(rules, &pathbuf) catch |e| switch (e) {
+        error.LandlockUnsupported => warn("uid-helper run: Landlock unavailable; continuing with UID isolation\n"),
+        else => return e,
+    };
     var filter_buf: [filter_capacity]SockFilter = undefined;
     applySeccomp(&filter_buf) catch |e| switch (e) {
-        error.SeccompUnsupported => warn("uid-helper run: seccomp unavailable (old kernel); continuing\n"),
+        error.SeccompUnsupported => warn("uid-helper run: seccomp unavailable; continuing with UID isolation\n"),
         else => return e,
     };
+}
 
-    var pathbuf: [4096]u8 = undefined;
-    applyLandlock(data_dir, readonly, &pathbuf) catch |e| switch (e) {
-        error.LandlockUnsupported => warn("uid-helper run: Landlock unavailable (old kernel); continuing\n"),
-        else => return e,
-    };
+fn warn(msg: []const u8) void {
+    _ = linux.write(linux.STDERR_FILENO, msg.ptr, msg.len);
 }
 
 // ---------------------------------------------------------------------------
@@ -506,7 +428,7 @@ test "filter shape: header, allows, tails" {
     try testing.expectEqual(BPF_LD_W_ABS, prog[2].code);
     try testing.expectEqual(OFF_NR, prog[2].k);
     try testing.expectEqual(BPF_JEQ_K, prog[3].code);
-    try testing.expectEqual(@intFromEnum(linux.SYS.exit), prog[3].k);
+    try testing.expectEqual(@backingInt(linux.SYS.exit), prog[3].k);
     // [3+N]=EPERM, [4+N]=KILL, [5+N]=ALLOW
     try testing.expectEqual(RET_ERRNO_EPERM, prog[3 + sys.len].k);
     try testing.expectEqual(linux.SECCOMP.RET.KILL_PROCESS, prog[4 + sys.len].k);
@@ -584,4 +506,60 @@ test "applySeccomp installs the real filter: allowed pass, denied EPERM" {
         // Killed by a signal: filter KILL'd the child — bad.
         return error.ChildKilled;
     }
+}
+
+test "Landlock and seccomp enforce RO, RW and outside denial on the real kernel" {
+    const io = testing.io;
+    const gpa = testing.allocator;
+    var tmp = testing.tmpDir(.{});
+    defer tmp.cleanup();
+    const cwd = try std.process.currentPathAlloc(io, gpa);
+    defer gpa.free(cwd);
+    const base = try std.fmt.allocPrint(gpa, "{s}/.zig-cache/tmp/{s}", .{ cwd, &tmp.sub_path });
+    defer gpa.free(base);
+    var paths: [3][:0]u8 = undefined;
+    for ([_][]const u8{ "rw", "ro", "outside" }, 0..) |name, i| {
+        paths[i] = try std.fmt.allocPrintSentinel(gpa, "{s}/{s}", .{ base, name }, 0);
+        try tmp.dir.createDir(io, name, .default_dir);
+    }
+    defer for (paths) |p| gpa.free(p);
+    var files: [3][:0]u8 = undefined;
+    for (paths, 0..) |p, i| {
+        files[i] = try std.fmt.allocPrintSentinel(gpa, "{s}/file", .{p}, 0);
+        const f = try std.Io.Dir.cwd().createFile(io, files[i], .{});
+        f.close(io);
+    }
+    defer for (files) |f| gpa.free(f);
+    const pid_raw = linux.fork();
+    if (linux.errno(pid_raw) != .SUCCESS) return error.ForkFailed;
+    const pid: i32 = @intCast(pid_raw);
+    if (pid == 0) {
+        if (linux.errno(linux.prctl(38, 1, 0, 0, 0)) != .SUCCESS) linux.exit(111);
+        const rules = [_]Rule{ .{ .path = paths[0], .access = read_write }, .{ .path = paths[1] } };
+        var buf: [4096]u8 = undefined;
+        applyLandlock(&rules, &buf) catch |e| switch (e) {
+            error.LandlockUnsupported => linux.exit(112),
+            else => linux.exit(113),
+        };
+        var filter: [filter_capacity]SockFilter = undefined;
+        applySeccomp(&filter) catch linux.exit(114);
+        const rw = linux.openat(linux.AT.FDCWD, files[0], .{ .ACCMODE = .RDWR }, 0);
+        if (linux.errno(rw) != .SUCCESS) linux.exit(115);
+        if (linux.errno(linux.write(@intCast(rw), "ok", 2)) != .SUCCESS) linux.exit(116);
+        _ = linux.close(@intCast(rw));
+        const ro = linux.openat(linux.AT.FDCWD, files[1], .{ .ACCMODE = .RDONLY }, 0);
+        if (linux.errno(ro) != .SUCCESS) linux.exit(117);
+        _ = linux.close(@intCast(ro));
+        const write_ro = linux.openat(linux.AT.FDCWD, files[1], .{ .ACCMODE = .WRONLY }, 0);
+        if (linux.errno(write_ro) != .ACCES) linux.exit(118);
+        const outside = linux.openat(linux.AT.FDCWD, files[2], .{ .ACCMODE = .RDONLY }, 0);
+        if (linux.errno(outside) != .ACCES) linux.exit(119);
+        if (linux.errno(linux.clock_settime(.REALTIME, undefined)) != .PERM) linux.exit(120);
+        linux.exit(0);
+    }
+    var status: u32 = 0;
+    _ = linux.waitpid(pid, @ptrCast(&status), 0);
+    try testing.expect(linux.W.IFEXITED(status));
+    if (linux.W.EXITSTATUS(status) == 112) return error.SkipZigTest;
+    try testing.expectEqual(@as(u8, 0), linux.W.EXITSTATUS(status));
 }

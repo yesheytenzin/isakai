@@ -9,6 +9,7 @@ const apksig = @import("apksig");
 const arsc = @import("arsc");
 const uid_helper = @import("uid_helper");
 
+pub const max_apk: u64 = 256 * 1024 * 1024;
 pub const max_entry: u64 = 256 * 1024 * 1024;
 pub const max_total: u64 = 1024 * 1024 * 1024;
 pub const max_entries: usize = 100_000;
@@ -65,7 +66,6 @@ test "literalLabel ignores @string refs; manifestTitle prefers launcher" {
 
 /// Strict package-name rules (mirrored in uid_helper.validPackage, kept
 /// in sync by the "must match" unit tests in both files).
-
 pub fn validPackage(name: []const u8) bool {
     if (name.len == 0 or name.len > 200) return false;
     if (std.mem.indexOfScalar(u8, name, '.') == null) return false;
@@ -158,7 +158,7 @@ pub fn listEntries(
     entries: *std.ArrayListUnmanaged(ZipEntry),
 ) (ApkError || std.Io.File.OpenError || std.Io.Dir.StatFileError || error{OutOfMemory})!void {
     const stat = try std.Io.Dir.cwd().statFile(io, apk_path, .{});
-    if (stat.size > max_entry) return error.ApkTooLarge;
+    if (stat.size > max_apk) return error.ApkTooLarge;
     var file = try std.Io.Dir.cwd().openFile(io, apk_path, .{ .mode = .read_only });
     defer file.close(io);
 
@@ -764,7 +764,7 @@ pub fn inspect(
     // JVM's own dlopen + the bionic shim (src/native.zig). Any other ABI
     // (arm64-v8a, armeabi-v7a, x86, mips...) still has no execution path:
     // reject loudly rather than installing an app that dies at launch
-    // (ARM execution is M7, see docs/M7-ARM-PLAN.md).
+    // (ARM execution is M7, see docs/PLAN.md, task F3).
     if (native and !x86) return error.NativeUnsupported;
     const bytes = try readEntry(io, gpa, apk_path, "AndroidManifest.xml", max_manifest);
     defer gpa.free(bytes);
@@ -772,10 +772,22 @@ pub fn inspect(
 }
 
 pub fn sha256File(io: std.Io, gpa: std.mem.Allocator, path: []const u8) ![]u8 {
-    const bytes = try std.Io.Dir.cwd().readFileAlloc(io, path, gpa, .limited(max_entry));
-    defer gpa.free(bytes);
+    var file = try std.Io.Dir.cwd().openFile(io, path, .{ .mode = .read_only });
+    defer file.close(io);
+    var read_buf: [8192]u8 = undefined;
+    var reader = file.reader(io, &read_buf);
+    var block: [65536]u8 = undefined;
+    var hash = std.crypto.hash.sha2.Sha256.init(.{});
+    var total: u64 = 0;
+    while (true) {
+        const n = try reader.interface.readSliceShort(&block);
+        if (n == 0) break;
+        total += n;
+        if (total > max_apk) return error.ApkTooLarge;
+        hash.update(block[0..n]);
+    }
     var out: [32]u8 = undefined;
-    std.crypto.hash.sha2.Sha256.hash(bytes, &out, .{});
+    hash.final(&out);
     const hex = std.fmt.bytesToHex(out, .lower);
     return gpa.dupe(u8, &hex);
 }

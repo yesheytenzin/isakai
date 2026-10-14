@@ -10,8 +10,8 @@ import android.content.pm.ServiceInfo;
 
 /**
  * Single-package PackageManager: answers component/package queries for the
- * bound context's own package from defaults (no manifest activity table is
- * persisted yet, so any same-package component resolves with stock fields).
+ * bound context's own package. Activity names and themes come from the staged
+ * manifest when present; uninstalled host fixtures retain default records.
  * Cross-package queries miss, matching the install snapshot boundary.
  */
 public class IsakaiPackageManager extends PackageManager {
@@ -42,8 +42,38 @@ public class IsakaiPackageManager extends PackageManager {
         }
         ActivityInfo ai = new ActivityInfo();
         ai.packageName = pkg();
-        ai.name = component.getClassName();
+        ai.name = qualifiedName(component.getClassName());
+        ai.applicationInfo = getApplicationInfo(pkg(), flags);
+        String codeDir = System.getProperty("isakai.codeDir", "");
+        if (!codeDir.isEmpty()) {
+            boolean found = false;
+            try (android.content.res.XmlResourceParser parser = context.getResources().getAssets()
+                    .openXmlResourceParser("AndroidManifest.xml")) {
+                while (parser.next() != org.xmlpull.v1.XmlPullParser.END_DOCUMENT) {
+                    if (parser.getEventType() != org.xmlpull.v1.XmlPullParser.START_TAG) continue;
+                    if ("application".equals(parser.getName())) {
+                        ai.applicationInfo.theme = parser.getAttributeResourceValue(ANDROID, "theme", 0);
+                    } else if ("activity".equals(parser.getName())
+                            && ai.name.equals(qualifiedName(parser.getAttributeValue(ANDROID, "name")))) {
+                        ai.theme = parser.getAttributeResourceValue(ANDROID, "theme", 0);
+                        ai.parentActivityName = qualifiedName(parser.getAttributeValue(ANDROID, "parentActivityName"));
+                        found = true;
+                    }
+                }
+            } catch (java.io.IOException | org.xmlpull.v1.XmlPullParserException failure) {
+                throw new IllegalStateException("Cannot read installed activity manifest", failure);
+            }
+            if (!found) throw new NameNotFoundException(ai.name);
+        }
         return ai;
+    }
+
+    private static final String ANDROID = "http://schemas.android.com/apk/res/android";
+
+    private String qualifiedName(String name) {
+        if (name == null) return null;
+        if (name.startsWith(".")) return pkg() + name;
+        return name.indexOf('.') < 0 ? pkg() + "." + name : name;
     }
 
     @Override
@@ -88,6 +118,25 @@ public class IsakaiPackageManager extends PackageManager {
         if (!isOwnPackage(packageName)) throw new NameNotFoundException(packageName);
         ApplicationInfo ai = new ApplicationInfo();
         ai.packageName = pkg();
+        ai.dataDir = context.getDataDirString();
+        ai.sourceDir = System.getProperty("isakai.codeDir");
+        ai.targetSdkVersion = Integer.getInteger("isakai.targetSdk", 0);
+        ai.minSdkVersion = Integer.getInteger("isakai.minSdk", 0);
+        ai.flags = ApplicationInfo.FLAG_HAS_CODE;
+        if (ai.sourceDir != null && !ai.sourceDir.isEmpty()) {
+            try (android.content.res.XmlResourceParser parser = context.getResources().getAssets()
+                    .openXmlResourceParser("AndroidManifest.xml")) {
+                while (parser.next() != org.xmlpull.v1.XmlPullParser.END_DOCUMENT) {
+                    if (parser.getEventType() == org.xmlpull.v1.XmlPullParser.START_TAG
+                            && "application".equals(parser.getName())) {
+                        ai.theme = parser.getAttributeResourceValue(ANDROID, "theme", 0);
+                        break;
+                    }
+                }
+            } catch (java.io.IOException | org.xmlpull.v1.XmlPullParserException failure) {
+                throw new IllegalStateException("Cannot read installed application manifest", failure);
+            }
+        }
         return ai;
     }
 

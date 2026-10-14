@@ -3,6 +3,18 @@ package android.app;
 
 /** Task and memory state queries; safe defaults. */
 public class ActivityManager {
+    public static final class TaskDescription {
+        private final String label;
+        private final android.graphics.Bitmap icon;
+        private final int primaryColor;
+        public TaskDescription(String label,android.graphics.Bitmap icon,int color) {
+            if(color!=0 && (color>>>24)!=255)throw new IllegalArgumentException("primary color must be opaque");
+            this.label=label;this.icon=icon;primaryColor=color;
+        }
+        public String getLabel(){return label;}
+        public android.graphics.Bitmap getIcon(){return icon;}
+        public int getPrimaryColor(){return primaryColor;}
+    }
     public static class RunningAppProcessInfo {
         public static final int IMPORTANCE_FOREGROUND = 100;
         public static final int IMPORTANCE_VISIBLE = 200;

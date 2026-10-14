@@ -7,6 +7,7 @@ public abstract class ContentObserver {
 
     public ContentObserver() {}
 
+    public ContentObserver(android.os.Handler handler) {}
     public boolean deliverSelfNotifications() {
         return false;
     }

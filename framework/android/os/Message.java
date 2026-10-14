@@ -9,6 +9,15 @@ public class Message {
     public Object obj;
     public Handler target;
     public long when;
+    Runnable callback;
+    boolean inUse;
+    public long getWhen() { return when; }
+    public Handler getTarget() { return target; }
+    public Runnable getCallback() { return callback; }
+    public static Message obtain(Handler h, Runnable r) {
+        if (r == null) throw new NullPointerException("callback");
+        Message m = obtain(h); m.callback = r; return m;
+    }
 
     public static Message obtain() {
         return new Message();

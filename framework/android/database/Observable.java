@@ -9,15 +9,20 @@ public abstract class Observable<T> {
 
     public void registerObserver(T observer) {
         if (observer == null) throw new IllegalArgumentException("null observer");
-        if (mObservers.contains(observer)) throw new IllegalStateException("already registered");
-        mObservers.add(observer);
+        synchronized(mObservers) {
+            if (mObservers.contains(observer)) throw new IllegalStateException("already registered");
+            mObservers.add(observer);
+        }
     }
 
     public void unregisterObserver(T observer) {
-        mObservers.remove(observer);
+        if(observer==null)throw new IllegalArgumentException("null observer");
+        synchronized(mObservers) {
+            if(!mObservers.remove(observer))throw new IllegalStateException("observer not registered");
+        }
     }
 
     public void unregisterAll() {
-        mObservers.clear();
+        synchronized(mObservers) { mObservers.clear(); }
     }
 }

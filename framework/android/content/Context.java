@@ -38,6 +38,12 @@ public abstract class Context {
 
     /** Service name for layout inflation; resolved by the default getSystemService branch. */
     public static final String LAYOUT_INFLATER_SERVICE = "layout_inflater";
+
+    /** Service name for the input-method manager stub; never null. */
+    public static final String INPUT_METHOD_SERVICE = "input_method";
+
+    public static final String ACCESSIBILITY_SERVICE = "accessibility";
+    public static final String AUTOFILL_MANAGER_SERVICE = "autofill";
     private String dataDir;
     private String packageName = "";
     private final Map<String, SharedPreferences> prefsCache = new ConcurrentHashMap<>();
@@ -86,6 +92,20 @@ public abstract class Context {
         return subdir("files");
     }
 
+    public File getExternalFilesDir(String type) {
+        File root=subdir("external/Android/data/"+getPackageName()+"/files");
+        if(type==null)return root;
+        File dir=new File(root,type);
+        try {
+            if(!dir.getCanonicalPath().startsWith(root.getCanonicalPath()+File.separator))
+                throw new IllegalArgumentException("external directory type escapes app storage");
+        } catch(IOException e) { return null; }
+        if(!dir.isDirectory() && !dir.mkdirs())return null;
+        chmod0700(dir);return dir;
+    }
+    public File[] getExternalFilesDirs(String type) { return new File[]{getExternalFilesDir(type)}; }
+    public File getExternalCacheDir() { return subdir("external/Android/data/"+getPackageName()+"/cache"); }
+    public File[] getExternalCacheDirs() { return new File[]{getExternalCacheDir()}; }
     public File getCacheDir() {
         return subdir("cache");
     }
@@ -235,6 +255,11 @@ public abstract class Context {
     public void attachTheme(int appTheme) {
         baseTheme = appTheme;
     }
+    /** Manifest application theme id for handoff to navigated activities. */
+    public int baseThemeForNav() {
+        return baseTheme;
+    }
+
 
     public android.content.res.Resources.Theme getTheme() {
         android.content.res.Resources.Theme theme = getResources().newTheme();
@@ -256,11 +281,33 @@ public abstract class Context {
      * {@link android.view.LayoutInflater} bound to this context; other names
      * return null (overrides add their services then fall through here).
      */
+    public <T> T getSystemService(Class<T> type) {
+        if(type == android.content.pm.ShortcutManager.class) return type.cast(new android.content.pm.ShortcutManager());
+        if(type == android.view.inputmethod.InputMethodManager.class) return type.cast(new android.view.inputmethod.InputMethodManager());
+        if(type == android.view.accessibility.AccessibilityManager.class) return type.cast(new android.view.accessibility.AccessibilityManager());
+        if(type == android.view.autofill.AutofillManager.class) return type.cast(new android.view.autofill.AutofillManager());
+        return null;
+    }
+
     public Object getSystemService(String name) {
+        if ("shortcut".equals(name)) return new android.content.pm.ShortcutManager();
         if (LAYOUT_INFLATER_SERVICE.equals(name)) {
             return android.view.LayoutInflater.from(this);
         }
+        if (INPUT_METHOD_SERVICE.equals(name)) {
+            return new android.view.inputmethod.InputMethodManager();
+        }
+        if (ACCESSIBILITY_SERVICE.equals(name)) {
+            return new android.view.accessibility.AccessibilityManager();
+        }
+        if (AUTOFILL_MANAGER_SERVICE.equals(name)) {
+            return new android.view.autofill.AutofillManager();
+        }
         return null;
+    }
+    public android.content.pm.ApplicationInfo getApplicationInfo() {
+        try { return getPackageManager().getApplicationInfo(getPackageName(), 0); }
+        catch (android.content.pm.PackageManager.NameNotFoundException e) { throw new IllegalStateException(e); }
     }
 
     public android.content.pm.PackageManager getPackageManager() {
@@ -295,6 +342,8 @@ public abstract class Context {
     public android.content.res.TypedArray obtainStyledAttributes(android.util.AttributeSet set, int[] attrs, int defStyleAttr, int defStyleRes) {
         return getTheme().obtainStyledAttributes(set, attrs, defStyleAttr, defStyleRes);
     }
+
+    public final int getColor(int id) { return getResources().getColor(id); }
 
     public android.graphics.drawable.Drawable getDrawable(int id) {
         return getResources().getDrawable(id);

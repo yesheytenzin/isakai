@@ -28,6 +28,8 @@ const c = struct {
     pub const SQLITE_OPEN_CREATE: c_int = 0x00000004;
     pub const SQLITE_OPEN_FULLMUTEX: c_int = 0x00010000;
     pub extern fn sqlite3_open_v2(filename: [*:0]const u8, ppDb: *?*sqlite3, flags: c_int, zVfs: ?[*:0]const u8) c_int;
+    pub extern fn isakai_register_unicode_collation(db: ?*sqlite3) c_int;
+    pub extern fn sqlite3_clear_bindings(stmt: ?*sqlite3_stmt) c_int;
     pub extern fn sqlite3_close(db: ?*sqlite3) c_int;
     pub extern fn sqlite3_errmsg(db: ?*sqlite3) ?[*:0]const u8;
     pub extern fn sqlite3_exec(db: ?*sqlite3, sql: [*:0]const u8, callback: ?*const anyopaque, arg: ?*anyopaque, errmsg: *?[*:0]u8) c_int;
@@ -116,12 +118,11 @@ fn jniUtfLen(env: ?*anyopaque, fns: *const JniTable, s: ?*anyopaque) ?usize {
 }
 
 fn jniNewString(env: ?*anyopaque, fns: *const JniTable, bytes: []const u8) ?*anyopaque {
-    const Fn = fn (?*anyopaque, [*:0]const u8) callconv(.c) ?*anyopaque;
-    // NewStringUTF needs NUL termination; copy through a sentinel buffer.
-    const tmp = gpa.allocSentinel(u8, bytes.len, 0) catch return null;
-    defer gpa.free(tmp);
-    @memcpy(tmp, bytes);
-    return jniCall(slot_new_string_utf, Fn, fns, env, .{tmp.ptr});
+    const utf16 = std.unicode.utf8ToUtf16LeAlloc(gpa, bytes) catch return null;
+    defer gpa.free(utf16);
+    const len = std.math.cast(i32, utf16.len) orelse return null;
+    const Fn = fn (?*anyopaque, [*]const u16, i32) callconv(.c) ?*anyopaque;
+    return jniCall(163, Fn, fns, env, .{ utf16.ptr, len });
 }
 
 fn jniArrayLen(env: ?*anyopaque, fns: *const JniTable, arr: ?*anyopaque) ?JniInt {
@@ -148,12 +149,18 @@ fn jniSetByteRegion(env: ?*anyopaque, fns: *const JniTable, arr: ?*anyopaque, st
 /// or allocation failure.
 fn copyJString(env: ?*anyopaque, fns: *const JniTable, s: ?*anyopaque) ?[:0]u8 {
     if (s == null) return null;
-    const chars = jniGetUtf(env, fns, s) orelse return null;
-    defer jniReleaseUtf(env, fns, s, chars);
-    const span = std.mem.span(chars);
-    const out = gpa.allocSentinel(u8, span.len, 0) catch return null;
-    @memcpy(out, span);
-    return out;
+    const GetLength = fn (?*anyopaque, ?*anyopaque) callconv(.c) i32;
+    const len = jniCall(164, GetLength, fns, env, .{s}) orelse return null;
+    if (len < 0) return null;
+    const GetChars = fn (?*anyopaque, ?*anyopaque, ?*u8) callconv(.c) ?[*]const u16;
+    const chars = jniCall(165, GetChars, fns, env, .{ s, @as(?*u8, null) }) orelse return null;
+    defer {
+        const Release = fn (?*anyopaque, ?*anyopaque, [*]const u16) callconv(.c) void;
+        _ = jniCall(166, Release, fns, env, .{ s, chars });
+    }
+    const utf8 = std.unicode.utf16LeToUtf8Alloc(gpa, chars[0..@intCast(len)]) catch return null;
+    defer gpa.free(utf8);
+    return gpa.dupeSentinel(u8, utf8, 0) catch null;
 }
 
 /// Copy a jbyte[] to owned bytes. Null on null input or allocation failure.
@@ -211,6 +218,10 @@ export fn Java_org_isakai_db_IsakaiSQLite_nOpen(
     const rc = c.sqlite3_open_v2(path.ptr, &db, flags, null);
     const opened = db orelse return 0;
     if (rc != c.SQLITE_OK) {
+        _ = c.sqlite3_close(opened);
+        return 0;
+    }
+    if (c.isakai_register_unicode_collation(opened) != c.SQLITE_OK) {
         _ = c.sqlite3_close(opened);
         return 0;
     }
@@ -531,4 +542,10 @@ test "sqlite bridge links against system libsqlite3" {
     try std.testing.expect(c.SQLITE_DONE == 101);
     try std.testing.expect(c.SQLITE_BUSY == 5);
     try std.testing.expect(c.SQLITE_OPEN_FULLMUTEX == 0x00010000);
+}
+
+export fn Java_org_isakai_db_IsakaiSQLite_nClearBindings(env: ?*anyopaque, clazz: ?*anyopaque, handle: JniLong) callconv(.c) JniInt {
+    _ = env;
+    _ = clazz;
+    return c.sqlite3_clear_bindings(asStmt(handle) orelse return -1);
 }

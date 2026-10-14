@@ -41,13 +41,13 @@
 const std = @import("std");
 const linux = std.os.linux;
 const dbus = @import("dbus");
+const pathmod = @import("bridge_path");
 
 const gpa = std.heap.c_allocator;
 
 const max_line: usize = 65536;
 const max_file_bytes: u64 = 64 * 1024 * 1024;
 const max_stage_bytes: u64 = 256 * 1024 * 1024;
-const sock_name = "bridge.sock";
 
 fn logErr(comptime fmt: []const u8, args: anytype) void {
     var buf: [1024]u8 = undefined;
@@ -1170,33 +1170,36 @@ fn peerUid(fd: std.posix.fd_t) ?u32 {
 
 fn bindSocket(bridge_dir: []const u8, app_uid: u32) !std.posix.fd_t {
     _ = app_uid; // peercred check at accept() uses br.app_uid; modes carry the rest
-    const path = std.fmt.allocPrint(gpa, "{s}/{s}", .{ bridge_dir, sock_name }) catch return error.NoMem;
+    if (!pathmod.validDir(bridge_dir)) return error.BadBridgeDir;
+    const path = pathmod.socketPath(gpa, bridge_dir) catch return error.NoMem;
     defer gpa.free(path);
-    if (path.len + 1 > 108) return error.NoMem;
+    if (!pathmod.fitsSocketPath(path)) return error.SocketPathTooLong;
     _ = linux.unlink(@ptrCast(path.ptr)); // stale socket from a crash
     const fd = linux.socket(
         @as(u32, linux.AF.UNIX),
         @as(u32, linux.SOCK.STREAM | linux.SOCK.CLOEXEC),
         0,
     );
-    if (linux.errno(fd) != .SUCCESS) return error.NoMem;
+    if (linux.errno(fd) != .SUCCESS) return error.SocketFailed;
     errdefer _ = linux.close(@bitCast(@as(u32, @truncate(fd))));
-    var addr_arr: [108]u8 = undefined;
+    var addr_arr: [pathmod.max_path]u8 = undefined;
     @memset(&addr_arr, 0);
     @memcpy(addr_arr[0..path.len], path);
     var addr = linux.sockaddr.un{ .path = addr_arr };
     const addrlen: linux.socklen_t = @intCast(2 + path.len + 1);
     if (linux.errno(linux.bind(@bitCast(@as(u32, @truncate(fd))), @ptrCast(&addr), addrlen)) != .SUCCESS) {
-        return error.NoMem;
+        return error.BindFailed;
     }
     if (linux.errno(linux.listen(@bitCast(@as(u32, @truncate(fd))), 4)) != .SUCCESS) {
-        return error.NoMem;
+        return error.ListenFailed;
     }
     // Socket must be connectable by the sandboxed app uid (connect
     // needs write on the inode), but the daemon is unprivileged and
     // cannot chown. Mode 0777 + SO_PEERCRED gating instead: anyone
     // local can connect, non-app uids are rejected without service.
-    // (app_uid param retained: peercred check below still needs it.)
+    // The enclosing directory is launcher-owned 0711, so no other user
+    // can replace the socket node. (app_uid param retained: peercred
+    // check below still needs it.)
     // Path chmod, not fchmod: fchmod on a unix socket fd is a silent
     // no-op on current kernels (returns success, mode unchanged).
     // `path` is NUL-terminated here (allocPrint) so cast directly.
@@ -1298,8 +1301,8 @@ pub fn main(init: std.process.Init) !void {
         return error.BadArgs;
     }
     if (bridge_dir) |d| {
-        if (!validDir(d)) {
-            std.debug.print("isakai-dbus-bridge: bad --bridge-dir\n", .{});
+        if (!pathmod.validDir(d)) {
+            std.debug.print("isakai-dbus-bridge: bad --bridge-dir (want absolute {s}/{s}<uid>-<digest>, path <= {d} bytes)\n", .{ pathmod.tmp_base, pathmod.dir_prefix, pathmod.max_dir });
             return error.BadArgs;
         }
     } else if (!stdio_mode) {
@@ -1313,8 +1316,8 @@ pub fn main(init: std.process.Init) !void {
         serve(&br, linux.STDIN_FILENO, linux.STDOUT_FILENO);
         return;
     }
-    const listen_fd = bindSocket(bridge_dir.?, br.app_uid) catch {
-        std.debug.print("isakai-dbus-bridge: bind failed\n", .{});
+    const listen_fd = bindSocket(bridge_dir.?, br.app_uid) catch |err| {
+        std.debug.print("isakai-dbus-bridge: bind {s}/{s} failed: {t}\n", .{ bridge_dir.?, pathmod.sock_name, err });
         return error.BadArgs;
     };
     defer _ = linux.close(listen_fd);
@@ -1327,14 +1330,15 @@ pub fn main(init: std.process.Init) !void {
             return;
         }
         const cfd: std.posix.fd_t = @bitCast(@as(u32, @truncate(c)));
+        const peer = peerUid(cfd);
         if (br.app_uid != 0) {
-            const peer = peerUid(cfd);
             if (peer == null or peer.? != br.app_uid) {
                 logErr("bridge: rejecting client uid {any}\n", .{peer});
                 _ = linux.close(cfd);
                 continue;
             }
         }
+        logErr("bridge: client uid {any} connected\n", .{peer});
         serve(&br, cfd, cfd);
         _ = linux.close(cfd);
     }

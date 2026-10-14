@@ -10,9 +10,9 @@ import org.xmlpull.v1.XmlPullParser;
  *
  * <p>Parses {@code <selector>} XML: ordered {@code <item>} elements with
  * {@code android:color} plus {@code android:state_*} booleans. Colors may be
- * literals ({@code #rgb/#argb/#rrggbb/#aarrggbb}) or {@code @color} / {@code ?attr}
- * references resolved through {@link Resources}; unresolvable references
- * throw {@link Resources.NotFoundException} (fail-closed, never a fallback color).
+ * literals ({@code #rgb/#argb/#rrggbb/#aarrggbb}), named {@code @color} or
+ * numeric {@code @0x...} and {@code ?attr} references resolved through {@link Resources};
+ * unresolvable references throw {@link Resources.NotFoundException} (fail-closed, never a fallback color).
  */
 public class ColorStateList {
     // AOSP android.R.attr ids for state attributes (no R table in this runtime).
@@ -182,9 +182,19 @@ public class ColorStateList {
     }
 
     private static int resolveResourceRef(Resources r, String raw, Resources.Theme theme) {
-        // Forms: @color/name, @+color/name, @package:color/name, @package:color/name.
         String ref = raw.substring(1);
         if (ref.startsWith("+")) ref = ref.substring(1);
+        if (isNumericResourceId(ref)) {
+            try {
+                int id = ref.startsWith("0x") || ref.startsWith("0X")
+                        ? (int) Long.parseLong(ref.substring(2), 16)
+                        : Integer.parseInt(ref);
+                return r.getColorStateList(id).getDefaultColor();
+            } catch (NumberFormatException e) {
+                throw new Resources.NotFoundException("invalid color resource: " + raw);
+            }
+        }
+        // Forms: @color/name, @+color/name, @package:color/name.
         String pkg = null;
         String rest = ref;
         int colon = ref.indexOf(':');
@@ -204,10 +214,12 @@ public class ColorStateList {
         }
         int id = r.getIdentifier(name, "color", pkg);
         if (id == 0) throw new Resources.NotFoundException("no resource table: " + raw);
-        // Fail-closed in this runtime: getColor throws NotFoundException without a table.
-        return r.getColor(id);
+        return r.getColorStateList(id).getDefaultColor();
     }
 
+    private static boolean isNumericResourceId(String ref) {
+        return !ref.isEmpty() && Character.isDigit(ref.charAt(0));
+    }
     private static int resolveAttrRef(Resources r, String raw, Resources.Theme theme) {
         // Forms: ?attr/name, ?package:attr/name.
         String ref = raw.substring(1);

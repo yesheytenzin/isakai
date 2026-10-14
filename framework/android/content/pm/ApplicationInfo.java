@@ -15,4 +15,5 @@ public class ApplicationInfo extends android.content.pm.PackageItemInfo {
     public int minSdkVersion;
     public int flags;
     public int uid;
+    public int theme;
 }

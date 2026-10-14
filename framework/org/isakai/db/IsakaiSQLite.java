@@ -32,6 +32,7 @@ public final class IsakaiSQLite {
     public static native int nFinalize(long stmt);
 
     public static native int nReset(long stmt);
+    public static native int nClearBindings(long stmt);
 
     public static native int nBindNull(long stmt, int index);
 

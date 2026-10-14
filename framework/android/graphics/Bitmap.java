@@ -50,6 +50,9 @@ public class Bitmap {
         if (recycled) throw new IllegalStateException("recycled");
     }
 
+    /** Package-private shared backing for a software Canvas targeting this bitmap. */
+    int[] canvasPixels() { checkLive(); return pixels; }
+
     public int getPixel(int x, int y) {
         checkLive();
         if (x < 0 || y < 0 || x >= width || y >= height) throw new IllegalArgumentException("coords");

@@ -22,15 +22,24 @@ import org.isakai.db.IsakaiSQLite;
  * (BUSY) throws {@link SQLiteDatabaseLockedException}, code 19 throws
  * {@link SQLiteConstraintException}.
  */
-public final class SQLiteDatabase implements AutoCloseable {
+public final class SQLiteDatabase extends SQLiteClosable {
     public static final int OPEN_READONLY = 1;
     public static final int OPEN_READWRITE = 2;
     public static final int CREATE_IF_NECESSARY = 4;
 
+    public interface CursorFactory {
+        Cursor newCursor(SQLiteDatabase db, SQLiteCursorDriver driver, String editTable, SQLiteQuery query);
+    }
+
+    private android.database.DatabaseErrorHandler errorHandler;
+    private CursorFactory defaultFactory;
     private final String path;
-    private long handle;
-    private boolean inTransaction;
-    private boolean transactionOk;
+    private volatile long handle;
+    private final java.util.concurrent.locks.ReentrantLock sessionLock=new java.util.concurrent.locks.ReentrantLock(true);
+    private static final class Transaction { boolean successful;boolean childFailed; }
+    private final ThreadLocal<java.util.ArrayDeque<Transaction>> transactions=ThreadLocal.withInitial(java.util.ArrayDeque::new);
+    void lockSession() { sessionLock.lock(); }
+    void unlockSession() { sessionLock.unlock(); }
 
     private SQLiteDatabase(String path, long handle) {
         this.path = path;
@@ -44,6 +53,10 @@ public final class SQLiteDatabase implements AutoCloseable {
     private RuntimeException fail(int negCode) {
         int code = -negCode;
         String msg = IsakaiSQLite.nErr(handle, code);
+        if ((code & 255) == 11 || (code & 255) == 26) {
+            if (errorHandler != null) errorHandler.onCorruption(this);
+            else close();
+        }
         if (code == 5 || code == 261 || code == 517 || code == 773) {
             return new SQLiteDatabaseLockedException(msg, code);
         }
@@ -74,6 +87,43 @@ public final class SQLiteDatabase implements AutoCloseable {
         return new SQLiteDatabase(path, h);
     }
 
+    public static SQLiteDatabase openDatabase(String path, CursorFactory factory, int flags,
+            android.database.DatabaseErrorHandler errorHandler) {
+        SQLiteDatabase db = openDatabase(path, (Object) null, flags);
+        db.errorHandler = errorHandler;
+        db.defaultFactory = factory;
+        return db;
+    }
+
+    public boolean enableWriteAheadLogging() {
+        try (Cursor cursor = rawQuery("PRAGMA journal_mode=WAL", null)) {
+            return cursor.moveToFirst() && "wal".equalsIgnoreCase(cursor.getString(0));
+        }
+    }
+
+    public boolean isWriteAheadLoggingEnabled() {
+        try(Cursor cursor=rawQuery("PRAGMA journal_mode",null)) {
+            return cursor.moveToFirst() && "wal".equalsIgnoreCase(cursor.getString(0));
+        }
+    }
+
+    public void disableWriteAheadLogging() {
+        try (Cursor cursor = rawQuery("PRAGMA journal_mode=DELETE", null)) { cursor.moveToFirst(); }
+    }
+
+    public void setMaxSqlCacheSize(int size) {
+        if (size < 0 || size > 100) throw new IllegalStateException("cache size must be between 0 and 100");
+        org.isakai.runtime.Capabilities.unavailable("SQLiteDatabase.setMaxSqlCacheSize: prepared statements are not cached");
+    }
+
+    public int getVersion() {
+        try (Cursor cursor = rawQuery("PRAGMA user_version", null)) {
+            return cursor.moveToFirst() ? cursor.getInt(0) : 0;
+        }
+    }
+
+    public void setVersion(int version) { execSQL("PRAGMA user_version=" + version); }
+
     public String getPath() {
         return path;
     }
@@ -86,42 +136,55 @@ public final class SQLiteDatabase implements AutoCloseable {
         return false;
     }
 
-    public boolean inTransaction() {
-        return inTransaction;
-    }
+    public boolean inTransaction() { return !transactions.get().isEmpty(); }
 
-    public void beginTransaction() {
-        checkOpen();
-        if (inTransaction) throw new IllegalStateException("already in transaction");
-        execSQL("BEGIN IMMEDIATE;");
-        inTransaction = true;
-        transactionOk = false;
-    }
-
-    public void setTransactionSuccessful() {
-        checkOpen();
-        if (!inTransaction) throw new IllegalStateException("not in transaction");
-        transactionOk = true;
-    }
-
-    public void endTransaction() {
-        checkOpen();
-        if (!inTransaction) throw new IllegalStateException("not in transaction");
+    public void beginTransactionNonExclusive() { beginTransaction("IMMEDIATE"); }
+    public void beginTransaction() { beginTransaction("EXCLUSIVE"); }
+    private void beginTransaction(String mode) {
+        acquireReference();
+        lockSession();
+        boolean started=false;
         try {
-            execSQL(transactionOk ? "COMMIT;" : "ROLLBACK;");
+            checkOpen();
+            java.util.ArrayDeque<Transaction> stack=transactions.get();
+            if(!stack.isEmpty() && stack.peek().successful)throw new IllegalStateException("transaction already marked successful");
+            if(stack.isEmpty())execSQL("BEGIN "+mode);
+            stack.push(new Transaction());started=true;
         } finally {
-            inTransaction = false;
-            transactionOk = false;
+            if(!started) { unlockSession();releaseReference(); }
+        }
+    }
+    public void setTransactionSuccessful() {
+        Transaction transaction=transactions.get().peek();
+        if(transaction==null || transaction.successful)throw new IllegalStateException("no unmarked transaction");
+        transaction.successful=true;
+    }
+    public void endTransaction() {
+        java.util.ArrayDeque<Transaction> stack=transactions.get();
+        if(stack.isEmpty())throw new IllegalStateException("not in transaction on this thread");
+        Transaction transaction=stack.pop();
+        boolean success=transaction.successful && !transaction.childFailed;
+        try {
+            if(stack.isEmpty())execSQL(success?"COMMIT":"ROLLBACK");
+            else if(!success)stack.peek().childFailed=true;
+        } finally {
+            unlockSession();releaseReference();
         }
     }
 
     public void execSQL(String sql) {
+        lockSession();
+        try {
         checkOpen();
         int rc = IsakaiSQLite.nExec(handle, sql);
         if (rc != 0) throw fail(rc);
+
+        } finally { unlockSession(); }
     }
 
     public void execSQL(String sql, Object[] bindArgs) {
+        lockSession();
+        try {
         checkOpen();
         long stmt = IsakaiSQLite.nPrepare(handle, sql);
         if (stmt == 0) throw fail(-1);
@@ -132,6 +195,8 @@ public final class SQLiteDatabase implements AutoCloseable {
         } finally {
             IsakaiSQLite.nFinalize(stmt);
         }
+
+        } finally { unlockSession(); }
     }
 
     public long insert(String table, String nullColumnHack, ContentValues values) {
@@ -145,6 +210,8 @@ public final class SQLiteDatabase implements AutoCloseable {
     }
 
     public long insertWithOnConflict(String table, String nullColumnHack, ContentValues values, int conflictAlgorithm) {
+        lockSession();
+        try {
         checkOpen();
         String conflict = switch (conflictAlgorithm) {
             case 1 -> " OR ROLLBACK";
@@ -189,10 +256,16 @@ public final class SQLiteDatabase implements AutoCloseable {
         } finally {
             IsakaiSQLite.nFinalize(stmt);
         }
+
+        } finally { unlockSession(); }
     }
 
     public int update(String table, ContentValues values, String whereClause, String[] whereArgs) {
+        lockSession();
+        try {
         return updateWithOnConflict(table, values, whereClause, whereArgs, 0);
+
+        } finally { unlockSession(); }
     }
 
     public int updateWithOnConflict(
@@ -231,6 +304,8 @@ public final class SQLiteDatabase implements AutoCloseable {
     }
 
     public int delete(String table, String whereClause, String[] whereArgs) {
+        lockSession();
+        try {
         checkOpen();
         StringBuilder sql = new StringBuilder("DELETE FROM ").append(table);
         if (whereClause != null && !whereClause.isEmpty()) {
@@ -246,13 +321,19 @@ public final class SQLiteDatabase implements AutoCloseable {
         } finally {
             IsakaiSQLite.nFinalize(stmt);
         }
+
+        } finally { unlockSession(); }
     }
 
     public SQLiteStatement compileStatement(String sql) {
+        lockSession();
+        try {
         checkOpen();
         long stmt = IsakaiSQLite.nPrepare(handle, sql);
         if (stmt == 0) throw fail(-1);
         return new SQLiteStatement(this, stmt);
+
+        } finally { unlockSession(); }
     }
 
     public Cursor query(
@@ -283,20 +364,53 @@ public final class SQLiteDatabase implements AutoCloseable {
     }
 
     public Cursor rawQuery(String sql, String[] selectionArgs) {
-        checkOpen();
-        long stmt = IsakaiSQLite.nPrepare(handle, sql);
-        if (stmt == 0) throw fail(-1);
+        return rawQueryWithFactory(null,sql,selectionArgs,null,null);
+    }
+    public Cursor rawQuery(String sql,String[] args,android.os.CancellationSignal cancellation) {
+        return rawQueryWithFactory(null,sql,args,null,cancellation);
+    }
+    public Cursor rawQueryWithFactory(CursorFactory factory,String sql,String[] args,String editTable) {
+        lockSession();
         try {
-            bindAll(stmt, selectionArgs != null ? (Object[]) selectionArgs : new Object[0]);
-            return drainCursor(stmt);
-        } catch (RuntimeException e) {
-            IsakaiSQLite.nFinalize(stmt);
-            throw e;
+        return rawQueryWithFactory(factory,sql,args,editTable,null);
+
+        } finally { unlockSession(); }
+    }
+    public Cursor rawQueryWithFactory(CursorFactory factory,String sql,String[] args,String editTable,
+            android.os.CancellationSignal cancellation) {
+        lockSession();
+        try {
+        checkOpen();
+        if(cancellation!=null)cancellation.throwIfCanceled();
+        SQLiteQuery query=new SQLiteQuery(this,sql,cancellation);
+        SQLiteCursorDriver driver=new SQLiteCursorDriver() {
+            public Cursor query(CursorFactory requested,String[] bindings) {
+                query.bindAllArgsAsStrings(bindings);
+                CursorFactory selected=requested==null?defaultFactory:requested;
+                return selected==null?new SQLiteCursor(this,editTable,query):selected.newCursor(SQLiteDatabase.this,this,editTable,query);
+            }
+            public void cursorDeactivated() {}
+            public void cursorRequeried(Cursor cursor) {}
+            public void cursorClosed() {}
+            public void setBindArguments(String[] bindings) { query.bindAllArgsAsStrings(bindings); }
+        };
+        try {
+            Cursor result=driver.query(factory,args);
+            if(result==null)throw new IllegalStateException("cursor factory returned null");
+            return result;
+        } finally {
+            // Results are eagerly buffered; release the native query even if a custom
+            // factory returns a wrapper that does not own the original SQLiteCursor.
+            query.close();
         }
+
+        } finally { unlockSession(); }
     }
 
     /** Eagerly step the statement to DONE, buffering every row. Finalizes stmt. */
-    Cursor drainCursor(long stmt) {
+    Cursor drainCursor(long stmt) { return drainCursor(stmt,true,null); }
+    Cursor drainCursor(long stmt,boolean finalize,android.os.CancellationSignal cancellation) {
+        try {
         int cols = IsakaiSQLite.nColumnCount(stmt);
         String[] names = new String[Math.max(cols, 0)];
         for (int i = 0; i < names.length; i++) {
@@ -307,11 +421,11 @@ public final class SQLiteDatabase implements AutoCloseable {
         List<Integer> types = new ArrayList<>();
         boolean typed = false;
         while (true) {
+            if(cancellation!=null)cancellation.throwIfCanceled();
             int step = IsakaiSQLite.nStep(stmt);
             if (step == 101) break;
             if (step < 0) {
                 RuntimeException err = stmtFail(stmt, step);
-                IsakaiSQLite.nFinalize(stmt);
                 throw err;
             }
             Object[] row = new Object[names.length];
@@ -340,8 +454,10 @@ public final class SQLiteDatabase implements AutoCloseable {
             typed = true;
             rows.add(row);
         }
-        IsakaiSQLite.nFinalize(stmt);
         return new SQLiteCursor(names, rows);
+        } finally {
+            if(finalize)IsakaiSQLite.nFinalize(stmt);else IsakaiSQLite.nReset(stmt);
+        }
     }
 
     private RuntimeException stmtFail(long stmt, int negCode) {
@@ -398,21 +514,33 @@ public final class SQLiteDatabase implements AutoCloseable {
     }
 
     public long getLastRowId() {
+        lockSession();
+        try {
         checkOpen();
         return IsakaiSQLite.nLastRowId(handle);
+
+        } finally { unlockSession(); }
     }
 
     public long getChanges() {
+        lockSession();
+        try {
         checkOpen();
         return IsakaiSQLite.nChanges(handle);
+
+        } finally { unlockSession(); }
     }
 
     @Override
-    public void close() {
+    protected void onAllReferencesReleased() {
+        lockSession();
+        try {
         if (handle != 0) {
             IsakaiSQLite.nClose(handle);
             handle = 0;
         }
+
+        } finally { unlockSession(); }
     }
 
     /** Convenience: open (or create) a database file inside this context's databases dir. */

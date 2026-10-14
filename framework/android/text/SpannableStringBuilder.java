@@ -5,7 +5,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /** Mutable text with mutable span marks. */
-public class SpannableStringBuilder implements Spannable, Appendable {
+public class SpannableStringBuilder implements Editable {
     private final StringBuilder buffer;
     private final List<Span> spans = new ArrayList<>();
 
@@ -58,10 +58,12 @@ public class SpannableStringBuilder implements Spannable, Appendable {
     @Override
     public String toString() { return buffer.toString(); }
 
-    public void clear() {
-        buffer.setLength(0);
-        spans.clear();
-    }
+    private InputFilter[] filters=new InputFilter[0];
+    public void setFilters(InputFilter[] filters) { if(filters==null)throw new IllegalArgumentException("filters");this.filters=filters.clone(); }
+    public InputFilter[] getFilters() { return filters.clone(); }
+    public void getChars(int start,int end,char[] dest,int destoff) { buffer.getChars(start,end,dest,destoff); }
+    public void clear() { delete(0,length()); }
+    public void clearSpans() { spans.clear(); }
 
     private int clamp(int v) { return Math.max(0, Math.min(v, buffer.length())); }
 
@@ -85,37 +87,23 @@ public class SpannableStringBuilder implements Spannable, Appendable {
     }
 
     public SpannableStringBuilder insert(int where, CharSequence text, int start, int end) {
-        int at = clamp(where);
-        String s = "";
-        if (text != null) {
-            int ts = Math.max(0, Math.min(start, text.length()));
-            int te = Math.max(0, Math.min(end, text.length()));
-            if (ts < te) s = text.subSequence(ts, te).toString();
+        return replace(where,where,text,start,end);
+    }
+    public SpannableStringBuilder delete(int start,int end) { return replace(start,end,"",0,0); }
+    public SpannableStringBuilder replace(int start,int end,CharSequence text) {
+        return replace(start,end,text,0,text==null?0:text.length());
+    }
+    public SpannableStringBuilder replace(int start,int end,CharSequence text,int textStart,int textEnd) {
+        if(start<0 || end<start || end>length())throw new IndexOutOfBoundsException("replace range");
+        if(text==null)text="";
+        if(textStart<0 || textEnd<textStart || textEnd>text.length())throw new IndexOutOfBoundsException("source range");
+        CharSequence replacement=text.subSequence(textStart,textEnd);
+        for(InputFilter filter:filters) {
+            CharSequence filtered=filter.filter(replacement,0,replacement.length(),this,start,end);
+            if(filtered!=null)replacement=filtered;
         }
-        buffer.insert(at, s);
-        shiftForInsert(at, s.length());
-        return this;
-    }
-
-    public SpannableStringBuilder delete(int start, int end) {
-        int s = clamp(start);
-        int e = clamp(end);
-        if (s < e) {
-            buffer.delete(s, e);
-            shiftForDelete(s, e);
-        }
-        return this;
-    }
-
-    public SpannableStringBuilder replace(int start, int end, CharSequence text) {
-        return replace(start, end, text, 0, text == null ? 0 : text.length());
-    }
-
-    public SpannableStringBuilder replace(int start, int end, CharSequence text, int tbstart, int tbend) {
-        int s = clamp(start);
-        int e = clamp(end);
-        delete(s, e);
-        insert(s, text, tbstart, tbend);
+        String value=replacement.toString();
+        buffer.replace(start,end,value);shiftForDelete(start,end);shiftForInsert(start,value.length());
         return this;
     }
 

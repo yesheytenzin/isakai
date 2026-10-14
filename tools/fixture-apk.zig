@@ -56,9 +56,9 @@ fn buildManifest(gpa: std.mem.Allocator, package: []const u8, version_code: u32)
         "targetSdkVersion", // 6
         "application", // 7
         "name", // 8
-        ".FixtureApp", // 9 (placeholder, replaced below)
+        "org.isakai.fixture.FixtureApp", // 9 (placeholder, replaced below)
         "activity", // 10
-        ".FixtureActivity", // 11
+        "org.isakai.fixture.FixtureActivity", // 11
         "intent-filter", // 12
         "action", // 13
         "android.intent.action.MAIN", // 14
@@ -85,9 +85,9 @@ fn buildManifest(gpa: std.mem.Allocator, package: []const u8, version_code: u32)
         "targetSdkVersion",
         "application",
         "name",
-        ".FixtureApp",
+        "org.isakai.fixture.FixtureApp",
         "activity",
-        ".FixtureActivity",
+        "org.isakai.fixture.FixtureActivity",
         "intent-filter",
         "action",
         "android.intent.action.MAIN",
@@ -239,14 +239,14 @@ fn buildManifest(gpa: std.mem.Allocator, package: []const u8, version_code: u32)
         .{ .ns = S.android_ns, .name = S.name_attr, .raw = S.internet_perm, .typ = 3, .val = S.internet_perm },
     });
     try writeEnd(w, 3, NONE, S.uses_permission);
-    // <application android:name=".FixtureApp" android:label="@string/app_name">
+    // <application android:name="org.isakai.fixture.FixtureApp" android:label="@string/app_name">
     // The label is a resource reference on purpose: it covers the
     // install-time arsc path (label id -> "Fixture" from the table).
     try writeStart(w, 4, NONE, S.application, &.{
         .{ .ns = S.android_ns, .name = S.name_attr, .raw = S.app_class, .typ = 3, .val = S.app_class },
         .{ .ns = S.android_ns, .name = S.label_attr, .raw = NONE, .typ = 1, .val = 0x7f110000 },
     });
-    // <activity android:name=".FixtureActivity" android:label="@string/activity_label">
+    // <activity android:name="org.isakai.fixture.FixtureActivity" android:label="@string/activity_label">
     try writeStart(w, 5, NONE, S.activity, &.{
         .{ .ns = S.android_ns, .name = S.name_attr, .raw = S.activity_class, .typ = 3, .val = S.activity_class },
         .{ .ns = S.android_ns, .name = S.label_attr, .raw = NONE, .typ = 1, .val = 0x7f110001 },

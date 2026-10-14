@@ -29,5 +29,7 @@ public class ViewConfiguration {
     public static int getTapTimeout() { return 100; }
     public static int getLongPressTimeout() { return 500; }
     public static int getDoubleTapTimeout() { return 300; }
+    /** Desktop windows expose keyboard shortcut labels. */
+    public boolean shouldShowMenuShortcutsWhenKeyboardPresent() { return true; }
     public boolean hasPermanentMenuKey() { return false; }
 }

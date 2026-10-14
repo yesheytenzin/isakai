@@ -8,7 +8,7 @@ import java.nio.IntBuffer;
 /**
  * Software canvas over a packed ARGB int backing store. All drawing is
  * clipped to the canvas bounds intersected with the current clip rect.
- * Deterministic: no anti-aliasing, no fonts.
+ * Geometry is software rasterized; text uses the host Java2D font/shaping backend.
  *
  * <p>Two backings: a heap {@code int[]} (copy path) or a native-order
  * {@link IntBuffer} view over a direct {@link ByteBuffer} (zero-copy path,
@@ -27,6 +27,21 @@ public class Canvas {
     private int clipBottom;
     private int[] clipStack = new int[16];
     private int clipDepth;
+
+    public Canvas(Bitmap bitmap) {
+        if (bitmap == null) throw new NullPointerException("bitmap");
+        if (!bitmap.isMutable()) throw new IllegalStateException("bitmap is not mutable");
+        initCommon(bitmap.getWidth(), bitmap.getHeight(), bitmap.canvasPixels(), null);
+    }
+
+    /** Empty canvas: draws nowhere until setBitmap; Compose probes it. */
+    public Canvas() {
+        this.width = 0;
+        this.height = 0;
+        this.pixels = new int[0];
+        this.intBuffer = null;
+        resetClip();
+    }
 
     public Canvas(int width, int height) {
         checkSize(width, height);
@@ -84,6 +99,18 @@ public class Canvas {
         return height;
     }
 
+    /** Retarget to a bitmap (or detach with null). */
+    public void setBitmap(Bitmap bitmap) {
+        if (bitmap == null) {
+            this.width = 0;
+            this.height = 0;
+            this.pixels = new int[0];
+            this.intBuffer = null;
+            resetClip();
+            return;
+        }
+        initCommon(bitmap.getWidth(), bitmap.getHeight(), bitmap.canvasPixels(), null);
+    }
     /** Direct access to the heap backing store (row-major, stride == width). */
     public int[] getPixels() {
         if (pixels == null) throw new IllegalStateException("direct canvas has no int[] backing");
@@ -145,6 +172,26 @@ public class Canvas {
         if (bottom < clipBottom) clipBottom = bottom;
     }
 
+    /** Subtract rects from the clip: unsupported, reports unchanged. */
+    public boolean clipOutRect(android.graphics.RectF rect) {
+        return false;
+    }
+
+    /** Subtract rects from the clip: unsupported, reports unchanged. */
+    public boolean clipOutRect(android.graphics.Rect rect) {
+        return false;
+    }
+
+    /** Subtract rects from the clip: unsupported, reports unchanged. */
+    public boolean clipOutRect(float left, float top, float right, float bottom) {
+        return false;
+    }
+
+    /** Subtract rects from the clip: unsupported, reports unchanged. */
+    public boolean clipOutRect(int left, int top, int right, int bottom) {
+        return false;
+    }
+
     public void setPixel(int x, int y, int color) {
         if (x < 0 || y < 0 || x >= width || y >= height) return;
         if (x < clipLeft || y < clipTop || x >= clipRight || y >= clipBottom) return;
@@ -162,6 +209,12 @@ public class Canvas {
 
     /** Blit a bitmap scaled to [x,x+w) x [y,y+h), clipped. */
     public void drawBitmap(Bitmap bitmap, int x, int y, int w, int h) {
+        drawBitmapFiltered(bitmap,x,y,w,h,null);
+    }
+
+    /** Internal software drawable path, with tint/filter applied before presentation. */
+    public void drawBitmapFiltered(Bitmap bitmap, int x, int y, int w, int h,
+            java.util.function.IntUnaryOperator transform) {
         if (bitmap == null || bitmap.isRecycled() || w <= 0 || h <= 0) return;
         int sw = bitmap.getWidth();
         int sh = bitmap.getHeight();
@@ -174,7 +227,8 @@ public class Canvas {
             int sy = (dy - y) * sh / h;
             for (int dx = x0; dx < x1; dx++) {
                 int sx = (dx - x) * sw / w;
-                setIdx(dy * width + dx, bitmap.getPixel(sx, sy));
+                int color=bitmap.getPixel(sx, sy);
+                setIdx(dy * width + dx, transform==null?color:transform.applyAsInt(color));
             }
         }
     }
@@ -202,6 +256,68 @@ public class Canvas {
         fillRect(left, top, left + 1, bottom, color);
         fillRect(right - 1, top, right, bottom, color);
     }
+    /**
+     * Rounded-rect fill: rect body plus corner discs of radius min(rx,ry).
+     * STROKE draws a 1px rounded outline. Alpha blends via src-over.
+     */
+    public void drawRoundRect(RectF rect, float rx, float ry, Paint paint) {
+        if (rect == null || paint == null) return;
+        drawRoundRect(rect.left, rect.top, rect.right, rect.bottom, rx, ry, paint);
+    }
+
+    public void drawRoundRect(float left, float top, float right, float bottom,
+            float rx, float ry, Paint paint) {
+        if (paint == null || right <= left || bottom <= top) return;
+        int l = Math.round(left), t = Math.round(top);
+        int r = Math.round(right), b = Math.round(bottom);
+        int color = paint.getColor();
+        int radius = (int) Math.max(0, Math.min(rx, ry));
+        if (paint.getStyle() == Paint.Style.STROKE) {
+            int rad = Math.min(radius, Math.min((r - l) / 2, (b - t) / 2));
+            drawRect(l + rad, t, r - rad, t + 1, color);
+            drawRect(l + rad, b - 1, r - rad, b, color);
+            drawRect(l, t + rad, l + 1, b - rad, color);
+            drawRect(r - 1, t + rad, r, b - rad, color);
+            if (rad > 0) {
+                arcOutline(l + rad, t + rad, rad, color, 0);
+                arcOutline(r - rad - 1, t + rad, rad, color, 1);
+                arcOutline(l + rad, b - rad - 1, rad, color, 2);
+                arcOutline(r - rad - 1, b - rad - 1, rad, color, 3);
+            }
+            return;
+        }
+        int rad = Math.min(radius, Math.min((r - l) / 2, (b - t) / 2));
+        fillRect(l + rad, t, r - rad, b, color);
+        fillRect(l, t + rad, l + rad, b - rad, color);
+        fillRect(r - rad, t + rad, r, b - rad, color);
+        if (rad > 0) {
+            disc(l + rad, t + rad, rad, color);
+            disc(r - rad - 1, t + rad, rad, color);
+            disc(l + rad, b - rad - 1, rad, color);
+            disc(r - rad - 1, b - rad - 1, rad, color);
+        }
+    }
+
+    /** Filled disc helper for rounded corners (radius >= 0). */
+    private void disc(int cx, int cy, int radius, int color) {
+        for (int dy = -radius; dy <= radius; dy++) {
+            int dx = (int) Math.sqrt((double) (radius * radius - dy * dy));
+            fillRect(cx - dx, cy + dy, cx + dx + 1, cy + dy + 1, color);
+        }
+    }
+
+    /** 1px quarter-arc outline; quadrant 0=TL 1=TR 2=BL 3=BR. */
+    private void arcOutline(int cx, int cy, int radius, int color, int quadrant) {
+        for (int a = 0; a <= 90; a += 2) {
+            double rad = Math.toRadians(a);
+            int dx = (int) Math.round(radius * Math.cos(rad));
+            int dy = (int) Math.round(radius * Math.sin(rad));
+            int x = quadrant == 0 || quadrant == 2 ? cx - dx : cx + dx;
+            int y = quadrant < 2 ? cy - dy : cy + dy;
+            setPixel(x, y, color);
+        }
+    }
+
 
     /** Filled disc around (cx,cy). */
     public void drawCircle(int cx, int cy, int radius, int color) {
@@ -241,22 +357,7 @@ public class Canvas {
      * Supports '\n' (moves to the next line, x resets).
      */
     public void drawText(String text, int x, int y, int size, int color) {
-        if (text == null || text.isEmpty()) return;
-        int scale = BitmapFont.scaleFor(size);
-        int cx = x;
-        int cy = y;
-        int lineStep = BitmapFont.lineStep(size);
-        int cell = BitmapFont.cellWidth(size);
-        for (int i = 0; i < text.length(); i++) {
-            int cp = text.charAt(i);
-            if (cp == '\n') {
-                cx = x;
-                cy += lineStep;
-                continue;
-            }
-            drawGlyph(cp, cx, cy, scale, color);
-            cx += cell;
-        }
+        HostText.draw(this,text,x,y,size,color);
     }
 
     /**
@@ -264,20 +365,7 @@ public class Canvas {
      * '\n'-separated line. Same scale rule as {@link #drawText}.
      */
     public static int measureText(String text, int size) {
-        if (text == null || text.isEmpty()) return 0;
-        int cell = BitmapFont.cellWidth(size);
-        int best = 0;
-        int cur = 0;
-        for (int i = 0; i < text.length(); i++) {
-            if (text.charAt(i) == '\n') {
-                if (cur > best) best = cur;
-                cur = 0;
-            } else {
-                cur += cell;
-            }
-        }
-        if (cur > best) best = cur;
-        return best;
+        return (int)Math.ceil(HostText.measure(text,size));
     }
 
     private void drawGlyph(int codePoint, int x, int y, int scale, int color) {

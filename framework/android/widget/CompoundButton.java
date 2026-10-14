@@ -91,6 +91,16 @@ public class CompoundButton extends TextView {
         super.onDraw(canvas);
     }
 
+    @Override
+    protected void onDrawAt(Canvas canvas, int offsetX, int offsetY) {
+        if (buttonDrawable != null && canvas != null) {
+            int size = Math.min(getWidth(), getHeight());
+            buttonDrawable.setBounds(offsetX, offsetY, offsetX + size, offsetY + size);
+            buttonDrawable.draw(canvas);
+        }
+        super.onDraw(canvas);
+    }
+
     public int getCompoundPaddingLeft() { return getPaddingLeft(); }
     public int getCompoundPaddingRight() { return getPaddingRight(); }
 }

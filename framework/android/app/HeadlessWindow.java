@@ -14,13 +14,17 @@ public class HeadlessWindow extends Window {
     /** Framework content id (android.R.id.content): PhoneWindow parity. */
     public static final int ID_ANDROID_CONTENT = 0x01020002;
 
+    private final Activity owner;
     private Callback callback;
     private View content;
     private final ViewGroup decor = new ViewGroup(null) {};
     private final WindowManager.LayoutParams attrs = new WindowManager.LayoutParams();
     private final ViewGroup decorContent;
 
-    public HeadlessWindow() {
+    public HeadlessWindow() { this(null); }
+
+    public HeadlessWindow(Activity owner) {
+        this.owner = owner;
         // PhoneWindow parity: the decor always carries a content child
         // with the framework content id, so AppCompat's content
         // migration (find + move + id swap) behaves identically.
@@ -32,6 +36,7 @@ public class HeadlessWindow extends Window {
     @Override
     public void setContentView(View view) {
         this.content = view;
+        if (owner != null) owner.setContentViewFromWindow(decorContent);
         // PhoneWindow parity: the content view lives inside the decor
         // content holder, so Window.findViewById sees app views.
         decorContent.removeAllViews();
@@ -41,6 +46,7 @@ public class HeadlessWindow extends Window {
     @Override
     public void addContentView(View view, ViewGroup.LayoutParams params) {
         this.content = view;
+        if (owner != null) owner.setContentViewFromWindow(decorContent);
         if (view != null) {
             if (params != null) view.setLayoutParams(params);
             decorContent.addView(view);

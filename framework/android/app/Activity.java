@@ -23,7 +23,7 @@ public class Activity extends android.content.Context implements android.view.Wi
     private Application application;
     private boolean created;
     private View contentView;
-    private boolean backPressed;
+    private volatile boolean backPressed;
     private boolean windowFocused;
     /** Result code for a successful startActivityForResult round-trip. */
     public static final int RESULT_OK = -1;
@@ -62,21 +62,23 @@ public class Activity extends android.content.Context implements android.view.Wi
     }
 
     /**
-     * Headless single-threaded run: the caller already is the UI thread
-     * (no Looper dispatch exists yet), so run immediately.
+     * Run immediately on the UI thread, otherwise enqueue on its Looper.
      */
     public void runOnUiThread(Runnable action) {
-        if (action != null) action.run();
+        if (action == null) return;
+        android.os.Looper main = android.os.Looper.getMainLooper();
+        if (main != null && main.isCurrentThread()) action.run();
+        else new android.os.Handler(main).post(action);
     }
 
     public void registerActivityLifecycleCallbacks(
             Application.ActivityLifecycleCallbacks callback) {
-        if (application != null) application.registerActivityLifecycleCallbacks(callback);
+        if(callback!=null)localLifecycleCallbacks.addIfAbsent(callback);
     }
 
     public void unregisterActivityLifecycleCallbacks(
             Application.ActivityLifecycleCallbacks callback) {
-        if (application != null) application.unregisterActivityLifecycleCallbacks(callback);
+        localLifecycleCallbacks.remove(callback);
     }
 
     @Override
@@ -206,6 +208,7 @@ public class Activity extends android.content.Context implements android.view.Wi
     /** Launch an intent: VIEW opens the Uri, pickers delegate (CREATE yields a writable file). */
     public void startActivity(Intent intent) {
         if (intent == null) return;
+        if (intent.getComponent() != null) { startActivityForResult(intent, -1); return; }
         String action = intent.getAction();
         if (Intent.ACTION_GET_CONTENT.equals(action) || Intent.ACTION_OPEN_DOCUMENT.equals(action)
                 || Intent.ACTION_CREATE_DOCUMENT.equals(action)) {
@@ -233,6 +236,11 @@ public class Activity extends android.content.Context implements android.view.Wi
     /** Launch a file picker; VIEW behaves like {@link #startActivity}. */
     public void startActivityForResult(Intent intent, int requestCode) {
         if (intent == null) return;
+        if (intent.getComponent() != null) {
+            if (navigator == null) throw new android.content.ActivityNotFoundException("No active activity host");
+            navigator.launch(this, intent, requestCode);
+            return;
+        }
         String action = intent.getAction();
         if (Intent.ACTION_VIEW.equals(action)) {
             startActivity(intent);
@@ -356,6 +364,9 @@ public class Activity extends android.content.Context implements android.view.Wi
                 String key = IsakaiDesktop.actionKey(slot);
                 if (key != null) onNotificationAction(platId, key);
             } else if (kind == 10) {
+                // Portal/notification close (kind "close"/"close-notif"): the
+                // handle is released; this is NOT the compositor's toplevel
+                // close, which arrives as window.run() == 0.
                 long req = IsakaiDesktop.join(batch[base + 1], batch[base + 2]);
                 IsakaiDesktop.closeReq(req);
             }
@@ -364,10 +375,122 @@ public class Activity extends android.content.Context implements android.view.Wi
 
     public void setContentView(View view) {
         this.contentView = view;
+        installViewTreeLifecycleOwner(view);
+    }
+
+    public void setContentView(View view, android.view.ViewGroup.LayoutParams params) {
+        if (view == null) throw new IllegalArgumentException("view == null");
+        if (params != null) view.setLayoutParams(params);
+        this.contentView = view;
+        installViewTreeLifecycleOwner(view);
+    }
+
+    /**
+     * ComposeView looks up the AndroidX lifecycle owner through the generated
+     * view-tree tag before it attaches. The app's translated AndroidX classes
+     * provide the owner implementation, so install it without coupling the
+     * framework API to an app-private type.
+     */
+    private void installViewTreeLifecycleOwner(View view) {
+        if (view == null) return;
+        try {
+            ClassLoader loader = application.getClass().getClassLoader();
+            Class<?> lifecycleOwner = Class.forName("androidx.lifecycle.v", false, loader);
+            Class<?> savedOwner = Class.forName("l4.g", false, loader);
+            Class<?> lifecycle = Class.forName("androidx.lifecycle.x", false, loader);
+            final Object[] lifecycleRef = new Object[1];
+            Object owner = java.lang.reflect.Proxy.newProxyInstance(loader,
+                    new Class<?>[]{lifecycleOwner, savedOwner}, (proxy, method, args) -> {
+                        if ("k".equals(method.getName())) return lifecycleRef[0];
+                        if ("d".equals(method.getName()))
+                            return Class.forName("l4.e", false, loader).getConstructor().newInstance();
+                        return null;
+                    });
+            lifecycleRef[0] = lifecycle.getConstructor(lifecycleOwner).newInstance(owner);
+            view.setTag(0x7f09034f, owner);
+            view.setTag(0x7f090351, owner);
+            Class<?> composeOwner = Class.forName("j0.g2", false, loader);
+            Class<?> coroutineContext = Class.forName("a9.i", false, loader);
+            Object context = Class.forName("a9.j", false, loader).getField("k").get(null);
+            view.setTag(0x7f090052, composeOwner.getConstructor(coroutineContext)
+                    .newInstance(context));
+        } catch (ClassNotFoundException e) {
+            // Ordinary apps do not ship translated Compose lifecycle classes.
+        } catch (ReflectiveOperationException e) {
+            System.err.println("isakai: unable to install translated lifecycle owner: " + e);
+        }
+    }
+
+    void setContentViewFromWindow(View view) { this.contentView = view; }
+
+    public void setContentView(int resource) {
+        setContentView(android.view.LayoutInflater.from(this).inflate(resource, null, false));
+    }
+
+    public <T extends View> T findViewById(int id) {
+        return contentView == null ? null : (T) contentView.findViewById(id);
     }
 
     public View getContentView() {
         return contentView;
+    }
+
+    private final java.util.concurrent.CopyOnWriteArrayList<Application.ActivityLifecycleCallbacks> localLifecycleCallbacks=new java.util.concurrent.CopyOnWriteArrayList<>();
+    private int lifecycleState=-1; // -1 new, 0 created/stopped, 1 started/paused, 2 resumed, -2 destroyed
+    private void dispatchLifecycle(java.util.function.Consumer<Application.ActivityLifecycleCallbacks> dispatch) {
+        if(application!=null)for(Application.ActivityLifecycleCallbacks callback:application.lifecycleCallbacksSnapshot())dispatch.accept(callback);
+        for(Application.ActivityLifecycleCallbacks callback:localLifecycleCallbacks.toArray(new Application.ActivityLifecycleCallbacks[0]))dispatch.accept(callback);
+    }
+    private void performCreate() {
+        if(lifecycleState!=-1)return;
+        dispatchLifecycle(callback -> callback.onActivityPreCreated(this,null));
+        onCreate();
+        lifecycleState=0;
+        dispatchLifecycle(callback -> callback.onActivityCreated(this,null));
+        dispatchLifecycle(callback -> callback.onActivityPostCreated(this,null));
+    }
+    private void performStart() {
+        if(lifecycleState!=0)return;
+        dispatchLifecycle(callback -> callback.onActivityPreStarted(this));
+        onStart();
+        lifecycleState=1;
+        dispatchLifecycle(callback -> callback.onActivityStarted(this));
+        dispatchLifecycle(callback -> callback.onActivityPostStarted(this));
+    }
+    private void performResume() {
+        if(lifecycleState!=1)return;
+        dispatchLifecycle(callback -> callback.onActivityPreResumed(this));
+        onResume();
+        lifecycleState=2;
+        dispatchLifecycle(callback -> callback.onActivityResumed(this));
+        dispatchLifecycle(callback -> callback.onActivityPostResumed(this));
+    }
+    private void performPause() {
+        if(lifecycleState!=2)return;
+        dispatchLifecycle(callback -> callback.onActivityPrePaused(this));
+        onPause();
+        lifecycleState=1;
+        dispatchLifecycle(callback -> callback.onActivityPaused(this));
+        dispatchLifecycle(callback -> callback.onActivityPostPaused(this));
+    }
+    private void performStop() {
+        if(lifecycleState==2)performPause();
+        if(lifecycleState!=1)return;
+        dispatchLifecycle(callback -> callback.onActivityPreStopped(this));
+        onStop();
+        lifecycleState=0;
+        dispatchLifecycle(callback -> callback.onActivityStopped(this));
+        dispatchLifecycle(callback -> callback.onActivityPostStopped(this));
+    }
+    private void performDestroy() {
+        if(lifecycleState>0)performStop();
+        if(lifecycleState<0)return;
+        dispatchLifecycle(callback -> callback.onActivityPreDestroyed(this));
+        onDestroy();
+        lifecycleState=-2;
+        dispatchLifecycle(callback -> callback.onActivityDestroyed(this));
+        dispatchLifecycle(callback -> callback.onActivityPostDestroyed(this));
+        localLifecycleCallbacks.clear();
     }
 
     protected void onCreate() {
@@ -379,6 +502,7 @@ public class Activity extends android.content.Context implements android.view.Wi
     protected void onStart() {}
 
     protected void onResume() {}
+    protected void onRestart() {}
 
     protected void onPause() {
         drainQueuedWork();
@@ -403,9 +527,85 @@ public class Activity extends android.content.Context implements android.view.Wi
 
     /** Default BACK handling: request loop exit. */
     public void onBackPressed() {
-        backPressed = true;
+        finish();
     }
 
+    private Navigator navigator;
+    private Activity resultParent;
+    private int requestCode = -1;
+    private int resultCode = RESULT_CANCELED;
+    private Intent resultData;
+    public final void setResult(int code) { setResult(code, null); }
+    public final void setResult(int code, Intent data) { resultCode = code; resultData = data; }
+    private static final class Navigator {
+        IsakaiWindow.Window window;
+        final java.util.ArrayList<Activity> stack = new java.util.ArrayList<>();
+        final java.util.ArrayDeque<Runnable> pending = new java.util.ArrayDeque<>();
+        Activity top() { return stack.get(stack.size() - 1); }
+        void launch(Activity caller, Intent intent, int code) {
+            Intent deliveredIntent = new Intent(intent);
+            android.content.ComponentName component = intent.getComponent();
+            if (!caller.getPackageName().equals(component.getPackageName()))
+                throw new android.content.ActivityNotFoundException("External explicit activities are unsupported");
+            final Activity next;
+            final int destinationTheme;
+            try {
+                String name = component.getClassName();
+                if (name.startsWith(".")) name = component.getPackageName() + name;
+                else if (name.indexOf('.') < 0) name = component.getPackageName() + "." + name;
+                destinationTheme = caller.getPackageManager().getActivityInfo(component, 0).theme;
+                next = Class.forName(name).asSubclass(Activity.class).getDeclaredConstructor().newInstance();
+            } catch (ReflectiveOperationException | ClassCastException
+                    | android.content.pm.PackageManager.NameNotFoundException e) {
+                throw new android.content.ActivityNotFoundException("Cannot resolve " + component.getClassName());
+            }
+            pending.add(() -> {
+                Activity old = top();
+                old.performPause(); old.windowFocused = false;
+                next.attach(caller.application);
+                next.setIntent(deliveredIntent);
+                next.attachTheme(caller.baseThemeForNav(), destinationTheme);
+                next.navigator = this;
+                next.resultParent = caller; next.requestCode = code;
+                next.created = true;
+                stack.add(next);
+                next.performCreate(); next.performStart(); next.performResume();
+                old.performStop();
+                next.windowFocused = true;
+            });
+        }
+        void advance() {
+            // Bound dispatch so repeated navigation cannot starve the host pump.
+            for (int i = 0; i < 64 && !pending.isEmpty(); i++) pending.remove().run();
+            // Finished, stopped activities must not remain as a back destination.
+            for (int index=stack.size()-2; index>=0; index--) {
+                Activity stopped=stack.get(index);
+                if (stopped.finishing) {
+                    stack.remove(index);
+                    stopped.performDestroy(); stopped.drainQueuedWork();
+                }
+            }
+            while (stack.size() > 1 && top().backPressed) {
+                Activity ended = stack.remove(stack.size() - 1);
+                ended.performPause(); ended.performStop(); ended.performDestroy(); ended.drainQueuedWork();
+                Activity previous = top();
+                previous.onRestart(); previous.performStart();
+                if (ended.requestCode >= 0 && ended.resultParent != null)
+                    ended.resultParent.onActivityResult(ended.requestCode, ended.resultCode, ended.resultData);
+                previous.performResume(); previous.windowFocused = true;
+            }
+        }
+        void destroy() {
+            pending.clear();
+            boolean top = true;
+            while (!stack.isEmpty()) {
+                Activity a = stack.remove(stack.size() - 1);
+                if (top) { a.performPause(); a.performStop(); }
+                top = false;
+                a.performDestroy(); a.drainQueuedWork(); a.navigator = null;
+            }
+        }
+    }
     private Intent launchIntent = new Intent();
     private boolean finishing;
 
@@ -447,11 +647,17 @@ public class Activity extends android.content.Context implements android.view.Wi
         return null;
     }
 
-    private final HeadlessWindow headlessWindow = new HeadlessWindow();
+    private final HeadlessWindow headlessWindow = new HeadlessWindow(this);
 
     public android.view.Window getWindow() {
         if (headlessWindow.getCallback() == null) headlessWindow.setCallback(this);
         return headlessWindow;
+    }
+
+    /** Currently focused view, or null when nothing holds focus. */
+    public android.view.View getCurrentFocus() {
+        if (contentView == null) return null;
+        return contentView.findFocus();
     }
 
     private final FragmentManager fragmentManager = new FragmentManager();
@@ -497,19 +703,47 @@ public class Activity extends android.content.Context implements android.view.Wi
         return android.view.LayoutInflater.from(this);
     }
 
-    public android.window.OnBackInvokedDispatcher getOnBackInvokedDispatcher() {
-        return null;
+    private final BackDispatcher backDispatcher = new BackDispatcher();
+    private static final class BackDispatcher implements android.window.OnBackInvokedDispatcher {
+        private record Entry(int priority,android.window.OnBackInvokedCallback callback) {}
+        private final java.util.ArrayList<Entry> callbacks=new java.util.ArrayList<>();
+        public synchronized void registerOnBackInvokedCallback(int priority,android.window.OnBackInvokedCallback callback) {
+            if(priority<0)throw new IllegalArgumentException("negative priority");
+            if(callback==null)throw new NullPointerException("callback");
+            unregisterOnBackInvokedCallback(callback);callbacks.add(new Entry(priority,callback));
+        }
+        public synchronized void unregisterOnBackInvokedCallback(android.window.OnBackInvokedCallback callback) {
+            callbacks.removeIf(entry -> entry.callback()==callback);
+        }
+        boolean dispatch() {
+            Entry chosen=null;
+            synchronized(this) {
+                for(Entry entry:callbacks)if(chosen==null || entry.priority()>=chosen.priority())chosen=entry;
+            }
+            if(chosen==null)return false;
+            chosen.callback().onBackInvoked();return true;
+        }
     }
+    public android.window.OnBackInvokedDispatcher getOnBackInvokedDispatcher() { return backDispatcher; }
 
     public android.content.ComponentName getComponentName() {
         return new android.content.ComponentName(getPackageName(), getClass().getName());
     }
 
-    public CharSequence getTitle() {
-        return "";
+    private CharSequence title;
+    public CharSequence getTitle() { return title==null?"":title; }
+    public void setTitle(CharSequence title) {
+        this.title=title;
+        if(navigator!=null && !navigator.stack.isEmpty() && navigator.top()==this && navigator.window!=null)
+            navigator.window.setTitle(title==null?"":title.toString());
     }
-
-    public void setTitle(CharSequence title) {}
+    public void setTitle(int resource) { setTitle(getResources().getText(resource)); }
+    public void setTaskDescription(ActivityManager.TaskDescription description) {
+        if(description==null)throw new NullPointerException("description");
+        if(description.getLabel()!=null)setTitle(description.getLabel());
+        if(description.getIcon()!=null || description.getPrimaryColor()!=0)
+            org.isakai.runtime.Capabilities.unavailable("android.app.Activity.taskIconAndColor");
+    }
 
     public Object getLastNonConfigurationInstance() {
         return null;
@@ -542,14 +776,15 @@ public class Activity extends android.content.Context implements android.view.Wi
     public void dump(String prefix, java.io.FileDescriptor fd, java.io.PrintWriter writer, String[] args) {}
     /** Drive the full headless lifecycle. Returns after onDestroy. */
     public final void runHeadless() {
+        android.os.Looper.prepareMainLooper();
         if (created) throw new IllegalStateException("activity already ran");
         created = true;
-        onCreate();
-        onStart();
-        onResume();
-        onPause();
-        onStop();
-        onDestroy();
+        performCreate();
+        performStart();
+        performResume();
+        performPause();
+        performStop();
+        performDestroy();
         drainQueuedWork();
     }
 
@@ -565,7 +800,7 @@ public class Activity extends android.content.Context implements android.view.Wi
 
     public boolean onKeyDown(int keyCode, KeyEvent event) {
         if (keyCode == KeyEvent.KEYCODE_BACK || keyCode == KeyEvent.KEYCODE_ESCAPE) {
-            onBackPressed();
+            if(!backDispatcher.dispatch())onBackPressed();
             return true;
         }
         return false;
@@ -687,7 +922,7 @@ public class Activity extends android.content.Context implements android.view.Wi
     /**
      * Drive the windowed lifecycle: onCreate..onResume, render the content
      * view into a Wayland window, dispatch until close, BACK, or the
-     * 5000ms budget elapses, then onPause..onDestroy. Uses {@code title}
+     * finish, then onPause..onDestroy. Uses {@code title}
      * for the window title and {@code packageName} (always the package)
      * for the app id. Renders at the live window size: every configure
      * resize recreates the Canvas and re-lays out the content view.
@@ -702,19 +937,27 @@ public class Activity extends android.content.Context implements android.view.Wi
      * the content view. Redraws on dirty or resize.
      */
     public final void runWindowed(String title, String packageName) {
+        android.os.Looper.prepareMainLooper();
         if (created) throw new IllegalStateException("activity already ran");
         created = true;
-        onCreate();
-        onStart();
-        onResume();
+        navigator = new Navigator();
+        navigator.stack.add(this);
+        Throwable failure = null;
         try {
-            View root = contentView != null ? contentView : new View();
+            performCreate();
+            performStart();
+            performResume();
+            navigator.advance();
+            Activity active = navigator.top();
+            View root = active.contentView != null ? active.contentView : new View();
             IsakaiWindow.Window window = IsakaiWindow.Window.open(title, packageName, 640, 480);
+            navigator.window=window;
+            if(active.title!=null)window.setTitle(active.title.toString());
             clipboardManager = new ClipboardManager(window);
             try {
-                backPressed = false;
                 windowFocused = true;
-                long deadline = System.currentTimeMillis() + 5000;
+                installViewTreeLifecycleOwner(root);
+                root.dispatchHostAttached();
                 int width = 640;
                 int height = 480;
                 // Initial frame at the live size, not the 640x480 default.
@@ -723,13 +966,25 @@ public class Activity extends android.content.Context implements android.view.Wi
                     width = IsakaiWindow.unpackW(packed);
                     height = IsakaiWindow.unpackH(packed);
                 }
-                drawFrame(window, root, width, height);
+                active.drawFrame(window, root, width, height);
                 int[] batch = new int[8 * 32];
                 int[] metrics = new int[8];
                 while (true) {
-                    long now = System.currentTimeMillis();
-                    if (now >= deadline || backPressed) break;
-                    int r = window.run(Math.min(deadline - now, 100));
+                    android.os.Looper.getMainLooper().dispatchPending();
+                    navigator.advance();
+                    Activity top = navigator.top();
+                    if (top != active || top.contentView != root) {
+                        root.dispatchHostDetached();
+                        active = top;
+                        root = active.contentView != null ? active.contentView : new View();
+                        installViewTreeLifecycleOwner(root);
+                        root.dispatchHostAttached();
+                        active.clipboardManager = clipboardManager;
+                        window.setTitle(active.title==null?title:active.title.toString());
+                        active.drawFrame(window, root, width, height);
+                    }
+                    if (active.backPressed) break;
+                    int r = window.run(100);
                     if (r == 0) break;
                     // Input drain: poll until the native queue is empty.
                     while (true) {
@@ -742,18 +997,18 @@ public class Activity extends android.content.Context implements android.view.Wi
                             break;
                         }
                         if (n <= 0) break;
-                        dispatchBatch(root, batch, n);
+                        active.dispatchBatch(root, batch, n);
                     }
-                    pollDesktopResults();
-                    if (r == 0 || backPressed) break;
+                    active.pollDesktopResults();
+                    if (r == 0) break;
                     long resize = window.pollSize();
                     if (resize != 0) {
                         width = IsakaiWindow.unpackW(resize);
                         height = IsakaiWindow.unpackH(resize);
-                        drawFrame(window, root, width, height);
+                        if (!drawFrameIfAlive(window, root, width, height)) break;
                         root.isDirtyAndClear();
                     } else if (root.isDirtyAndClear()) {
-                        drawFrame(window, root, width, height);
+                        if (!drawFrameIfAlive(window, root, width, height)) break;
                     }
                     // Per-slice DisplayMetrics poll: fresh int[8] updates
                     // the system Resources snapshot for getResources().
@@ -768,14 +1023,29 @@ public class Activity extends android.content.Context implements android.view.Wi
                 if (backPressed) {
                     windowFocused = false;
                 }
+            } catch (RuntimeException | Error primary) {
+                failure = primary;
+                throw primary;
             } finally {
-                window.close();
+                try { root.dispatchHostDetached(); }
+                catch (RuntimeException | Error cleanup) {
+                    if (failure != null) failure.addSuppressed(cleanup);
+                    else throw cleanup;
+                }
+                finally {
+                    navigator.window=null;
+                    window.close();
+                }
             }
+        } catch (RuntimeException | Error e) {
+            failure = e;
+            throw e;
         } finally {
-            onPause();
-            onStop();
-            onDestroy();
-            drainQueuedWork();
+            try { navigator.destroy(); }
+            catch (RuntimeException | Error cleanup) {
+                if (failure != null) failure.addSuppressed(cleanup);
+                else throw cleanup;
+            }
         }
     }
 
@@ -900,9 +1170,22 @@ public class Activity extends android.content.Context implements android.view.Wi
 
     /** Lay out the root at w×h, draw into a fresh Canvas, present it. */
     private static void drawFrame(IsakaiWindow.Window window, View root, int width, int height) {
-        root.measure(width, height);
+        root.dispatchHostInsets();
+        root.measure(View.MeasureSpec.makeMeasureSpec(width, View.MeasureSpec.EXACTLY),
+                View.MeasureSpec.makeMeasureSpec(height, View.MeasureSpec.EXACTLY));
         root.layout(0, 0, width, height);
+        root.dispatchHostLayout();
+        if(root.dispatchHostPreDraw())return;
         paintRoot(window, root, width, height);
+    }
+
+    /** True while the window still accepts frames; false once it is gone. */
+    private static boolean windowAlive(IsakaiWindow.Window window) {
+        try {
+            return window.isOpen();
+        } catch (RuntimeException e) {
+            return false;
+        }
     }
 
     private static void paintRoot(IsakaiWindow.Window window, View root, int width, int height) {
@@ -931,6 +1214,22 @@ public class Activity extends android.content.Context implements android.view.Wi
             canvas.drawColor(Color.WHITE);
             root.draw(canvas);
             window.post(canvas.getPixels(), width, height, width);
+        }
+    }
+
+    /**
+     * Paint a frame, tolerating a window the compositor has destroyed. A
+     * closed connection is not an application error: return false so the
+     * window loop exits and the handle is closed cleanly in the finally
+     * block (the app then reports its normal exit status).
+     */
+    private static boolean drawFrameIfAlive(IsakaiWindow.Window window, View root, int width, int height) {
+        if (!windowAlive(window)) return false;
+        try {
+            drawFrame(window, root, width, height);
+            return true;
+        } catch (IllegalStateException gone) {
+            return false;
         }
     }
 }

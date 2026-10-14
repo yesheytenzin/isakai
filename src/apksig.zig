@@ -227,7 +227,7 @@ fn hashChunk(gpa: std.mem.Allocator, chunk: []const u8, hash: ContentHash) SigEr
 
 const Cert = std.crypto.Certificate;
 
- /// Strip DER-INTEGER leading zero padding (added for the sign bit).
+/// Strip DER-INTEGER leading zero padding (added for the sign bit).
 fn stripLeadingZeros(b: []const u8) []const u8 {
     var i: usize = 0;
     while (i + 1 < b.len and b[i] == 0) : (i += 1) {}
@@ -831,7 +831,7 @@ fn verifyOneSigner(
 
 /// Top-level: verify an APK file's v2 signature. Returns leaf fingerprint.
 pub fn verifyApk(io: std.Io, gpa: std.mem.Allocator, apk_path: []const u8) SigError![][]u8 {
-    const data = std.Io.Dir.cwd().readFileAlloc(io, apk_path, gpa, .limited(1024 * 1024 * 1024)) catch return error.Truncated;
+    const data = std.Io.Dir.cwd().readFileAlloc(io, apk_path, gpa, .limited(256 * 1024 * 1024)) catch return error.Truncated;
     defer gpa.free(data);
     return verifyBytes(gpa, data);
 }

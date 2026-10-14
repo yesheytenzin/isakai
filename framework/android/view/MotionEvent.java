@@ -6,7 +6,7 @@ package android.view;
  * POINTER_DOWN/POINTER_UP, full pointer arrays, index bits.
  * Coordinates are surface-absolute floats.
  */
-public class MotionEvent {
+public class MotionEvent extends InputEvent {
     public static final int ACTION_DOWN = 0;
     public static final int ACTION_UP = 1;
     public static final int ACTION_MOVE = 2;
@@ -18,6 +18,7 @@ public class MotionEvent {
     public static final int ACTION_MASK = 0xff;
     public static final int ACTION_POINTER_INDEX_MASK = 0xff00;
     public static final int ACTION_POINTER_INDEX_SHIFT = 8;
+    public static final int TOOL_TYPE_FINGER = 1;
 
     public static final int BUTTON_PRIMARY = 1 << 0;
     public static final int BUTTON_SECONDARY = 1 << 1;
@@ -61,6 +62,10 @@ public class MotionEvent {
         return e;
     }
 
+    public static MotionEvent obtainNoHistory(MotionEvent other) {
+        return obtain(other);
+    }
+
     public final int getAction() {
         return action;
     }
@@ -77,8 +82,16 @@ public class MotionEvent {
         return xs.length;
     }
 
+    public final int getHistorySize() {
+        return 0;
+    }
+
     public final int getPointerId(int pointerIndex) {
         return ids[pointerIndex];
+    }
+
+    public final int getToolType(int pointerIndex) {
+        return TOOL_TYPE_FINGER;
     }
 
     public final int findPointerIndex(int pointerId) {
@@ -102,6 +115,14 @@ public class MotionEvent {
 
     public final float getY(int pointerIndex) {
         return ys[pointerIndex];
+    }
+
+    public final float getRawX() {
+        return getX();
+    }
+
+    public final float getRawY() {
+        return getY();
     }
 
     public final float getPressure(int pointerIndex) {
@@ -134,4 +155,7 @@ public class MotionEvent {
             ys[i] += dy;
         }
     }
+
+    /** No pool; present for API compatibility. */
+    public final void recycle() {}
 }

@@ -25,6 +25,14 @@ public class Bundle extends BaseBundle implements Parcelable, Cloneable {
     public Bundle getBundle(String k) { return cast(k, null, Bundle.class); }
     @SuppressWarnings("unchecked")
     public <T extends Parcelable> T getParcelable(String k) { return (T) map.get(k); }
+    public void putSparseParcelableArray(String key, android.util.SparseArray<? extends Parcelable> value) {
+        map.put(key, value);
+    }
+    @SuppressWarnings("unchecked")
+    public <T extends Parcelable> android.util.SparseArray<T> getSparseParcelableArray(String key) {
+        Object value=map.get(key);
+        return value instanceof android.util.SparseArray ? (android.util.SparseArray<T>)value : null;
+    }
 
     @Override
     public int describeContents() { return 0; }

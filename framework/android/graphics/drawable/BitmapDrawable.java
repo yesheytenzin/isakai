@@ -34,7 +34,7 @@ public class BitmapDrawable extends Drawable {
     public void draw(Canvas canvas) {
         if (canvas == null || bitmap == null || bitmap.isRecycled()) return;
         Rect b = getBounds();
-        canvas.drawBitmap(bitmap, b.left, b.top, b.width(), b.height());
+        canvas.drawBitmapFiltered(bitmap, b.left, b.top, b.width(), b.height(), this::tintedColor);
     }
 
     @Override

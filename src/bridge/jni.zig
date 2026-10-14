@@ -23,6 +23,13 @@
 //! multiple of 8.
 
 const std = @import("std");
+
+// The host JVM owns signal handling. Zig's default 256 KiB TLS signal
+// stack exceeds the JVM process-reaper thread stack when this DSO is loaded.
+pub const std_options: std.Options = .{
+    .enable_segfault_handler = false,
+    .signal_stack_size = null,
+};
 const window_mod = @import("window");
 const audio_mod = @import("audio");
 const desktop_mod = @import("desktop");
@@ -89,8 +96,11 @@ fn jniReleaseUtf(env: ?*anyopaque, fns: *const JniTable, s: ?*anyopaque, chars: 
 }
 
 fn jniNewStringUtf(env: ?*anyopaque, fns: *const JniTable, bytes: [*:0]const u8) ?*anyopaque {
-    const Fn = fn (?*anyopaque, [*:0]const u8) callconv(.c) ?*anyopaque;
-    return jniCall(slot_new_string_utf, Fn, fns, env, .{bytes});
+    const utf16 = std.unicode.utf8ToUtf16LeAlloc(gpa, std.mem.span(bytes)) catch return null;
+    defer gpa.free(utf16);
+    const len = std.math.cast(JniSize, utf16.len) orelse return null;
+    const Fn = fn (?*anyopaque, [*]const u16, JniSize) callconv(.c) ?*anyopaque;
+    return jniCall(163, Fn, fns, env, .{ utf16.ptr, len });
 }
 
 fn jniArrayLen(env: ?*anyopaque, fns: *const JniTable, arr: ?*anyopaque) ?JniSize {
@@ -182,18 +192,33 @@ export fn Java_org_isakai_bridge_IsakaiWindow_nOpen(
     const height = dims.h;
     if (jtitle == null or japp_id == null) return 0;
     const fns = jniFunctions(env) orelse return 0;
-    const title_chars = jniGetUtf(env, fns, jtitle) orelse return 0;
-    defer jniReleaseUtf(env, fns, jtitle, title_chars);
-    const app_chars = jniGetUtf(env, fns, japp_id) orelse return 0;
-    defer jniReleaseUtf(env, fns, japp_id, app_chars);
-    const title = std.fmt.allocPrintSentinel(gpa, "{s}", .{std.mem.span(title_chars)}, 0) catch return 0;
+    const title_chars = jstrDup(env, fns, jtitle) orelse return 0;
+    defer gpa.free(title_chars);
+    const app_chars = jstrDup(env, fns, japp_id) orelse return 0;
+    defer gpa.free(app_chars);
+    const title = std.fmt.allocPrintSentinel(gpa, "{s}", .{title_chars}, 0) catch return 0;
     defer gpa.free(title);
-    const app_id = std.fmt.allocPrintSentinel(gpa, "{s}", .{std.mem.span(app_chars)}, 0) catch return 0;
+    const app_id = std.fmt.allocPrintSentinel(gpa, "{s}", .{app_chars}, 0) catch return 0;
     defer gpa.free(app_id);
     const display_path = resolveDisplayPath();
     defer if (display_path) |d| gpa.free(d);
     const win = window_mod.Window.open(gpa, display_path, title, app_id, width, height) catch return 0;
     return @intCast(@intFromPtr(win));
+}
+
+export fn Java_org_isakai_bridge_IsakaiWindow_nSetTitle(
+    env: ?*anyopaque,
+    clazz: ?*anyopaque,
+    handle: JniLong,
+    jtitle: ?*anyopaque,
+) callconv(.c) JniInt {
+    _ = clazz;
+    const win = asWindow(handle) orelse return -1;
+    const fns = jniFunctions(env) orelse return -1;
+    const chars = jstrDup(env, fns, jtitle) orelse return -1;
+    defer gpa.free(chars);
+    win.setTitle(chars) catch return -1;
+    return 0;
 }
 
 export fn Java_org_isakai_bridge_IsakaiWindow_nPost(
@@ -223,7 +248,10 @@ export fn Java_org_isakai_bridge_IsakaiWindow_nPost(
     jniGetIntRegion(env, fns, jpixels, 0, @intCast(count_i64), buf.ptr);
     const pixels: []u32 = @ptrCast(buf);
     for (pixels) |*px| px.* = 0xFF00_0000 | (px.* & 0x00FF_FFFF);
-    win.post(pixels, width, height, row_stride) catch return -1;
+    win.post(pixels, width, height, row_stride) catch |err| {
+        std.debug.print("isakai: frame post failed: {s}\n", .{@errorName(err)});
+        return -1;
+    };
     return 0;
 }
 
@@ -493,9 +521,9 @@ export fn Java_org_isakai_bridge_IsakaiWindow_nClipboardSet(
         return 0;
     }
     const fns = jniFunctions(env) orelse return -1;
-    const chars = jniGetUtf(env, fns, jtext) orelse return -1;
-    defer jniReleaseUtf(env, fns, jtext, chars);
-    win.clipboardCopy(std.mem.span(chars));
+    const chars = jstrDup(env, fns, jtext) orelse return -1;
+    defer gpa.free(chars);
+    win.clipboardCopy(chars);
     return 0;
 }
 
@@ -538,10 +566,16 @@ export fn Java_org_isakai_bridge_IsakaiWindow_nClipboardHasText(
 /// (no ThrowNew here).
 fn jstrDup(env: ?*anyopaque, fns: *const JniTable, j: ?*anyopaque) ?[]u8 {
     if (j == null) return null;
-    const chars = jniGetUtf(env, fns, j) orelse return null;
-    defer jniReleaseUtf(env, fns, j, chars);
-    return gpa.dupe(u8, std.mem.span(chars)) catch null;
+    const Len = fn (?*anyopaque, ?*anyopaque) callconv(.c) JniSize;
+    const Get = fn (?*anyopaque, ?*anyopaque, ?*u8) callconv(.c) ?[*]const u16;
+    const Release = fn (?*anyopaque, ?*anyopaque, [*]const u16) callconv(.c) void;
+    const len = jniCall(164, Len, fns, env, .{j}) orelse return null;
+    if (len < 0) return null;
+    const chars = jniCall(165, Get, fns, env, .{ j, @as(?*u8, null) }) orelse return null;
+    defer _ = jniCall(166, Release, fns, env, .{ j, chars });
+    return std.unicode.utf16LeToUtf8Alloc(gpa, chars[0..@intCast(len)]) catch null;
 }
+
 export fn Java_org_isakai_bridge_IsakaiDesktop_nNotify(
     env: ?*anyopaque,
     clazz: ?*anyopaque,

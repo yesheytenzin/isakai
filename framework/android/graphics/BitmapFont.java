@@ -152,11 +152,10 @@ public final class BitmapFont {
     /** Width of a string at float text size (cells times code points). */
     public static float measure(String text, float size) {
         if (text == null || text.isEmpty()) return 0;
-        return cellWidth(Math.max(1, (int) size)) * text.codePointCount(0, text.length());
+        return HostText.measure(text,size);
     }
     /** Line step (cell height plus one scaled pixel of leading) at {@code size}. */
     public static int lineStep(int size) {
-        int scale = scaleFor(size);
-        return HEIGHT * scale + scale;
+        return HostText.lineHeight(size);
     }
 }

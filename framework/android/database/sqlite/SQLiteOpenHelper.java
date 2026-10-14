@@ -2,7 +2,6 @@
 package android.database.sqlite;
 
 import android.content.Context;
-import android.database.Cursor;
 
 /**
  * Versioned database holder: opens (creating with {@link #onCreate} at
@@ -15,12 +14,36 @@ public abstract class SQLiteOpenHelper {
     private final String name;
     private final int version;
     private SQLiteDatabase cached;
+    private android.database.DatabaseErrorHandler errorHandler;
+    private boolean writeAheadLogging;
+    private SQLiteDatabase.CursorFactory factory;
 
     public SQLiteOpenHelper(Context context, String name, Object factory, int version) {
         if (version < 1) throw new IllegalArgumentException("version must be >= 1");
         this.context = context;
         this.name = name;
         this.version = version;
+    }
+
+    public SQLiteOpenHelper(Context context, String name, SQLiteDatabase.CursorFactory factory,
+            int version, android.database.DatabaseErrorHandler errorHandler) {
+        this(context, name, (Object) factory, version);
+        this.factory=factory;
+        this.errorHandler = errorHandler;
+    }
+
+    public SQLiteOpenHelper(Context context, String name, SQLiteDatabase.CursorFactory factory, int version) {
+        this(context, name, factory, version, null);
+    }
+
+    public void onConfigure(SQLiteDatabase db) {}
+
+    public synchronized void setWriteAheadLoggingEnabled(boolean enabled) {
+        if (writeAheadLogging == enabled) return;
+        if (cached != null && cached.isOpen()) {
+            if (enabled) cached.enableWriteAheadLogging(); else cached.disableWriteAheadLogging();
+        }
+        writeAheadLogging = enabled;
     }
 
     public abstract void onCreate(SQLiteDatabase db);
@@ -35,21 +58,32 @@ public abstract class SQLiteOpenHelper {
 
     public synchronized SQLiteDatabase getWritableDatabase() {
         if (cached != null && cached.isOpen()) return cached;
-        SQLiteDatabase db = SQLiteDatabase.openFromContext(context, name);
-        int current = (int) pragmaVersion(db);
-        if (current == 0) {
-            onCreate(db);
-            setPragmaVersion(db, version);
-        } else if (current < version) {
-            onUpgrade(db, current, version);
-            setPragmaVersion(db, version);
-        } else if (current > version) {
-            onDowngrade(db, current, version);
-            setPragmaVersion(db, version);
+        String path = name == null ? ":memory:" : context.getDatabasePath(name).getAbsolutePath();
+        SQLiteDatabase db = SQLiteDatabase.openDatabase(path, factory,
+                SQLiteDatabase.OPEN_READWRITE | SQLiteDatabase.CREATE_IF_NECESSARY, errorHandler);
+        try {
+            if (writeAheadLogging) db.enableWriteAheadLogging();
+            onConfigure(db);
+            int current = db.getVersion();
+            if (current != version) {
+                db.beginTransaction();
+                try {
+                    if (current == 0) onCreate(db);
+                    else if (current < version) onUpgrade(db, current, version);
+                    else onDowngrade(db, current, version);
+                    db.setVersion(version);
+                    db.setTransactionSuccessful();
+                } finally {
+                    db.endTransaction();
+                }
+            }
+            onOpen(db);
+            cached = db;
+            return db;
+        } catch (RuntimeException | Error failure) {
+            db.close();
+            throw failure;
         }
-        onOpen(db);
-        cached = db;
-        return db;
     }
 
     public synchronized SQLiteDatabase getReadableDatabase() {
@@ -67,14 +101,4 @@ public abstract class SQLiteOpenHelper {
         return name;
     }
 
-    private static long pragmaVersion(SQLiteDatabase db) {
-        try (Cursor c = db.rawQuery("PRAGMA user_version;", null)) {
-            if (c.moveToFirst()) return c.getLong(0);
-        }
-        return 0;
-    }
-
-    private static void setPragmaVersion(SQLiteDatabase db, int version) {
-        db.execSQL("PRAGMA user_version = " + version + ";");
-    }
 }

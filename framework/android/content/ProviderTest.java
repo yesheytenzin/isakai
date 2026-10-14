@@ -223,6 +223,19 @@ public final class ProviderTest {
         }
         check(missing, "missing resource throws");
 
+        ContentProviderOperation insert=ContentProviderOperation.newInsert(TableProvider.BASE)
+                .withValue("name","operation").build();
+        ContentProviderResult inserted=insert.apply(provider,new ContentProviderResult[0],0);
+        check(inserted.uri!=null && inserted.count==null,"operation insert result");
+        ContentProviderOperation deletion=ContentProviderOperation.newDelete(TableProvider.BASE)
+                .withSelection("operation",null).withExpectedCount(1).build();
+        check(deletion.apply(provider,new ContentProviderResult[0],0).count==1,"operation delete");
+        boolean countMismatch=false;
+        try { deletion.apply(provider,new ContentProviderResult[0],0); }
+        catch(OperationApplicationException expected) { countMismatch=true; }
+        check(countMismatch,"expected count mismatch must fail");
+        android.text.style.TtsSpan span=new android.text.style.TtsSpan.VerbatimBuilder("中文").build();
+        check(span.getArgs().getString(android.text.style.TtsSpan.ARG_VERBATIM).equals("中文"),"verbatim span data");
         ContentProvider.clearRegistryForTesting();
         System.out.println("ProviderTest: all PASS");
     }

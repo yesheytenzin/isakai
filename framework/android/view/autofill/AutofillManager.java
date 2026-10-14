@@ -6,6 +6,10 @@ public final class AutofillManager {
     public AutofillManager() {
     }
 
+    public abstract static class AutofillCallback {
+        public void onAutofillEvent(android.view.View view, int event) {}
+    }
+
     public boolean isEnabled() {
         return false;
     }
@@ -13,6 +17,10 @@ public final class AutofillManager {
     public boolean isAutofillSupported() {
         return false;
     }
+
+    public void registerCallback(AutofillCallback callback) {}
+
+    public void unregisterCallback(AutofillCallback callback) {}
 
     public void cancel() {
     }

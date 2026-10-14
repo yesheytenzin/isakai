@@ -111,4 +111,47 @@ public final class Color {
     private static int hexByte(String s, int off) {
         return (hexNibble(s.charAt(off)) << 4) | hexNibble(s.charAt(off + 1));
     }
+
+    /** AOSP RGB-to-HSV: hsv[0]=hue 0..360, hsv[1]=sat 0..1, hsv[2]=value 0..1. */
+    public static void colorToHSV(int color, float[] hsv) {
+        RGBToHSV(red(color), green(color), blue(color), hsv);
+    }
+
+    /** AOSP RGB-to-HSV component form. */
+    public static void RGBToHSV(int red, int green, int blue, float[] hsv) {
+        float r = red / 255f, g = green / 255f, b = blue / 255f;
+        float max = Math.max(r, Math.max(g, b)), min = Math.min(r, Math.min(g, b));
+        float delta = max - min;
+        float h = 0;
+        if (delta != 0) {
+            if (max == r) h = 60 * (((g - b) / delta) % 6);
+            else if (max == g) h = 60 * (((b - r) / delta) + 2);
+            else h = 60 * (((r - g) / delta) + 4);
+            if (h < 0) h += 360;
+        }
+        hsv[0] = h;
+        hsv[1] = max == 0 ? 0 : delta / max;
+        hsv[2] = max;
+    }
+
+    /** AOSP HSV-to-color with opaque alpha. */
+    public static int HSVToColor(float[] hsv) {
+        return HSVToColor(0xFF, hsv);
+    }
+
+    /** AOSP HSV-to-color with explicit alpha. */
+    public static int HSVToColor(int alpha, float[] hsv) {
+        float h = ((hsv[0] % 360) + 360) % 360, s = hsv[1], v = hsv[2];
+        float c = v * s;
+        float x = c * (1 - Math.abs(((h / 60) % 2) - 1));
+        float m = v - c;
+        float r = 0, g = 0, b = 0;
+        if (h < 60) { r = c; g = x; }
+        else if (h < 120) { r = x; g = c; }
+        else if (h < 180) { g = c; b = x; }
+        else if (h < 240) { g = x; b = c; }
+        else if (h < 300) { r = x; b = c; }
+        else { r = c; b = x; }
+        return argb(alpha, Math.round((r + m) * 255), Math.round((g + m) * 255), Math.round((b + m) * 255));
+    }
 }

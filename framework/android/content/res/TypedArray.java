@@ -157,6 +157,13 @@ public class TypedArray {
         return defValue;
     }
 
+    public int getInteger(int index,int defValue) {
+        TypedValue value=resolved(index);
+        if(value==null)return defValue;
+        if(value.type>=TypedValue.TYPE_FIRST_INT && value.type<=TypedValue.TYPE_LAST_INT)return value.data;
+        throw new UnsupportedOperationException("Attribute is not an integer");
+    }
+
     public float getFloat(int index, float defValue) {
         TypedValue v = resolved(index);
         if (v == null) return defValue;
@@ -184,6 +191,15 @@ public class TypedArray {
             }
         }
         return defValue;
+    }
+
+    public android.graphics.drawable.Drawable getDrawable(int index) {
+        TypedValue value=resolved(index);
+        if(value==null)return null;
+        if(value.type>=TypedValue.TYPE_FIRST_COLOR_INT && value.type<=TypedValue.TYPE_LAST_COLOR_INT)
+            return new android.graphics.drawable.ColorDrawable(value.data);
+        if(value.resourceId!=0 && resources!=null)return resources.getDrawable(value.resourceId);
+        throw new UnsupportedOperationException("Drawable attribute is not a color or resource reference");
     }
 
     public ColorStateList getColorStateList(int index) {
@@ -220,6 +236,16 @@ public class TypedArray {
         return defValue;
     }
 
+    public int getLayoutDimension(int index, int defValue) {
+        TypedValue v = resolved(index);
+        if (v == null) return defValue;
+        if (v.type >= 16 && v.type <= 31) return v.data;
+        return getDimensionPixelSize(index, defValue);
+    }
+    public int getLayoutDimension(int index, String name) {
+        if (!hasValue(index)) throw new IllegalArgumentException("Missing layout dimension " + name);
+        return getLayoutDimension(index, 0);
+    }
     public int getDimensionPixelSize(int index, int defValue) {
         TypedValue v = resolved(index);
         if (v == null || resources == null) return defValue;

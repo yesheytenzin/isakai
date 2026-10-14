@@ -17,6 +17,7 @@ public class ImageView extends View {
     }
 
     private Drawable drawable;
+    private android.graphics.ColorFilter colorFilter;
     private ScaleType scaleType = ScaleType.FIT_CENTER;
     private final Matrix matrix = new Matrix();
     private boolean adjustViewBounds;
@@ -38,8 +39,21 @@ public class ImageView extends View {
 
     public void setImageDrawable(Drawable drawable) {
         this.drawable = drawable;
+        if(drawable!=null) drawable.setColorFilter(colorFilter);
         invalidate();
     }
+
+    public void setColorFilter(int color, android.graphics.PorterDuff.Mode mode) {
+        setColorFilter(new android.graphics.PorterDuffColorFilter(color,mode));
+    }
+    public void setColorFilter(int color) { setColorFilter(color,android.graphics.PorterDuff.Mode.SRC_ATOP); }
+    public void setColorFilter(android.graphics.ColorFilter filter) {
+        colorFilter=filter;
+        if(drawable!=null)drawable.setColorFilter(filter);
+        invalidate();
+    }
+    public android.graphics.ColorFilter getColorFilter() { return colorFilter; }
+    public void clearColorFilter() { setColorFilter((android.graphics.ColorFilter)null); }
 
     public Drawable getDrawable() {
         return drawable;
@@ -50,7 +64,7 @@ public class ImageView extends View {
     }
 
     public void setImageResource(int resId) {
-        setImageDrawable(new android.graphics.drawable.ColorDrawable(0));
+        setImageDrawable(resId==0?null:getResources().getDrawable(resId));
     }
 
     public void setImageURI(Uri uri) {
@@ -92,10 +106,37 @@ public class ImageView extends View {
     public android.graphics.PorterDuff.Mode getImageTintMode() { return null; }
 
     @Override
+    protected void onMeasure(int widthSpec, int heightSpec) {
+        // AOSP ImageView.onMeasure: no drawable means intrinsic size 0; desired
+        // size is intrinsic + padding, resolved against the specs. The default
+        // View.onMeasure would fill AT_MOST bounds with 0 content.
+        int w, h;
+        if (drawable == null) {
+            w = h = 0;
+        } else {
+            w = drawable.getIntrinsicWidth();
+            h = drawable.getIntrinsicHeight();
+            if (w <= 0) w = 1;
+            if (h <= 0) h = 1;
+        }
+        w = Math.max(w + getPaddingLeft() + getPaddingRight(), getSuggestedMinimumWidth());
+        h = Math.max(h + getPaddingTop() + getPaddingBottom(), getSuggestedMinimumHeight());
+        setMeasuredDimension(resolveSize(w, widthSpec), resolveSize(h, heightSpec));
+    }
+
+    @Override
     protected void onDraw(Canvas canvas) {
         super.onDraw(canvas);
         if (drawable == null || canvas == null) return;
         drawable.setBounds(getLeft(), getTop(), getRight(), getBottom());
+        drawable.draw(canvas);
+    }
+
+    @Override
+    protected void onDrawAt(Canvas canvas, int offsetX, int offsetY) {
+        super.onDraw(canvas);
+        if (drawable == null || canvas == null) return;
+        drawable.setBounds(offsetX, offsetY, offsetX + getWidth(), offsetY + getHeight());
         drawable.draw(canvas);
     }
 }

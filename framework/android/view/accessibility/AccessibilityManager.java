@@ -3,10 +3,13 @@ package android.view.accessibility;
 
 /** Accessibility service registry: disabled, empty lists. */
 public class AccessibilityManager {
+    public interface AccessibilityStateChangeListener {
+        void onAccessibilityStateChanged(boolean enabled);
+    }
+
     public interface TouchExplorationStateChangeListener {
         void onTouchExplorationStateChanged(boolean enabled);
     }
-
     public boolean isEnabled() { return false; }
     public boolean isTouchExplorationEnabled() { return false; }
 
@@ -19,6 +22,14 @@ public class AccessibilityManager {
     }
 
     public boolean removeTouchExplorationStateChangeListener(TouchExplorationStateChangeListener listener) {
+        return false;
+    }
+
+    public boolean addAccessibilityStateChangeListener(AccessibilityStateChangeListener listener) {
+        return false;
+    }
+
+    public boolean removeAccessibilityStateChangeListener(AccessibilityStateChangeListener listener) {
         return false;
     }
 }

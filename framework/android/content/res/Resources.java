@@ -99,6 +99,10 @@ public class Resources {
     }
 
     private Table.Entry resolve(int id) {
+        Integer systemColor=SystemColors.color(id);
+        if(systemColor!=null) {
+            Table.Entry entry=new Table.Entry();entry.dataType=TypedValue.TYPE_INT_COLOR_ARGB8;entry.data=systemColor;return entry;
+        }
         if (table == null) throw missing(id);
         Table.Entry e = table.lookup(id);
         if (e == null) throw missing(id);
@@ -168,13 +172,16 @@ public class Resources {
         return v.getFraction(base, pbase);
     }
 
+    public int getColor(int id,Theme theme) { return getColor(id); }
+    public ColorStateList getColorStateList(int id,Theme theme) { return getColorStateList(id); }
+    public Drawable getDrawable(int id,Theme theme) { return getDrawable(id); }
+
     public int getColor(int id) {
         Table.Entry e = resolveType(id, TypedValue.TYPE_FIRST_COLOR_INT, TypedValue.TYPE_LAST_COLOR_INT);
         return e.data;
     }
 
     public ColorStateList getColorStateList(int id) {
-        if (table == null) throw missing(id);
         // A color int backs a single-color list; otherwise the entry names a
         // staged XML file (res/*.xml) parsed as a <selector>.
         Table.Entry e = resolve(id);
@@ -196,7 +203,6 @@ public class Resources {
     }
 
     public Drawable getDrawable(int id) {
-        if (table == null) throw missing(id);
         Table.Entry e = resolve(id);
         if (e.dataType >= TypedValue.TYPE_FIRST_COLOR_INT && e.dataType <= TypedValue.TYPE_LAST_COLOR_INT) {
             return new android.graphics.drawable.ColorDrawable(e.data);
@@ -431,6 +437,13 @@ public class Resources {
                             value = str.apply(val);
                         } else if (typ == 1) {
                             value = "@0x" + Integer.toHexString(val);
+                        } else if (typ == 2) {
+                            // ?attr reference: keep the attr alive so styled
+                            // lookup resolves it through the theme. The
+                            // synthetic resid/typ/val record below carries
+                            // the real type/data; the text value is only a
+                            // human-readable placeholder.
+                            value = "?0x" + Integer.toHexString(val);
                         } else if (typ >= 0x10 && typ <= 0x12) {
                             value = Integer.toString(val);
                         } else if (typ == 4) {
@@ -665,8 +678,8 @@ public class Resources {
         @Override
         public String getName() {
             Elem e = at();
-            if (e == null || e.name.startsWith("/") || "#text".equals(e.name)) return null;
-            return e.name;
+            if (event==END_DOCUMENT || event==START_DOCUMENT || e==null || "#text".equals(e.name)) return null;
+            return e.name.startsWith("/") ? e.name.substring(1) : e.name;
         }
 
         @Override
@@ -1365,6 +1378,10 @@ public class Resources {
         }
 
         Entry lookupDepth(int id, int depth) {
+            Integer systemColor=SystemColors.color(id);
+            if(systemColor!=null) {
+                Entry entry=new Entry();entry.dataType=TypedValue.TYPE_INT_COLOR_ARGB8;entry.data=systemColor;return entry;
+            }
             if (depth > 8) return null;
             int pkgId = (id >>> 24) & 0xFF;
             int typeId = (id >>> 16) & 0xFF;

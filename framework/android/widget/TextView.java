@@ -11,14 +11,38 @@ import android.view.View;
 /**
  * Minimal TextView: text drawn over the view background at view-relative
  * (4,4) padding, word-wrapped to the view width. Wrapping is greedy per
- * word at the BitmapFont cell width; a word wider than the line still
+ * word using host font advances; a word wider than the line still
  * advances to the next line and overflows.
  */
 public class TextView extends View {
+    public interface OnEditorActionListener {
+        boolean onEditorAction(TextView view, int actionId, KeyEvent event);
+    }
+    private OnEditorActionListener editorActionListener;
+    public void setOnEditorActionListener(OnEditorActionListener listener) { editorActionListener=listener; }
+    public void onEditorAction(int actionCode) { dispatchEditorAction(actionCode,null); }
+    protected final boolean dispatchEditorAction(int actionCode,KeyEvent event) {
+        return editorActionListener!=null && editorActionListener.onEditorAction(this,actionCode,event);
+    }
+    private android.text.method.KeyListener keyListener;
+    public android.text.method.KeyListener getKeyListener(){return keyListener;}
+    public void setKeyListener(android.text.method.KeyListener listener){keyListener=listener;}
+    private android.text.method.TransformationMethod transformationMethod;
+    public void setTransformationMethod(android.text.method.TransformationMethod method) {
+        transformationMethod=method;requestLayout();invalidate();
+    }
+    public android.text.method.TransformationMethod getTransformationMethod() { return transformationMethod; }
+    protected android.text.Editable.Factory editableFactory=android.text.Editable.Factory.getInstance();
+    public void setEditableFactory(android.text.Editable.Factory factory) {
+        if(factory==null)throw new NullPointerException("factory");
+        editableFactory=factory;
+    }
     private CharSequence text = "";
     private int textColor = Color.BLACK;
-    private int textSize = 14;
-
+    private float textSize = 14;
+    private int minWidth, minHeight, minLines;
+    private int maxWidth = Integer.MAX_VALUE, maxHeight = Integer.MAX_VALUE, maxLines = Integer.MAX_VALUE;
+    private android.graphics.drawable.Drawable compoundLeft, compoundTop, compoundRight, compoundBottom;
     public TextView() {
         super();
     }
@@ -36,7 +60,8 @@ public class TextView extends View {
     }
 
     public void setTextSize(int unit, float size) {
-        setTextSize((int) size);
+        textSize=android.util.TypedValue.applyDimension(unit,size,getResources().getDisplayMetrics());
+        requestLayout();invalidate();
     }
 
     public void setTextColor(android.content.res.ColorStateList colors) {
@@ -57,13 +82,13 @@ public class TextView extends View {
     public void setSingleLine(boolean singleLine) {}
     public void setSingleLine() { setSingleLine(true); }
     public void setLines(int lines) {}
-    public void setMaxLines(int maxLines) {}
-    public int getMaxLines() { return Integer.MAX_VALUE; }
-    public void setMinLines(int minLines) {}
-    public void setMinWidth(int minPixels) {}
-    public void setMaxWidth(int maxPixels) {}
-    public void setMinHeight(int minPixels) {}
-    public void setMaxHeight(int maxPixels) {}
+    public void setMaxLines(int value) { maxLines = Math.max(0,value); requestLayout(); }
+    public int getMaxLines() { return maxLines; }
+    public void setMinLines(int value) { minLines = Math.max(0,value); requestLayout(); }
+    public void setMinWidth(int value) { minWidth = Math.max(0,value); requestLayout(); }
+    public void setMaxWidth(int value) { maxWidth = Math.max(0,value); requestLayout(); }
+    public void setMinHeight(int value) { minHeight = Math.max(0,value); requestLayout(); }
+    public void setMaxHeight(int value) { maxHeight = Math.max(0,value); requestLayout(); }
     public void setMinEms(int minEms) {}
     public void setMaxEms(int maxEms) {}
     public void setEms(int ems) {}
@@ -76,18 +101,30 @@ public class TextView extends View {
     public void setIncludeFontPadding(boolean include) {}
     public void setCompoundDrawables(android.graphics.drawable.Drawable l,
             android.graphics.drawable.Drawable t, android.graphics.drawable.Drawable r,
-            android.graphics.drawable.Drawable b) {}
+            android.graphics.drawable.Drawable b) {
+        compoundLeft = l; compoundTop = t; compoundRight = r; compoundBottom = b;
+        requestLayout(); invalidate();
+    }
     public void setCompoundDrawablesWithIntrinsicBounds(int l, int t, int r, int b) {}
     public void setCompoundDrawablesWithIntrinsicBounds(android.graphics.drawable.Drawable l,
             android.graphics.drawable.Drawable t, android.graphics.drawable.Drawable r,
-            android.graphics.drawable.Drawable b) {}
+            android.graphics.drawable.Drawable b) {
+        setCompoundDrawables(l, t, r, b);
+    }
     public void setCompoundDrawablesRelative(android.graphics.drawable.Drawable s,
             android.graphics.drawable.Drawable t, android.graphics.drawable.Drawable e,
-            android.graphics.drawable.Drawable b) {}
+            android.graphics.drawable.Drawable b) {
+        setCompoundDrawables(s, t, e, b);
+    }
     public void setCompoundDrawablesRelativeWithIntrinsicBounds(int s, int t, int e, int b) {}
     public void setCompoundDrawablesRelativeWithIntrinsicBounds(android.graphics.drawable.Drawable s,
             android.graphics.drawable.Drawable t, android.graphics.drawable.Drawable e,
-            android.graphics.drawable.Drawable b) {}
+            android.graphics.drawable.Drawable b) {
+        setCompoundDrawables(s, t, e, b);
+    }
+    public android.graphics.drawable.Drawable[] getCompoundDrawables() {
+        return new android.graphics.drawable.Drawable[]{compoundLeft, compoundTop, compoundRight, compoundBottom};
+    }
     public void setFilters(android.text.InputFilter[] filters) {}
     public android.text.InputFilter[] getFilters() { return new android.text.InputFilter[0]; }
     public void setInputType(int type) {}
@@ -106,7 +143,7 @@ public class TextView extends View {
     public void setHint(CharSequence hint) {}
     public CharSequence getHint() { return ""; }
     public void setHint(int resId) {}
-    public void setText(int resId) {}
+    public void setText(int resId) { setText(getResources().getText(resId)); }
     public final void append(CharSequence text) {
         setText(textString() + (text == null ? "" : text.toString()));
     }
@@ -158,9 +195,11 @@ public class TextView extends View {
         for (android.text.TextWatcher w : watchers) {
             w.onTextChanged(next, 0, old.length(), next.length());
         }
-        android.text.Editable editable = new android.text.Editable(next.toString());
-        for (android.text.TextWatcher w : watchers) {
-            w.afterTextChanged(editable);
+        if (!watchers.isEmpty()) {
+            CharSequence current = getText();
+            android.text.Editable editable = current instanceof android.text.Editable
+                    ? (android.text.Editable) current : editableFactory.newEditable(next);
+            for (android.text.TextWatcher w : watchers) w.afterTextChanged(editable);
         }
         invalidate();
     }
@@ -178,37 +217,139 @@ public class TextView extends View {
         this.textColor = color;
     }
 
+    public android.content.res.ColorStateList getTextColors() { return android.content.res.ColorStateList.valueOf(textColor); }
+    public int getCurrentTextColor() { return textColor; }
     public int getTextColor() {
         return textColor;
     }
 
-    public void setTextSize(int size) {
-        this.textSize = size;
-    }
-
-    public int getTextSize() {
-        return textSize;
-    }
+    public void setTextSize(int size) { setTextSize((float)size); }
+    public void setTextSize(float size) { setTextSize(2,size); }
+    public float getTextSize() { return textSize; }
+    protected int getTextPixelSize() { return Math.max(1,Math.round(textSize)); }
 
     private String textString() {
-        return text != null ? text.toString() : "";
+        CharSequence display=text;
+        if(transformationMethod!=null)display=transformationMethod.getTransformation(text,this);
+        return display != null ? display.toString() : "";
     }
 
     @Override
+    protected void onMeasure(int widthSpec,int heightSpec) {
+        String text=textString();
+        int desiredWidth=8;
+        for(String line:text.split("\n",-1))desiredWidth=Math.max(desiredWidth,Canvas.measureText(line,getTextPixelSize())+8);
+        int lines=Math.max(1,text.split("\n",-1).length);
+        int desiredHeight=lines*BitmapFont.lineStep(getTextPixelSize())+8;
+        // Compound drawables (toolbar/menu icons) contribute their bounds.
+        int compoundW = compoundWidth();
+        int compoundH = compoundHeight();
+        if (compoundW > 0) desiredWidth = Math.max(desiredWidth, compoundW + 8);
+        if (compoundH > 0) desiredHeight = Math.max(desiredHeight, compoundH + 8);
+        desiredWidth = Math.min(maxWidth,Math.max(minWidth,desiredWidth));
+        desiredHeight = Math.min(maxHeight,Math.max(minHeight,Math.max(minLines,Math.min(lines,maxLines))*BitmapFont.lineStep(getTextPixelSize())+8));
+        setMeasuredDimension(resolveSize(desiredWidth,widthSpec),resolveSize(desiredHeight,heightSpec));
+    }
+
+    private int compoundWidth() {
+        int w = 0;
+        if (compoundLeft != null) w += compoundBoundsWidth(compoundLeft);
+        if (compoundRight != null) w += compoundBoundsWidth(compoundRight);
+        if (compoundTop != null) w = Math.max(w, compoundBoundsWidth(compoundTop));
+        if (compoundBottom != null) w = Math.max(w, compoundBoundsWidth(compoundBottom));
+        return w;
+    }
+
+    private int compoundHeight() {
+        int h = 0;
+        if (compoundTop != null) h += compoundBoundsHeight(compoundTop);
+        if (compoundBottom != null) h += compoundBoundsHeight(compoundBottom);
+        if (compoundLeft != null) h = Math.max(h, compoundBoundsHeight(compoundLeft));
+        if (compoundRight != null) h = Math.max(h, compoundBoundsHeight(compoundRight));
+        return h;
+    }
+
+    private static int compoundBoundsWidth(android.graphics.drawable.Drawable d) {
+        android.graphics.Rect b = d.getBounds();
+        int w = b == null ? 0 : b.width();
+        return w > 0 ? w : Math.max(0, d.getIntrinsicWidth());
+    }
+
+    private static int compoundBoundsHeight(android.graphics.drawable.Drawable d) {
+        android.graphics.Rect b = d.getBounds();
+        int h = b == null ? 0 : b.height();
+        return h > 0 ? h : Math.max(0, d.getIntrinsicHeight());
+    }
+    @Override
     protected void onDraw(Canvas canvas) {
         super.onDraw(canvas);
-        drawTextAt(canvas, textString(), 4, 4, textSize, textColor);
+        drawCompounds(canvas, getLeft(), getTop());
+        drawTextAt(canvas, textString(), 4, 4, getTextPixelSize(), textColor);
+    }
+
+    @Override
+    protected void onDrawAt(Canvas canvas, int offsetX, int offsetY) {
+        super.onDraw(canvas);
+        drawCompounds(canvas, offsetX, offsetY);
+        drawTextAtOffset(canvas, textString(), 4, 4, getTextPixelSize(), textColor, offsetX, offsetY);
+    }
+
+    /** Left compound icon at the view origin; others stacked by bounds. */
+    private void drawCompounds(Canvas canvas, int originX, int originY) {
+        if (compoundLeft != null) {
+            android.graphics.Rect b = compoundLeft.getBounds();
+            int w = b == null ? 0 : b.width();
+            int h = b == null ? 0 : b.height();
+            if (w <= 0) w = Math.max(0, compoundLeft.getIntrinsicWidth());
+            if (h <= 0) h = Math.max(0, compoundLeft.getIntrinsicHeight());
+            compoundLeft.setBounds(originX + 4, originY + 4, originX + 4 + w, originY + 4 + h);
+            compoundLeft.draw(canvas);
+        }
+        if (compoundTop != null) {
+            android.graphics.Rect b = compoundTop.getBounds();
+            int w = b == null ? 0 : b.width();
+            int h = b == null ? 0 : b.height();
+            if (w <= 0) w = Math.max(0, compoundTop.getIntrinsicWidth());
+            if (h <= 0) h = Math.max(0, compoundTop.getIntrinsicHeight());
+            compoundTop.setBounds(originX + 4, originY + 4, originX + 4 + w, originY + 4 + h);
+            compoundTop.draw(canvas);
+        }
+        if (compoundRight != null) {
+            android.graphics.Rect b = compoundRight.getBounds();
+            int w = b == null ? 0 : b.width();
+            int h = b == null ? 0 : b.height();
+            if (w <= 0) w = Math.max(0, compoundRight.getIntrinsicWidth());
+            if (h <= 0) h = Math.max(0, compoundRight.getIntrinsicHeight());
+            compoundRight.setBounds(originX + getWidth() - 4 - w, originY + 4,
+                    originX + getWidth() - 4, originY + 4 + h);
+            compoundRight.draw(canvas);
+        }
+        if (compoundBottom != null) {
+            android.graphics.Rect b = compoundBottom.getBounds();
+            int w = b == null ? 0 : b.width();
+            int h = b == null ? 0 : b.height();
+            if (w <= 0) w = Math.max(0, compoundBottom.getIntrinsicWidth());
+            if (h <= 0) h = Math.max(0, compoundBottom.getIntrinsicHeight());
+            compoundBottom.setBounds(originX + 4, originY + getHeight() - 4 - h,
+                    originX + 4 + w, originY + getHeight() - 4);
+            compoundBottom.draw(canvas);
+        }
     }
 
     /** Shared text renderer used by subclasses (cursor, labels). */
     protected final void drawTextAt(Canvas canvas, String s, int dx, int dy, int size, int color) {
+        drawTextAtOffset(canvas, s, dx, dy, size, color, getLeft(), getTop());
+    }
+
+    /** Offset text renderer: origin is the view's root position. */
+    protected final void drawTextAtOffset(Canvas canvas, String s, int dx, int dy, int size, int color,
+            int originX, int originY) {
         if (s == null || s.isEmpty()) return;
-        int cell = BitmapFont.cellWidth(size);
+        int cell = Canvas.measureText(" ",size);
         int lineStep = BitmapFont.lineStep(size);
-        int x0 = getLeft() + dx;
-        int y0 = getTop() + dy;
-        int maxX = getRight() - 4;
-        if (maxX <= x0) maxX = x0 + cell;
+        int x0 = originX + dx;
+        int y0 = originY + dy;
+        int maxX = originX + getWidth() - 4;
         int cx = x0;
         int cy = y0;
         String[] words = s.split(" ", -1);
@@ -223,7 +364,7 @@ public class TextView extends View {
                 }
                 String part = parts[pi];
                 if (!part.isEmpty()) {
-                    int w = part.length() * cell;
+                    int w = Canvas.measureText(part,size);
                     if (cx + w > maxX && cx > x0) {
                         cx = x0;
                         cy += lineStep;
@@ -245,6 +386,6 @@ public class TextView extends View {
 
     /** Cell step used by subclasses for cursor/scroll math. */
     protected final int cellStep() {
-        return BitmapFont.cellWidth(textSize);
+        return BitmapFont.cellWidth(getTextPixelSize());
     }
 }

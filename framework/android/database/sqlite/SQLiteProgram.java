@@ -2,7 +2,7 @@
 package android.database.sqlite;
 
 /** Compiled-statement bind shell. */
-public abstract class SQLiteProgram implements AutoCloseable {
+public abstract class SQLiteProgram extends SQLiteClosable {
     protected SQLiteProgram() { }
     public void bindNull(int index) { }
     public void bindLong(int index, long value) { }
@@ -10,5 +10,8 @@ public abstract class SQLiteProgram implements AutoCloseable {
     public void bindString(int index, String value) { }
     public void bindBlob(int index, byte[] value) { }
     public void clearBindings() { }
-    @Override public void close() { }
+    public void bindAllArgsAsStrings(String[] args) {
+        if(args!=null)for(int i=args.length;i>0;i--)bindString(i,args[i-1]);
+    }
+    @Override protected void onAllReferencesReleased() { }
 }

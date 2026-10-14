@@ -41,6 +41,20 @@ public class Application extends Context {
     }
 
     public interface ActivityLifecycleCallbacks {
+        default void onActivityPreCreated(Activity activity, android.os.Bundle state) {}
+        default void onActivityPostCreated(Activity activity, android.os.Bundle state) {}
+        default void onActivityPreStarted(Activity activity) {}
+        default void onActivityPostStarted(Activity activity) {}
+        default void onActivityPreResumed(Activity activity) {}
+        default void onActivityPostResumed(Activity activity) {}
+        default void onActivityPrePaused(Activity activity) {}
+        default void onActivityPostPaused(Activity activity) {}
+        default void onActivityPreStopped(Activity activity) {}
+        default void onActivityPostStopped(Activity activity) {}
+        default void onActivityPreSaveInstanceState(Activity activity, android.os.Bundle state) {}
+        default void onActivityPostSaveInstanceState(Activity activity, android.os.Bundle state) {}
+        default void onActivityPreDestroyed(Activity activity) {}
+        default void onActivityPostDestroyed(Activity activity) {}
         void onActivityCreated(Activity activity, android.os.Bundle savedInstanceState);
         void onActivityStarted(Activity activity);
         void onActivityResumed(Activity activity);
@@ -50,8 +64,9 @@ public class Application extends Context {
         void onActivityDestroyed(Activity activity);
     }
 
-    private final java.util.ArrayList<ActivityLifecycleCallbacks> lifecycleCallbacks =
-            new java.util.ArrayList<>();
+    private final java.util.concurrent.CopyOnWriteArrayList<ActivityLifecycleCallbacks> lifecycleCallbacks =
+            new java.util.concurrent.CopyOnWriteArrayList<>();
+    ActivityLifecycleCallbacks[] lifecycleCallbacksSnapshot() { return lifecycleCallbacks.toArray(new ActivityLifecycleCallbacks[0]); }
 
     public void registerActivityLifecycleCallbacks(ActivityLifecycleCallbacks callback) {
         if (callback != null && !lifecycleCallbacks.contains(callback)) lifecycleCallbacks.add(callback);

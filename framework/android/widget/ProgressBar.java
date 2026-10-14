@@ -46,4 +46,12 @@ public class ProgressBar extends View {
         int w = getWidth() * progress / max;
         canvas.fillRect(getLeft(), getTop(), getLeft() + w, getBottom(), 0xFF33B5E5);
     }
+
+    @Override
+    protected void onDrawAt(Canvas canvas, int offsetX, int offsetY) {
+        super.onDraw(canvas);
+        if (canvas == null || max <= 0) return;
+        int w = getWidth() * progress / max;
+        canvas.fillRect(offsetX, offsetY, offsetX + w, offsetY + getHeight(), 0xFF33B5E5);
+    }
 }

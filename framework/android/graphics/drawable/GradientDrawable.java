@@ -61,7 +61,7 @@ public class GradientDrawable extends Drawable {
     public void draw(Canvas canvas) {
         if (canvas == null || Color.alpha(color) == 0) return;
         Rect b = getBounds();
-        canvas.fillRect(b.left, b.top, b.right, b.bottom, color);
+        canvas.fillRect(b.left, b.top, b.right, b.bottom, tintedColor(color));
     }
 
     @Override

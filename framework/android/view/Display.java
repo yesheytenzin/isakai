@@ -13,7 +13,11 @@ public class Display {
         return displayId;
     }
 
-    public void getMetrics(android.util.DisplayMetrics outMetrics) {}
+    public void getMetrics(android.util.DisplayMetrics outMetrics) {
+        if (outMetrics == null) return;
+        outMetrics.widthPixels = 0;
+        outMetrics.heightPixels = 0;
+    }
 
     public void getSize(android.graphics.Point outSize) {
         if (outSize != null) {
@@ -24,5 +28,9 @@ public class Display {
 
     public int getRotation() {
         return 0;
+    }
+
+    public float getRefreshRate() {
+        return 60.0f;
     }
 }

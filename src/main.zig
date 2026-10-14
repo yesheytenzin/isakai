@@ -308,21 +308,26 @@ fn cmdUidHelperRun(
     _ = io;
     if (try requireRoot(err_writer)) |code| return code;
     // rest[0]=run rest[1]=package rest[2]=uid rest[3]=data-dir rest[4]=work
-    // [rest[5]=--wayland-sock rest[6]=path] [rest[7]=--framework rest[8]=dir]
-    // rest[N]=-- rest[N+1..]=cmd
+    // [rest[5]=--wayland-sock rest[6]=path] [rest[7]=--bridge-dir rest[8]=dir]
+    // [--framework <dir>] rest[sep]=-- rest[sep+1..]=cmd
     var wayland_sock: ?[]const u8 = null;
+    var bridge_dir: ?[]const u8 = null;
     var framework_dir: ?[]const u8 = null;
     var sep: usize = 5;
     if (rest.len > 6 and std.mem.eql(u8, rest[5], "--wayland-sock")) {
         wayland_sock = rest[6];
         sep = 7;
     }
+    if (rest.len > sep + 1 and std.mem.eql(u8, rest[sep], "--bridge-dir")) {
+        bridge_dir = rest[sep + 1];
+        sep += 2;
+    }
     if (rest.len > sep + 2 and std.mem.eql(u8, rest[sep], "--framework")) {
         framework_dir = rest[sep + 1];
         sep += 2;
     }
     if (rest.len < sep + 2 or !std.mem.eql(u8, rest[sep], "--")) {
-        try err_writer.writeAll("usage: isakai uid-helper run <package> <uid> <data-dir> <work> [--wayland-sock <path>] [--framework <dir>] -- <exe> [args...]\n");
+        try err_writer.writeAll("usage: isakai uid-helper run <package> <uid> <data-dir> <work> [--wayland-sock <path>] [--bridge-dir <dir>] [--framework <dir>] -- <exe> [args...]\n");
         return 2;
     }
     const uid = std.fmt.parseInt(u32, rest[2], 10) catch {
@@ -330,7 +335,7 @@ fn cmdUidHelperRun(
         return 2;
     };
     const confinement_disabled = std.mem.eql(u8, init.environ_map.get("ISAKAI_CONFINEMENT") orelse "", "0");
-    return uid_helper.runAs(rest[1], uid, rest[3], rest[4], rest[sep + 1 ..], wayland_sock, framework_dir, confinement_disabled, err_writer);
+    return uid_helper.runAs(rest[1], uid, rest[3], rest[4], rest[sep + 1 ..], wayland_sock, bridge_dir, framework_dir, confinement_disabled, err_writer);
 }
 
 pub fn main(init: std.process.Init) !u8 {
@@ -379,7 +384,16 @@ pub fn main(init: std.process.Init) !u8 {
         }
     }
 
-    const work_dir = if (work) |w| try arena.dupe(u8, w) else try defaultWork(init.environ_map, arena);
+    // Registry writes rename by absolute path, and the privileged helper
+    // anchors data dirs as <work>/data/<pkg>: a relative --work must be
+    // resolved against the current directory here, once, instead of
+    // panicking later inside the registry.
+    const work_dir = blk: {
+        const raw = if (work) |w| try arena.dupe(u8, w) else try defaultWork(init.environ_map, arena);
+        if (std.fs.path.isAbsolute(raw)) break :blk raw;
+        const cwd = try std.process.currentPathAlloc(io, arena);
+        break :blk try std.fs.path.join(arena, &.{ cwd, raw });
+    };
 
     if (idx >= argv.len) {
         try printHelp(out);

@@ -41,8 +41,9 @@ public class LocationManager {
 
     public boolean isProviderEnabled(String provider) {
         if (provider == null) return false;
-        // GeoClue present → providers enabled; absent → disabled (fail-closed)
-        return IsakaiLocation.hasProvider();
+        // GeoClue present (or the explicit test switch) → providers enabled;
+        // absent → disabled (fail-closed, never a fabricated fix).
+        return IsakaiLocation.providerAvailable();
     }
 
     public boolean hasProvider(String provider) { return ALL_PROVIDERS.contains(provider); }

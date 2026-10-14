@@ -236,10 +236,63 @@ const Op = enum(u8) {
     ushr_int_lit8 = 0xe2,
     _,
 };
+/// JDK interfaces with default methods callable via invoke-super (DEX) /
+/// invokespecial (JVM InterfaceMethodref). External classes have no DEX
+/// def to consult, so well-known collection interfaces are named here.
+fn isJdkInterface(internal: []const u8) bool {
+    const ifaces = [_][]const u8{
+        "java/util/Map",
+        "java/util/List",
+        "java/util/Set",
+        "java/util/Collection",
+        "java/util/Iterator",
+        "java/util/ListIterator",
+        "java/util/concurrent/ConcurrentMap",
+        "java/util/function/Function",
+        "java/util/function/BiFunction",
+        "java/util/function/Consumer",
+        "java/util/function/BiConsumer",
+        "java/util/function/Supplier",
+        "java/util/function/Predicate",
+        "java/lang/Iterable",
+        "java/lang/CharSequence",
+        "java/lang/Comparable",
+        "java/io/Serializable",
+        "java/lang/Cloneable",
+    };
+    for (ifaces) |name| {
+        if (std.mem.eql(u8, internal, name)) return true;
+    }
+    return false;
+}
 
-// Instruction formats by opcode (code units consumed).
+/// Framework helper for an invoke-super to a JDK interface default, or null
+/// when the callee is not a covered default. The helper is static with the
+/// receiver as its first parameter, so already-emitted args fit as-is.
+const SuperHelper = struct { cls: []const u8, name: []const u8, desc: []const u8 };
+fn superInterfaceHelper(d: dex.Dex, method_idx: u16) ?SuperHelper {
+    const gpa = std.heap.page_allocator;
+    const mid = d.methodId(method_idx) catch return null;
+    const cd = d.getTypeDescriptor(gpa, mid.class_idx) catch return null;
+    defer gpa.free(cd);
+    const internal = descriptorToInternal(gpa, cd) catch return null;
+    defer gpa.free(internal);
+    if (!isJdkInterface(internal)) return null;
+    const name = d.getString(gpa, mid.name_idx) catch return null;
+    defer gpa.free(name);
+    // Only covered defaults get helpers; anything else stays a loud error.
+    // Literals: pool uses reference them after this returns (no free).
+    if (std.mem.eql(u8, internal, "java/util/Map") and std.mem.eql(u8, name, "getOrDefault")) {
+        return SuperHelper{
+            .cls = "org/isakai/runtime/InterfaceDefaults",
+            .name = "mapGetOrDefault",
+            .desc = "(Ljava/util/Map;Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;",
+        };
+    }
+    return null;
+}
 fn insnSize(op: u8) TranslateError!usize {
-    return switch (@as(Op, @enumFromInt(op))) {
+    return switch (@as(Op, @fromBackingInt(@intCast(op)))) {
         .nop, .move, .move_wide, .move_object, .move_result, .move_result_wide, .move_result_object, .move_exception, .return_void, .return_, .return_wide, .return_object, .const4, .monitor_enter, .monitor_exit, .throw_, .goto_, .array_length, .neg_int, .not_int, .neg_long, .not_long, .neg_float, .neg_double, .int_to_long, .int_to_float, .int_to_double, .long_to_int, .long_to_float, .long_to_double, .float_to_int, .float_to_long, .float_to_double, .double_to_int, .double_to_long, .double_to_float, .int_to_byte, .int_to_char, .int_to_short, .add_int_2addr, .sub_int_2addr, .mul_int_2addr, .div_int_2addr, .rem_int_2addr, .and_int_2addr, .or_int_2addr, .xor_int_2addr, .shl_int_2addr, .shr_int_2addr, .ushr_int_2addr, .add_long_2addr, .sub_long_2addr, .mul_long_2addr, .div_long_2addr, .rem_long_2addr, .and_long_2addr, .or_long_2addr, .xor_long_2addr, .shl_long_2addr, .shr_long_2addr, .ushr_long_2addr, .add_float_2addr, .sub_float_2addr, .mul_float_2addr, .div_float_2addr, .rem_float_2addr, .add_double_2addr, .sub_double_2addr, .mul_double_2addr, .div_double_2addr, .rem_double_2addr => 1,
         .if_eq, .if_ne, .if_lt, .if_ge, .if_gt, .if_le, .if_eqz, .if_nez, .if_ltz, .if_gez, .if_gtz, .if_lez, .add_int_lit16, .sub_int_lit16, .mul_int_lit16, .div_int_lit16, .rem_int_lit16, .and_int_lit16, .or_int_lit16, .xor_int_lit16, .add_int_lit8, .sub_int_lit8, .mul_int_lit8, .div_int_lit8, .rem_int_lit8, .and_int_lit8, .or_int_lit8, .xor_int_lit8, .shl_int_lit8, .shr_int_lit8, .ushr_int_lit8 => 2,
         .cmpl_float, .cmpg_float, .cmpl_double, .cmpg_double, .cmp_long, .aget, .aget_wide, .aget_object, .aget_boolean, .aget_byte, .aget_char, .aget_short, .aput, .aput_wide, .aput_object, .aput_boolean, .aput_byte, .aput_char, .aput_short, .move_from16, .move_wide_from16, .move_object_from16, .add_int, .sub_int, .mul_int, .div_int, .rem_int, .and_int, .or_int, .xor_int, .shl_int, .shr_int, .ushr_int, .add_long, .sub_long, .mul_long, .div_long, .rem_long, .and_long, .or_long, .xor_long, .shl_long, .shr_long, .ushr_long, .add_float, .sub_float, .mul_float, .div_float, .rem_float, .add_double, .sub_double, .mul_double, .div_double, .rem_double => 2,
@@ -554,7 +607,6 @@ fn storeTracked(
     }
 }
 
-
 /// Kind delivered by a storing opcode's destination: int-ish (int
 /// bits, floats-as-bits, wide producers) or ref.
 const StoreKind = enum { int, ref };
@@ -588,25 +640,119 @@ fn storeDestKind(opcode: Op, unit0: u16, unit1: u16, unit2: u16) ?struct { dst: 
         .iget, .iget_boolean, .iget_byte, .iget_char, .iget_short, .iget_wide => .{ .dst = regA(unit0), .kind = .int },
         .sget_object => .{ .dst = reg8(unit0), .kind = .ref },
         .sget, .sget_boolean, .sget_byte, .sget_char, .sget_short, .sget_wide => .{ .dst = reg8(unit0), .kind = .int },
-        .neg_int, .not_int, .long_to_int, .float_to_int, .double_to_int, .int_to_byte, .int_to_char, .int_to_short,
-        .add_int_2addr, .sub_int_2addr, .mul_int_2addr, .div_int_2addr, .rem_int_2addr, .and_int_2addr, .or_int_2addr, .xor_int_2addr, .shl_int_2addr, .shr_int_2addr, .ushr_int_2addr,
-        .add_int_lit16, .sub_int_lit16, .mul_int_lit16, .div_int_lit16, .rem_int_lit16, .and_int_lit16, .or_int_lit16, .xor_int_lit16,
-        .add_int_lit8, .sub_int_lit8, .mul_int_lit8, .div_int_lit8, .rem_int_lit8, .and_int_lit8, .or_int_lit8, .xor_int_lit8, .shl_int_lit8, .shr_int_lit8, .ushr_int_lit8,
+        .neg_int,
+        .not_int,
+        .long_to_int,
+        .float_to_int,
+        .double_to_int,
+        .int_to_byte,
+        .int_to_char,
+        .int_to_short,
+        .add_int_2addr,
+        .sub_int_2addr,
+        .mul_int_2addr,
+        .div_int_2addr,
+        .rem_int_2addr,
+        .and_int_2addr,
+        .or_int_2addr,
+        .xor_int_2addr,
+        .shl_int_2addr,
+        .shr_int_2addr,
+        .ushr_int_2addr,
+        .add_int_lit16,
+        .sub_int_lit16,
+        .mul_int_lit16,
+        .div_int_lit16,
+        .rem_int_lit16,
+        .and_int_lit16,
+        .or_int_lit16,
+        .xor_int_lit16,
+        .add_int_lit8,
+        .sub_int_lit8,
+        .mul_int_lit8,
+        .div_int_lit8,
+        .rem_int_lit8,
+        .and_int_lit8,
+        .or_int_lit8,
+        .xor_int_lit8,
+        .shl_int_lit8,
+        .shr_int_lit8,
+        .ushr_int_lit8,
         => .{ .dst = regA(unit0), .kind = .int },
-        .cmpl_float, .cmpg_float, .cmpl_double, .cmpg_double, .cmp_long,
-        .add_int, .sub_int, .mul_int, .div_int, .rem_int, .and_int, .or_int, .xor_int, .shl_int, .shr_int, .ushr_int,
-        .add_long, .sub_long, .mul_long, .div_long, .rem_long, .and_long, .or_long, .xor_long, .shl_long, .shr_long, .ushr_long,
-        .add_float, .sub_float, .mul_float, .div_float, .rem_float,
-        .add_double, .sub_double, .mul_double, .div_double, .rem_double,
+        .cmpl_float,
+        .cmpg_float,
+        .cmpl_double,
+        .cmpg_double,
+        .cmp_long,
+        .add_int,
+        .sub_int,
+        .mul_int,
+        .div_int,
+        .rem_int,
+        .and_int,
+        .or_int,
+        .xor_int,
+        .shl_int,
+        .shr_int,
+        .ushr_int,
+        .add_long,
+        .sub_long,
+        .mul_long,
+        .div_long,
+        .rem_long,
+        .and_long,
+        .or_long,
+        .xor_long,
+        .shl_long,
+        .shr_long,
+        .ushr_long,
+        .add_float,
+        .sub_float,
+        .mul_float,
+        .div_float,
+        .rem_float,
+        .add_double,
+        .sub_double,
+        .mul_double,
+        .div_double,
+        .rem_double,
         => .{ .dst = regs23x(unit0, unit1).a, .kind = .int },
-        .neg_long, .not_long, .int_to_long, .float_to_long, .double_to_long,
-        .add_long_2addr, .sub_long_2addr, .mul_long_2addr, .div_long_2addr, .rem_long_2addr, .and_long_2addr, .or_long_2addr, .xor_long_2addr, .shl_long_2addr, .shr_long_2addr, .ushr_long_2addr,
+        .neg_long,
+        .not_long,
+        .int_to_long,
+        .float_to_long,
+        .double_to_long,
+        .add_long_2addr,
+        .sub_long_2addr,
+        .mul_long_2addr,
+        .div_long_2addr,
+        .rem_long_2addr,
+        .and_long_2addr,
+        .or_long_2addr,
+        .xor_long_2addr,
+        .shl_long_2addr,
+        .shr_long_2addr,
+        .ushr_long_2addr,
         => .{ .dst = regA(unit0), .kind = .int },
-        .neg_float, .int_to_float, .long_to_float, .double_to_float,
-        .add_float_2addr, .sub_float_2addr, .mul_float_2addr, .div_float_2addr, .rem_float_2addr,
+        .neg_float,
+        .int_to_float,
+        .long_to_float,
+        .double_to_float,
+        .add_float_2addr,
+        .sub_float_2addr,
+        .mul_float_2addr,
+        .div_float_2addr,
+        .rem_float_2addr,
         => .{ .dst = regA(unit0), .kind = .int },
-        .neg_double, .int_to_double, .long_to_double, .float_to_double,
-        .add_double_2addr, .sub_double_2addr, .mul_double_2addr, .div_double_2addr, .rem_double_2addr,
+        .neg_double,
+        .int_to_double,
+        .long_to_double,
+        .float_to_double,
+        .add_double_2addr,
+        .sub_double_2addr,
+        .mul_double_2addr,
+        .div_double_2addr,
+        .rem_double_2addr,
         => .{ .dst = regA(unit0), .kind = .int },
         else => null,
     };
@@ -631,6 +777,48 @@ fn paramKind(nregs: usize, nins: usize, is_static: bool, param_kinds: []const u8
         if (wide) sri += 1;
     }
     return null;
+}
+
+/// Param-list index of a reg, or null for `this`/non-param regs. Mirrors
+/// paramKind's layout walk (wide halves map to the same index).
+fn paramRegIndex(nregs: usize, nins: usize, is_static: bool,
+    param_kinds: []const u8, rx: u16) ?usize {
+    var sri: usize = nregs -| nins;
+    if (!is_static) {
+        if (rx == sri) return null; // this
+        sri += 1;
+    }
+    for (param_kinds, 0..) |tc, pi| {
+        if (sri >= nregs) break;
+        const wide = tc == 'J' or tc == 'D';
+        if (rx == sri or (wide and rx == sri + 1)) return pi;
+        sri += 1;
+        if (wide) sri += 1;
+    }
+    return null;
+}
+
+/// True when reg holds `this` (directly or via a move chain from it).
+fn receiverIsThis(insns: []const u16, call_pc: usize, rx: u16,
+    nregs: usize, nins: usize, is_static: bool) bool {
+    if (is_static or nins == 0 or nregs < nins) return false;
+    const this_reg: u16 = @intCast(nregs - nins);
+    if (rx == this_reg) return true;
+    return isThisAlias(insns, call_pc, rx, this_reg);
+}
+
+/// True when a param reg's descriptor names the current class (protected
+/// calls through it must keep the subclass type; narrowing to a super
+/// owner breaks verification).
+fn paramIsThisType(gpa: std.mem.Allocator, d: dex.Dex, parameters_off: u32,
+    param_index: usize, this_internal: []const u8) bool {
+    const tids = dex.readTypeList(gpa, d, parameters_off) catch return false;
+    defer if (tids.len > 0) gpa.free(tids);
+    if (param_index >= tids.len) return false;
+    const desc = d.getTypeDescriptor(gpa, tids[param_index]) catch return false;
+    defer gpa.free(desc);
+    if (desc.len < 3 or desc[0] != 'L' or desc[desc.len - 1] != ';') return false;
+    return std.mem.eql(u8, desc[1 .. desc.len - 1], this_internal);
 }
 
 /// True when every backward path from a conflicted read of rx (over the
@@ -680,7 +868,7 @@ fn reachingDefsAllInt(
         top -= 1;
         const pc: usize = stack[top];
         const unit0 = insns[pc];
-        const op: Op = @enumFromInt(@as(u8, @intCast(unit0 & 0xFF)));
+        const op: Op = @fromBackingInt(@intCast(@as(u8, @intCast(unit0 & 0xFF))));
         const w1: u16 = if (pc + 1 < insns.len) insns[pc + 1] else 0;
         const w2: u16 = if (pc + 2 < insns.len) insns[pc + 2] else 0;
         if (storeDestKind(op, unit0, w1, w2)) |st| {
@@ -722,6 +910,157 @@ fn reachingDefsAllInt(
         return false; // uninit: REF (prologue null)
     }
     return true;
+}
+
+/// Array component kind reaching an aget/aput use, or 0 when unknown or
+/// disagreed. Backward DFS like reachingDefsAllInt: linear wide_comp is
+/// clobbered by stores on paths that never reach the read (e.g. a
+/// `new IllegalArgumentException` into the same reg on a throwing branch
+/// before a float[] read). Sources: new-array (descriptor element),
+/// move-object chains (recurse), check-cast to [X, param [X seeding.
+/// move-result/iget/sget/aget-object/new-instance yield unknown (0);
+/// callers fall back to the linear tracker, then int.
+fn reachingArrayComponent(
+    gpa: std.mem.Allocator,
+    d: dex.Dex,
+    insns: []const u16,
+    preds: []const std.ArrayListUnmanaged(u32),
+    nregs: usize,
+    nins: usize,
+    is_static: bool,
+    param_kinds: []const u8,
+    parameters_off: u32,
+    use_pc: usize,
+    rx: u16,
+) u8 {
+    return reachingArrayComponentDepth(gpa, d, insns, preds, nregs, nins,
+        is_static, param_kinds, parameters_off, use_pc, rx, 0);
+}
+
+fn reachingArrayComponentDepth(
+    gpa: std.mem.Allocator,
+    d: dex.Dex,
+    insns: []const u16,
+    preds: []const std.ArrayListUnmanaged(u32),
+    nregs: usize,
+    nins: usize,
+    is_static: bool,
+    param_kinds: []const u8,
+    parameters_off: u32,
+    use_pc: usize,
+    rx: u16,
+    depth: u8,
+) u8 {
+    if (depth > 8) return 0;
+    if (use_pc >= preds.len or rx >= nregs) return 0;
+    const visited = gpa.alloc(bool, insns.len) catch return 0;
+    defer gpa.free(visited);
+    @memset(visited, false);
+    const stack = gpa.alloc(u32, insns.len) catch return 0;
+    defer gpa.free(stack);
+    var top: usize = 0;
+    for (preds[use_pc].items) |p| {
+        if (p < insns.len and !visited[p]) {
+            visited[p] = true;
+            stack[top] = p;
+            top += 1;
+        }
+    }
+    var found: u8 = 0;
+    var saw_unknown = false;
+    while (top > 0) {
+        top -= 1;
+        const pc: usize = stack[top];
+        const unit0 = insns[pc];
+        const op: Op = @fromBackingInt(@intCast(@as(u8, @intCast(unit0 & 0xFF))));
+        const w1: u16 = if (pc + 1 < insns.len) insns[pc + 1] else 0;
+        const w2: u16 = if (pc + 2 < insns.len) insns[pc + 2] else 0;
+        if (storeDestKind(op, unit0, w1, w2)) |st| {
+            if (st.dst == rx) {
+                const comp: u8 = switch (op) {
+                    .new_array => blk: {
+                        const td = d.getTypeDescriptor(gpa, w1) catch "";
+                        defer if (td.len > 0) gpa.free(td);
+                        break :blk if (td.len == 2 and td[0] == '[') td[1] else 0;
+                    },
+                    .check_cast => blk: {
+                        const td = d.getTypeDescriptor(gpa, w1) catch "";
+                        defer if (td.len > 0) gpa.free(td);
+                        break :blk if (td.len == 2 and td[0] == '[') td[1] else 0;
+                    },
+                    .move_object, .move_object_from16, .move_object16 => {
+                        // Recurse into the source on this path: handled by
+                        // continuing the walk with rx := src below.
+                        const src: u16 = if (op == .move_object) regB(unit0) else blk2: {
+                            const mr = moveRegs16(op, unit0, w1, w2);
+                            break :blk2 if (mr.src > 65535) rx else @as(u16, @intCast(mr.src));
+                        };
+                        if (src == rx) {
+                            saw_unknown = true;
+                            continue;
+                        }
+                        const sub = reachingArrayComponentDepth(gpa, d, insns, preds, nregs, nins,
+                            is_static, param_kinds, parameters_off, pc, src, depth + 1);
+                        if (sub == 0) {
+                            saw_unknown = true;
+                            continue;
+                        }
+                        if (found == 0) {
+                            found = sub;
+                        } else if (found != sub) {
+                            return 0;
+                        }
+                        continue;
+                    },
+                    else => 0,
+                };
+                if (comp == 0) {
+                    saw_unknown = true;
+                    continue;
+                }
+                if (found == 0) {
+                    found = comp;
+                } else if (found != comp) {
+                    return 0;
+                }
+                continue;
+            }
+        }
+        const no_preds = pc >= preds.len or preds[pc].items.len == 0;
+        if (!no_preds) {
+            for (preds[pc].items) |p| {
+                if (p < insns.len and !visited[p]) {
+                    visited[p] = true;
+                    stack[top] = p;
+                    top += 1;
+                }
+            }
+        } else if (pc == 0) {
+            // Entry: param [X seeds the component.
+            if (paramRegIndex(nregs, nins, is_static, param_kinds, rx)) |pi| {
+                const tids = dex.readTypeList(gpa, d, parameters_off) catch &.{};
+                defer if (tids.len > 0) gpa.free(tids);
+                if (pi < tids.len) {
+                    const pd = d.getTypeDescriptor(gpa, tids[pi]) catch null;
+                    if (pd) |desc| {
+                        defer gpa.free(desc);
+                        if (desc.len >= 2 and desc[0] == '[') {
+                            if (found == 0) {
+                                found = desc[1];
+                            } else if (found != desc[1]) {
+                                return 0;
+                            }
+                            continue;
+                        }
+                    }
+                }
+            }
+            saw_unknown = true;
+        }
+    }
+    if (found != 0 and !saw_unknown) return found;
+    if (found != 0) return found;
+    return 0;
 }
 
 /// Store an int literal. Conflicted regs dual-write const-0 (0 to the
@@ -1210,6 +1549,15 @@ fn emitInvokeArgs(
     is_static: bool,
     types: []RegType,
     uses: *std.ArrayListUnmanaged(ConstUse),
+    jop: u8,
+    this_internal: []const u8,
+    super_internal: ?[]const u8,
+    nregs: usize,
+    nins: usize,
+    caller_param_kinds: []const u8,
+    caller_parameters_off: u32,
+    insns: []const u16,
+    call_pc: usize,
 ) TranslateError!void {
     const mid = try d.methodId(method_idx);
     const proto = try d.protoId(mid.proto_idx);
@@ -1223,6 +1571,45 @@ fn emitInvokeArgs(
     var ri: usize = 0;
     if (!is_static) {
         try emitLoadRef(e, gpa, rm, regs[0]);
+        // JVM verification needs the receiver's static type assignable to
+        // the callee owner; DEX carries no such constraint (a param typed
+        // as an interface may hold the implementing class). Narrow with a
+        // checkcast so e.g. an (La9/d;) param dispatches to Lu9/g;.D()V.
+        // Skipped when narrowing is wrong or unneeded:
+        // - invokespecial: non-<init> invokespecial requires a receiver
+        //   assignable to the CURRENT class; narrowing to the super owner
+        //   breaks that (and <init> receivers are uninitialized).
+        // - `this`-family receivers: already the current class; narrowing
+        //   would break protected member access from subclasses.
+        // - callee owner is the current class or its direct super: the
+        //   receiver is `this`-shaped in every working DEX path (a
+        //   protected super call through an unrelated static type would
+        //   fail on Android too), and narrowing a current-class receiver
+        //   to the super breaks protected access verification.
+        var skip = jop == 0xb7 or receiverIsThis(insns, call_pc, regs[0], nregs, nins, is_static);
+        if (!skip) {
+            const odesc = try d.getTypeDescriptor(gpa, mid.class_idx);
+            defer gpa.free(odesc);
+            const owner_internal = try descriptorToInternal(gpa, odesc);
+            defer gpa.free(owner_internal);
+            if (std.mem.eql(u8, owner_internal, this_internal)) {
+                skip = true;
+            } else if (super_internal) |sup| {
+                if (std.mem.eql(u8, owner_internal, sup)) skip = true;
+            } else {
+                if (std.mem.eql(u8, owner_internal, "java/lang/Object")) skip = true;
+            }
+        }
+        if (!skip) {
+            // A param already typed as the current class must also keep its
+            // type (protected access needs the subclass, not the owner).
+            if (paramRegIndex(nregs, nins, is_static, caller_param_kinds, regs[0])) |pi| {
+                skip = paramIsThisType(gpa, d, caller_parameters_off, pi, this_internal);
+            }
+        }
+        if (!skip) {
+            try emitPoolRef(e, gpa, uses, 0xc0, 0, .{ .type = mid.class_idx });
+        }
         ri = 1;
     }
     for (param_types) |tc| {
@@ -1311,7 +1698,7 @@ fn isThisAlias(insns: []const u16, call_pc: usize, r: u16, ctor: u16) bool {
         start = qs[nq - 1];
         const pc = start.?;
         const unit0 = insns[pc];
-        const op: Op = @enumFromInt(@as(u8, @intCast(unit0 & 0xFF)));
+        const op: Op = @fromBackingInt(@intCast(@as(u8, @intCast(unit0 & 0xFF))));
         switch (op) {
             .move, .move_object, .move_wide => {
                 if (regA(unit0) == cur) {
@@ -1332,9 +1719,28 @@ fn isThisAlias(insns: []const u16, call_pc: usize, r: u16, ctor: u16) bool {
                     if (cur == ctor) return true;
                 }
             },
-            .goto_, .goto16, .goto32, .if_eq, .if_ne, .if_lt, .if_ge, .if_gt, .if_le,
-            .if_eqz, .if_nez, .if_ltz, .if_gez, .if_gtz, .if_lez, .return_void, .return_,
-            .return_wide, .return_object, .throw_, .packed_switch, .sparse_switch,
+            .goto_,
+            .goto16,
+            .goto32,
+            .if_eq,
+            .if_ne,
+            .if_lt,
+            .if_ge,
+            .if_gt,
+            .if_le,
+            .if_eqz,
+            .if_nez,
+            .if_ltz,
+            .if_gez,
+            .if_gtz,
+            .if_lez,
+            .return_void,
+            .return_,
+            .return_wide,
+            .return_object,
+            .throw_,
+            .packed_switch,
+            .sparse_switch,
             .fill_array_data,
             => return false,
             else => {
@@ -1373,8 +1779,13 @@ fn emitInvokeCall(
     forward_needs: ?*ForwardNeeds,
     insns: []const u16,
     call_pc: usize,
+    nregs: usize,
+    nins: usize,
+    caller_param_kinds: []const u8,
+    caller_parameters_off: u32,
 ) TranslateError!void {
-    try emitInvokeArgs(e, gpa, rm, d, method_idx, regs, is_static, types, uses);
+    try emitInvokeArgs(e, gpa, rm, d, method_idx, regs, is_static, types, uses, jop,
+        this_internal, super_internal, nregs, nins, caller_param_kinds, caller_parameters_off, insns, call_pc);
     // Uninitialized-instance <init>: name the ALLOCATION type (R8 may
     // declare a supertype owner, which the JVM rejects). Any <init>
     // call consumes the pending allocation.
@@ -1447,6 +1858,18 @@ fn emitInvokeCall(
     }
     if (init_ref) |r| {
         try emitPoolRef(e, gpa, uses, jop, -@as(i32, @intCast(regs.len)), r);
+    } else if (jop == 0xb7) {
+        if (superInterfaceHelper(d, method_idx)) |helper| {
+            // invoke-super to a JDK interface default: V49 cannot express
+            // invokespecial+InterfaceMethodref, and invokeinterface would
+            // dispatch virtually to the override. Route through a framework
+            // static helper with identical semantics (args already on stack:
+            // receiver first, exactly the helper's parameter order).
+            try emitPoolRef(e, gpa, uses, 0xb8, -@as(i32, @intCast(regs.len)),
+                .{ .raw_method = .{ .cls = helper.cls, .name = helper.name, .desc = helper.desc } });
+        } else {
+            try emitPoolRef(e, gpa, uses, jop, -@as(i32, @intCast(regs.len)), .{ .method = .{ .idx = method_idx, .iface = is_interface } });
+        }
     } else {
         try emitPoolRef(e, gpa, uses, jop, -@as(i32, @intCast(regs.len)), .{ .method = .{ .idx = method_idx, .iface = is_interface } });
     }
@@ -1712,7 +2135,7 @@ pub fn translateMethod(
             if (skipped) continue;
             const su0 = insns[spc];
             const sop: u8 = @intCast(su0 & 0xFF);
-            const sopcode: Op = @enumFromInt(sop);
+            const sopcode: Op = @fromBackingInt(@intCast(sop));
             const ssize = try insnSize(sop);
             if (spc + ssize > insns.len) break;
             // (Pred lists built later subsume branch targets.)
@@ -1791,7 +2214,7 @@ pub fn translateMethod(
         }
         for (starts.items, 0..) |spc, si| {
             const su0 = insns[spc];
-            const sop: Op = @enumFromInt(@as(u8, @intCast(su0 & 0xFF)));
+            const sop: Op = @fromBackingInt(@intCast(@as(u8, @intCast(su0 & 0xFF))));
             const ssize = insnSize(@as(u8, @intCast(su0 & 0xFF))) catch continue;
             // Fallthrough successor.
             const falls = switch (sop) {
@@ -1873,7 +2296,7 @@ pub fn translateMethod(
             if (in_pl) continue;
             const su0 = insns[spc2];
             const sop: u8 = @intCast(su0 & 0xFF);
-            const sopcode: Op = @enumFromInt(sop);
+            const sopcode: Op = @fromBackingInt(@intCast(sop));
             const ssize = try insnSize(sop);
             if (spc2 + ssize > insns.len) break;
             const markInt = struct {
@@ -1911,12 +2334,60 @@ pub fn translateMethod(
                 .iget, .iget_boolean, .iget_byte, .iget_char, .iget_short => markInt(ever_int, regA(su0)),
                 .sget_object => markRef(ever_ref, reg8(su0)),
                 .sget, .sget_boolean, .sget_byte, .sget_char, .sget_short => markInt(ever_int, reg8(su0)),
-                .add_int, .sub_int, .mul_int, .div_int, .rem_int, .and_int, .or_int, .xor_int, .shl_int, .shr_int, .ushr_int,
-                .add_int_2addr, .sub_int_2addr, .mul_int_2addr, .div_int_2addr, .rem_int_2addr, .and_int_2addr, .or_int_2addr, .xor_int_2addr, .shl_int_2addr, .shr_int_2addr, .ushr_int_2addr,
-                .add_int_lit16, .sub_int_lit16, .mul_int_lit16, .div_int_lit16, .rem_int_lit16, .and_int_lit16, .or_int_lit16, .xor_int_lit16,
-                .add_int_lit8, .sub_int_lit8, .mul_int_lit8, .div_int_lit8, .rem_int_lit8, .and_int_lit8, .or_int_lit8, .xor_int_lit8, .shl_int_lit8, .shr_int_lit8, .ushr_int_lit8,
-                .neg_int, .not_int, .long_to_int, .float_to_int, .double_to_int, .int_to_byte, .int_to_char, .int_to_short,
-                .cmpl_float, .cmpg_float, .cmpl_double, .cmpg_double, .cmp_long,
+                .add_int,
+                .sub_int,
+                .mul_int,
+                .div_int,
+                .rem_int,
+                .and_int,
+                .or_int,
+                .xor_int,
+                .shl_int,
+                .shr_int,
+                .ushr_int,
+                .add_int_2addr,
+                .sub_int_2addr,
+                .mul_int_2addr,
+                .div_int_2addr,
+                .rem_int_2addr,
+                .and_int_2addr,
+                .or_int_2addr,
+                .xor_int_2addr,
+                .shl_int_2addr,
+                .shr_int_2addr,
+                .ushr_int_2addr,
+                .add_int_lit16,
+                .sub_int_lit16,
+                .mul_int_lit16,
+                .div_int_lit16,
+                .rem_int_lit16,
+                .and_int_lit16,
+                .or_int_lit16,
+                .xor_int_lit16,
+                .add_int_lit8,
+                .sub_int_lit8,
+                .mul_int_lit8,
+                .div_int_lit8,
+                .rem_int_lit8,
+                .and_int_lit8,
+                .or_int_lit8,
+                .xor_int_lit8,
+                .shl_int_lit8,
+                .shr_int_lit8,
+                .ushr_int_lit8,
+                .neg_int,
+                .not_int,
+                .long_to_int,
+                .float_to_int,
+                .double_to_int,
+                .int_to_byte,
+                .int_to_char,
+                .int_to_short,
+                .cmpl_float,
+                .cmpg_float,
+                .cmpl_double,
+                .cmpg_double,
+                .cmp_long,
                 => {
                     // Dest: 23x A (8-bit), 12x/22b/22s A. Cover both extracts.
                     markInt(ever_int, regA(su0));
@@ -2079,7 +2550,7 @@ pub fn translateMethod(
         const unit0 = insns[pc];
         const op: u8 = @intCast(unit0 & 0xFF);
         const size = try insnSize(op);
-        const opcode: Op = @enumFromInt(op);
+        const opcode: Op = @fromBackingInt(@intCast(op));
         switch (opcode) {
             .nop => try e.emit(gpa, 0x00),
             .move => {
@@ -2273,12 +2744,13 @@ pub fn translateMethod(
                 const kb_ref = tb == .ref or (!conf_b and tb == .unknown and rb < ever_ref.len and ever_ref[rb]);
                 const ka_int = !conf_a and !ka_ref;
                 const kb_int = !conf_b and !kb_ref;
-                const is_ref = if (conf_a and kb_int) false
-                    else if (conf_b and ka_int) false
-                    else if (conf_a and kb_ref) true
-                    else if (conf_b and ka_ref) true
-                    else if (conf_a or conf_b) !(reachingDefsAllInt(gpa, insns, preds, code.registers, code.ins, is_static, param_kinds, pc, ra) and reachingDefsAllInt(gpa, insns, preds, code.registers, code.ins, is_static, param_kinds, pc, rb))
-                    else ka_ref or kb_ref;
+                // Linear tracker state can be left as REF by a terminated
+                // throwing block that reuses an integer parameter. At a join,
+                // definite reaching integer stores outrank that stale state.
+                const both_int = (opcode == .if_eq or opcode == .if_ne) and
+                    reachingDefsAllInt(gpa, insns, preds, code.registers, code.ins, is_static, param_kinds, pc, ra) and
+                    reachingDefsAllInt(gpa, insns, preds, code.registers, code.ins, is_static, param_kinds, pc, rb);
+                const is_ref = if (both_int) false else if (conf_a and kb_int) false else if (conf_b and ka_int) false else if (conf_a and kb_ref) true else if (conf_b and ka_ref) true else if (conf_a or conf_b) !(reachingDefsAllInt(gpa, insns, preds, code.registers, code.ins, is_static, param_kinds, pc, ra) and reachingDefsAllInt(gpa, insns, preds, code.registers, code.ins, is_static, param_kinds, pc, rb)) else ka_ref or kb_ref;
                 const jop: u8 = switch (opcode) {
                     .if_eq => if (is_ref) @as(u8, 0xa5) else 0x9f, // if_acmpeq / if_icmpeq
                     .if_ne => if (is_ref) @as(u8, 0xa6) else 0xa0, // if_acmpne / if_icmpne
@@ -2523,7 +2995,7 @@ pub fn translateMethod(
                 // it silently; JVM would leak stack).
                 const nxt: u8 = if (pc + size < insns.len) @intCast(insns[pc + size] & 0xFF) else 0;
                 const keep = nxt == 0x0a or nxt == 0x0b or nxt == 0x0c;
-                try emitInvokeCall(&e, gpa, rm, d, &uses, &last_ret_kind, &last_ret_comp, jop, method_idx, nib[0..argc], opcode == .invoke_static, opcode == .invoke_interface, !keep, types, alloc_owner, super_internal, this_internal, ctor_this, forward_needs, insns, pc);
+                try emitInvokeCall(&e, gpa, rm, d, &uses, &last_ret_kind, &last_ret_comp, jop, method_idx, nib[0..argc], opcode == .invoke_static, opcode == .invoke_interface, !keep, types, alloc_owner, super_internal, this_internal, ctor_this, forward_needs, insns, pc, code.registers, code.ins, param_kinds, proto.parameters_off);
             },
             .invoke_virtual_range, .invoke_super_range, .invoke_direct_range, .invoke_static_range, .invoke_interface_range => {
                 // 3rc: B = argc, CCCC = first register, BBBB = method idx.
@@ -2545,7 +3017,7 @@ pub fn translateMethod(
                 };
                 const nxt2: u8 = if (pc + size < insns.len) @intCast(insns[pc + size] & 0xFF) else 0;
                 const keep2 = nxt2 == 0x0a or nxt2 == 0x0b or nxt2 == 0x0c;
-                try emitInvokeCall(&e, gpa, rm, d, &uses, &last_ret_kind, &last_ret_comp, jop, method_idx, rregs[0..argc], opcode == .invoke_static_range, opcode == .invoke_interface_range, !keep2, types, alloc_owner, super_internal, this_internal, ctor_this, forward_needs, insns, pc);
+                try emitInvokeCall(&e, gpa, rm, d, &uses, &last_ret_kind, &last_ret_comp, jop, method_idx, rregs[0..argc], opcode == .invoke_static_range, opcode == .invoke_interface_range, !keep2, types, alloc_owner, super_internal, this_internal, ctor_this, forward_needs, insns, pc, code.registers, code.ins, param_kinds, proto.parameters_off);
             },
             // Unary 12x: A = dest, B = src.
             .neg_int, .not_int => {
@@ -2677,8 +3149,15 @@ pub fn translateMethod(
             .aget => {
                 // DEX aget covers int[] and float[] (both 32-bit): pick by
                 // the array reg's recorded component ('F' => faload/bits).
+                // The linear tracker is clobbered by stores on dead paths,
+                // so confirm via reaching defs when it disagrees or is blank.
                 const r = regs23x(unit0, insns[pc + 1]);
-                const acomp: u8 = if (r.b < wide_comp.len) wide_comp[r.b] else 0;
+                var acomp: u8 = if (r.b < wide_comp.len) wide_comp[r.b] else 0;
+                if (acomp != 'F') {
+                    const reach = reachingArrayComponent(gpa, d, insns, preds,
+                        code.registers, code.ins, is_static, param_kinds, proto.parameters_off, pc, r.b);
+                    if (reach != 0) acomp = reach;
+                }
                 try emitLoadRef(&e, gpa, rm, r.b);
                 try emitLoadInt(&e, gpa, rm, r.c);
                 if (acomp == 'F') {
@@ -2733,7 +3212,12 @@ pub fn translateMethod(
             },
             .aput => {
                 const r = regs23x(unit0, insns[pc + 1]);
-                const acomp: u8 = if (r.b < wide_comp.len) wide_comp[r.b] else 0;
+                var acomp: u8 = if (r.b < wide_comp.len) wide_comp[r.b] else 0;
+                if (acomp != 'F') {
+                    const reach = reachingArrayComponent(gpa, d, insns, preds,
+                        code.registers, code.ins, is_static, param_kinds, proto.parameters_off, pc, r.b);
+                    if (reach != 0) acomp = reach;
+                }
                 const afl = acomp == 'F' or (acomp != 'I' and acomp != 'J' and acomp != 'D' and r.a < types.len and types[r.a] == .float);
                 try emitLoadRef(&e, gpa, rm, r.b);
                 try emitLoadInt(&e, gpa, rm, r.c);
@@ -3063,7 +3547,7 @@ pub fn translateMethod(
                 // can trap) ends the prefix.
                 while (q < insns.len) {
                     const qu = insns[q];
-                    const qop: Op = @enumFromInt(@as(u8, @intCast(qu & 0xFF)));
+                    const qop: Op = @fromBackingInt(@intCast(@as(u8, @intCast(qu & 0xFF))));
                     // Terminal exits: a goto/return ends the run (included:
                     // both are infallible, and excluding the exit keeps the
                     // handler body's outgoing merge out of the try).
@@ -3072,11 +3556,31 @@ pub fn translateMethod(
                         else => false,
                     };
                     const infallible = switch (qop) {
-                        .nop, .move, .move_from16, .move16, .move_wide, .move_wide_from16, .move_wide16,
-                        .move_object, .move_object_from16, .move_object16, .move_result, .move_result_wide,
-                        .move_result_object, .move_exception, .const4, .const16, .const_, .const_high16,
-                        .const_wide16, .const_wide32, .const_wide, .const_wide_high16, .const_string,
-                        .const_string_jumbo, .const_class,
+                        .nop,
+                        .move,
+                        .move_from16,
+                        .move16,
+                        .move_wide,
+                        .move_wide_from16,
+                        .move_wide16,
+                        .move_object,
+                        .move_object_from16,
+                        .move_object16,
+                        .move_result,
+                        .move_result_wide,
+                        .move_result_object,
+                        .move_exception,
+                        .const4,
+                        .const16,
+                        .const_,
+                        .const_high16,
+                        .const_wide16,
+                        .const_wide32,
+                        .const_wide,
+                        .const_wide_high16,
+                        .const_string,
+                        .const_string_jumbo,
+                        .const_class,
                         => true,
                         else => false,
                     };
@@ -3123,32 +3627,148 @@ pub fn translateMethod(
             const pure_tail = struct {
                 fn f(opcode: Op) bool {
                     return switch (opcode) {
-                        .nop, .move, .move_from16, .move16, .move_wide, .move_wide_from16, .move_wide16,
-                        .move_object, .move_object_from16, .move_object16, .move_result, .move_result_wide,
-                        .move_result_object, .move_exception, .const4, .const16, .const_, .const_high16,
-                        .const_wide16, .const_wide32, .const_wide, .const_wide_high16, .const_string,
-                        .const_string_jumbo, .goto_, .goto16, .goto32, .return_void, .return_,
-                        .return_wide, .return_object, .if_eq, .if_ne, .if_lt, .if_ge, .if_gt, .if_le,
-                        .if_eqz, .if_nez, .if_ltz, .if_gez, .if_gtz, .if_lez, .neg_int, .not_int,
-                        .neg_long, .not_long, .neg_float, .neg_double, .int_to_long, .int_to_float,
-                        .int_to_double, .long_to_int, .long_to_float, .long_to_double, .float_to_int,
-                        .float_to_long, .float_to_double, .double_to_int, .double_to_long,
-                        .double_to_float, .int_to_byte, .int_to_char, .int_to_short, .cmpl_float,
-                        .cmpg_float, .cmpl_double, .cmpg_double, .cmp_long, .instance_of,
-                        .add_int, .sub_int, .mul_int, .and_int, .or_int, .xor_int, .shl_int, .shr_int,
-                        .ushr_int, .add_long, .sub_long, .mul_long, .and_long, .or_long, .xor_long,
-                        .shl_long, .shr_long, .ushr_long, .add_float, .sub_float, .mul_float,
-                        .div_float, .rem_float, .add_double, .sub_double, .mul_double, .div_double,
-                        .rem_double, .add_int_2addr, .sub_int_2addr, .mul_int_2addr, .and_int_2addr,
-                        .or_int_2addr, .xor_int_2addr, .shl_int_2addr, .shr_int_2addr, .ushr_int_2addr,
-                        .add_long_2addr, .sub_long_2addr, .mul_long_2addr, .and_long_2addr,
-                        .or_long_2addr, .xor_long_2addr, .shl_long_2addr, .shr_long_2addr,
-                        .ushr_long_2addr, .add_float_2addr, .sub_float_2addr, .mul_float_2addr,
-                        .div_float_2addr, .rem_float_2addr, .add_double_2addr, .sub_double_2addr,
-                        .mul_double_2addr, .div_double_2addr, .rem_double_2addr, .add_int_lit16,
-                        .sub_int_lit16, .mul_int_lit16, .and_int_lit16, .or_int_lit16, .xor_int_lit16,
-                        .add_int_lit8, .sub_int_lit8, .mul_int_lit8, .and_int_lit8, .or_int_lit8,
-                        .xor_int_lit8, .shl_int_lit8, .shr_int_lit8, .ushr_int_lit8, .packed_switch,
+                        .nop,
+                        .move,
+                        .move_from16,
+                        .move16,
+                        .move_wide,
+                        .move_wide_from16,
+                        .move_wide16,
+                        .move_object,
+                        .move_object_from16,
+                        .move_object16,
+                        .move_result,
+                        .move_result_wide,
+                        .move_result_object,
+                        .move_exception,
+                        .const4,
+                        .const16,
+                        .const_,
+                        .const_high16,
+                        .const_wide16,
+                        .const_wide32,
+                        .const_wide,
+                        .const_wide_high16,
+                        .const_string,
+                        .const_string_jumbo,
+                        .goto_,
+                        .goto16,
+                        .goto32,
+                        .return_void,
+                        .return_,
+                        .return_wide,
+                        .return_object,
+                        .if_eq,
+                        .if_ne,
+                        .if_lt,
+                        .if_ge,
+                        .if_gt,
+                        .if_le,
+                        .if_eqz,
+                        .if_nez,
+                        .if_ltz,
+                        .if_gez,
+                        .if_gtz,
+                        .if_lez,
+                        .neg_int,
+                        .not_int,
+                        .neg_long,
+                        .not_long,
+                        .neg_float,
+                        .neg_double,
+                        .int_to_long,
+                        .int_to_float,
+                        .int_to_double,
+                        .long_to_int,
+                        .long_to_float,
+                        .long_to_double,
+                        .float_to_int,
+                        .float_to_long,
+                        .float_to_double,
+                        .double_to_int,
+                        .double_to_long,
+                        .double_to_float,
+                        .int_to_byte,
+                        .int_to_char,
+                        .int_to_short,
+                        .cmpl_float,
+                        .cmpg_float,
+                        .cmpl_double,
+                        .cmpg_double,
+                        .cmp_long,
+                        .instance_of,
+                        .add_int,
+                        .sub_int,
+                        .mul_int,
+                        .and_int,
+                        .or_int,
+                        .xor_int,
+                        .shl_int,
+                        .shr_int,
+                        .ushr_int,
+                        .add_long,
+                        .sub_long,
+                        .mul_long,
+                        .and_long,
+                        .or_long,
+                        .xor_long,
+                        .shl_long,
+                        .shr_long,
+                        .ushr_long,
+                        .add_float,
+                        .sub_float,
+                        .mul_float,
+                        .div_float,
+                        .rem_float,
+                        .add_double,
+                        .sub_double,
+                        .mul_double,
+                        .div_double,
+                        .rem_double,
+                        .add_int_2addr,
+                        .sub_int_2addr,
+                        .mul_int_2addr,
+                        .and_int_2addr,
+                        .or_int_2addr,
+                        .xor_int_2addr,
+                        .shl_int_2addr,
+                        .shr_int_2addr,
+                        .ushr_int_2addr,
+                        .add_long_2addr,
+                        .sub_long_2addr,
+                        .mul_long_2addr,
+                        .and_long_2addr,
+                        .or_long_2addr,
+                        .xor_long_2addr,
+                        .shl_long_2addr,
+                        .shr_long_2addr,
+                        .ushr_long_2addr,
+                        .add_float_2addr,
+                        .sub_float_2addr,
+                        .mul_float_2addr,
+                        .div_float_2addr,
+                        .rem_float_2addr,
+                        .add_double_2addr,
+                        .sub_double_2addr,
+                        .mul_double_2addr,
+                        .div_double_2addr,
+                        .rem_double_2addr,
+                        .add_int_lit16,
+                        .sub_int_lit16,
+                        .mul_int_lit16,
+                        .and_int_lit16,
+                        .or_int_lit16,
+                        .xor_int_lit16,
+                        .add_int_lit8,
+                        .sub_int_lit8,
+                        .mul_int_lit8,
+                        .and_int_lit8,
+                        .or_int_lit8,
+                        .xor_int_lit8,
+                        .shl_int_lit8,
+                        .shr_int_lit8,
+                        .ushr_int_lit8,
+                        .packed_switch,
                         .sparse_switch,
                         => true,
                         // Throws (sync): div/rem-int/long, monitor, check-cast,
@@ -3161,7 +3781,7 @@ pub fn translateMethod(
             var si: usize = nstarts;
             while (si > 1) {
                 const spc: usize = starts[si - 1];
-                const sop: Op = @enumFromInt(@as(u8, @intCast(insns[spc] & 0xFF)));
+                const sop: Op = @fromBackingInt(@intCast(@as(u8, @intCast(insns[spc] & 0xFF))));
                 if (pure_tail(sop)) {
                     try_end = @intCast(spc);
                     si -= 1;
@@ -3222,7 +3842,7 @@ pub fn translateMethod(
             // local via a dedicated store (stack is [exc], handler code
             // expects it consumed). Without (R8-dropped): pop, goto.
             const hdex: usize = h.addr;
-            const hat_move_exc = hdex < insns.len and insns[hdex] & 0xFF == @intFromEnum(Op.move_exception);
+            const hat_move_exc = hdex < insns.len and insns[hdex] & 0xFF == @backingInt(Op.move_exception);
             if (e.max_stack < 1) e.max_stack = 1;
             const tramp: u32 = @intCast(e.code.items.len);
             if (hat_move_exc) {
@@ -3601,10 +4221,55 @@ const MethodOut = struct {
     tm: TranslatedMethod,
 };
 
+/// Values from a DEX encoded_array_item that can be represented by the JVM
+/// ConstantValue attribute.  The translator previously dropped the entire
+/// static_values_off section, which left initialized static ints at zero.
+fn readStaticIntValues(gpa: std.mem.Allocator, d: dex.Dex, off: u32) TranslateError![]?i32 {
+    if (off == 0) return &.{};
+    var pos: usize = off;
+    const count = try dex.readUleb128(d.data, &pos);
+    if (count > 1 << 20) return error.BadDescriptor;
+    const out = try gpa.alloc(?i32, count);
+    errdefer gpa.free(out);
+    for (out) |*slot| {
+        if (pos >= d.data.len) return error.BadDescriptor;
+        const header = d.data[pos];
+        pos += 1;
+        const kind = header & 0x1f;
+        const arg = header >> 5;
+        slot.* = null;
+        if (kind == 0x1f) { // boolean: value is encoded in value_arg
+            slot.* = if (arg == 0) 0 else 1;
+            continue;
+        }
+        const width: usize = @as(usize, arg) + 1;
+        if (pos + width > d.data.len) return error.BadDescriptor;
+        var bits: u32 = 0;
+        if (width <= 4) {
+            for (0..width) |i| bits |= @as(u32, d.data[pos + i]) << @intCast(i * 8);
+        }
+        pos += width;
+        switch (kind) {
+            0x00 => slot.* = @as(i8, @bitCast(@as(u8, @intCast(bits & 0xff)))), // byte
+            0x02 => slot.* = @as(i16, @bitCast(@as(u16, @intCast(bits & 0xffff)))), // short
+            0x03, 0x04 => slot.* = @bitCast(bits), // char/int
+            else => {}, // long/float/double/string/object: no int ConstantValue
+        }
+    }
+    return out;
+}
+
+fn supportsIntConstantValue(desc: []const u8) bool {
+    return desc.len == 1 and switch (desc[0]) {
+        'Z', 'B', 'S', 'C', 'I' => true,
+        else => false,
+    };
+}
+
 /// Param slot classes of a JVM method descriptor's parameter section.
-/// Returns the load opcode per param (aload/iload/lload) plus total slots.
-/// Bits-always: float params arrive as int bits, double as long bits, so
-/// the forward passes them through with int/wide loads (same repr).
+/// Returns the load opcode per param (aload/iload/fload/lload/dload) plus total slots.
+/// Forward ctors pass JVM-typed params straight through (real floats/doubles),
+/// unlike translated DEX bodies whose locals hold int/long bits.
 fn descParamLoads(desc: []const u8, out: []u8) struct { n: usize, slots: u16 } {
     // desc = (params)ret; out[i] = load op for param i.
     var n: usize = 0;
@@ -3632,12 +4297,20 @@ fn descParamLoads(desc: []const u8, out: []u8) struct { n: usize, slots: u16 } {
             slots += 1;
         } else {
             i += 1;
-            if (c == 'J' or c == 'D') {
+            if (c == 'J') {
                 out[n] = 0x16; // lload
                 n += 1;
                 slots += 2;
+            } else if (c == 'D') {
+                out[n] = 0x18; // dload
+                n += 1;
+                slots += 2;
+            } else if (c == 'F') {
+                out[n] = 0x17; // fload (forward passes the real float through)
+                n += 1;
+                slots += 1;
             } else {
-                out[n] = 0x15; // iload (I,Z,B,S,C,F-as-bits)
+                out[n] = 0x15; // iload (I,Z,B,S,C)
                 n += 1;
                 slots += 1;
             }
@@ -3880,7 +4553,9 @@ pub fn translateClass(
     }
 
     // Fields: instance + static.
-    const FieldOut = struct { name: []const u8, desc: []const u8, flags: u16 };
+    const FieldOut = struct { name: []const u8, desc: []const u8, flags: u16, constant: ?i32 };
+    const static_values = try readStaticIntValues(gpa, d, def.static_values_off);
+    defer if (static_values.len > 0) gpa.free(static_values);
     var fields: std.ArrayListUnmanaged(FieldOut) = .empty;
     defer {
         for (fields.items) |f| {
@@ -3899,9 +4574,10 @@ pub fn translateClass(
             .name = fname,
             .desc = fdesc,
             .flags = dexFlagsToJvm(f.access_flags),
+            .constant = null,
         });
     }
-    for (cdata.static_fields) |f| {
+    for (cdata.static_fields, 0..) |f, fi| {
         const fid = try d.fieldId(f.field_idx);
         const fname = try d.getString(gpa, fid.name_idx);
         errdefer gpa.free(fname);
@@ -3911,6 +4587,7 @@ pub fn translateClass(
             .name = fname,
             .desc = fdesc,
             .flags = dexFlagsToJvm(f.access_flags) | 0x0008,
+            .constant = if (fi < static_values.len and supportsIntConstantValue(fdesc)) static_values[fi] else null,
         });
     }
 
@@ -3949,10 +4626,13 @@ pub fn translateClass(
                     @intCast(c.registers - c.ins)
                 else
                     null;
-                tm = try translateMethod(gpa, d, c, mid.proto_idx, m.access_flags & 0x8 != 0, super_internal_opt, internal, ctor_this, forward_needs);
+                tm = translateMethod(gpa, d, c, mid.proto_idx, m.access_flags & 0x8 != 0, super_internal_opt, internal, ctor_this, forward_needs) catch |err| {
+                    std.debug.print("translation failed: {s}.{s}{s}: {t}\n", .{ internal, mname, mdesc, err });
+                    return err;
+                };
                 has_body = true;
             } else {
-                tm = .{ .code = &.{}, .max_stack = 0, .max_locals = 0, .uses = &.{}, .exceptions = &.{} , .lines = &.{} };
+                tm = .{ .code = &.{}, .max_stack = 0, .max_locals = 0, .uses = &.{}, .exceptions = &.{}, .lines = &.{} };
             }
             errdefer if (has_body) tm.deinit(gpa);
             try methods.append(gpa, .{
@@ -4088,10 +4768,14 @@ pub fn translateClass(
         try code.append(gpa, 0x2a); // aload_0
         var slot: u16 = 1;
         for (loads[0..pl.n]) |lop| {
-            const wide_op = lop == 0x16;
+            const wide_op = lop == 0x16 or lop == 0x18;
             if (slot < 4) {
-                // iload_1..3 / aload_1..3 / lload_1..3.
-                const base: u8 = if (lop == 0x19) 0x2a else if (wide_op) 0x1e else 0x1a;
+                // iload/fload/aload/lload/dload short forms for slots 1..3.
+                const base: u8 = if (lop == 0x19) 0x2a // aload_n
+                    else if (lop == 0x16) 0x1e // lload_n
+                    else if (lop == 0x18) 0x26 // dload_n
+                    else if (lop == 0x17) 0x22 // fload_n
+                    else 0x1a; // iload_n
                 try code.append(gpa, base + @as(u8, @intCast(slot)));
             } else if (slot < 256) {
                 try code.append(gpa, lop);
@@ -4132,7 +4816,7 @@ pub fn translateClass(
             gpa.free(uses);
         }
         try methods.append(gpa, .{ .name = cname, .desc = cdesc, .flags = 0x0001, .tm = ctm });
-            try injected.append(gpa, true);
+        try injected.append(gpa, true);
     }
 
     // Resolve const uses into pool indices and patch code.
@@ -4192,7 +4876,9 @@ pub fn translateClass(
                     defer gpa.free(md);
                     // Interface-ness: forced by invoke-interface (DEX-level
                     // truth for external classes); else look at the class
-                    // def, default class ref.
+                    // def, default class ref. JDK interfaces called via
+                    // invoke-super (default methods like Map.getOrDefault)
+                    // need InterfaceMethodref even under invokespecial.
                     var is_iface = mr.iface;
                     for (0..d.header.class_defs_size) |ci2| {
                         const dd = try d.classDef(ci2);
@@ -4200,6 +4886,9 @@ pub fn translateClass(
                             is_iface = is_iface or (dd.access_flags & 0x200 != 0);
                             break;
                         }
+                    }
+                    if (!is_iface) {
+                        is_iface = isJdkInterface(ci);
                     }
                     break :blk try cw.methodref(gpa, ci, mn, md, is_iface);
                 },
@@ -4246,6 +4935,7 @@ pub fn translateClass(
     // Pre-register every name/descriptor BEFORE emitting the pool.
     const code_attr = try cw.utf8(gpa, "Code");
     const line_attr = try cw.utf8(gpa, "LineNumberTable");
+    const constant_value_attr = try cw.utf8(gpa, "ConstantValue");
     var field_name_idx: std.ArrayListUnmanaged(u16) = .empty;
     defer field_name_idx.deinit(gpa);
     var field_desc_idx: std.ArrayListUnmanaged(u16) = .empty;
@@ -4253,6 +4943,11 @@ pub fn translateClass(
     for (fields.items) |f| {
         try field_name_idx.append(gpa, try cw.utf8(gpa, f.name));
         try field_desc_idx.append(gpa, try cw.utf8(gpa, f.desc));
+    }
+    var field_constant_idx: std.ArrayListUnmanaged(u16) = .empty;
+    defer field_constant_idx.deinit(gpa);
+    for (fields.items) |f| {
+        try field_constant_idx.append(gpa, if (f.constant) |v| try cw.integer(gpa, v) else 0);
     }
     var method_name_idx: std.ArrayListUnmanaged(u16) = .empty;
     defer method_name_idx.deinit(gpa);
@@ -4318,7 +5013,15 @@ pub fn translateClass(
         try ClassWriter.writeU16(&out, gpa, f.flags);
         try ClassWriter.writeU16(&out, gpa, field_name_idx.items[i]);
         try ClassWriter.writeU16(&out, gpa, field_desc_idx.items[i]);
-        try ClassWriter.writeU16(&out, gpa, 0); // attributes
+        if (f.constant) |value| {
+            _ = value;
+            try ClassWriter.writeU16(&out, gpa, 1);
+            try ClassWriter.writeU16(&out, gpa, constant_value_attr);
+            try ClassWriter.writeU32(&out, gpa, 2);
+            try ClassWriter.writeU16(&out, gpa, field_constant_idx.items[i]);
+        } else {
+            try ClassWriter.writeU16(&out, gpa, 0);
+        }
     }
     try ClassWriter.writeU16(&out, gpa, @intCast(methods.items.len));
     for (methods.items, 0..) |m, i| {
@@ -4458,4 +5161,22 @@ test "wide component decision prefers tracker, defaults long" {
     try std.testing.expect(!wideIsDouble(0, .long));
     try std.testing.expect(!wideIsDouble(0, .unknown));
     try std.testing.expect(!wideIsDouble(0, .int));
+}
+
+test "forward loads pass JVM-typed floats and doubles through" {
+    var loads: [8]u8 = undefined;
+    const pl = descParamLoads("(F)V", &loads);
+    try std.testing.expectEqual(@as(usize, 1), pl.n);
+    try std.testing.expectEqual(@as(u8, 0x17), loads[0]); // fload, not iload
+    try std.testing.expectEqual(@as(u16, 2), pl.slots);
+    const pd = descParamLoads("(D)V", &loads);
+    try std.testing.expectEqual(@as(u8, 0x18), loads[0]); // dload, not lload
+    try std.testing.expectEqual(@as(u16, 3), pd.slots);
+    _ = descParamLoads("(J)V", &loads);
+    try std.testing.expectEqual(@as(u8, 0x16), loads[0]); // lload unchanged
+    const pi = descParamLoads("(IFLjava/lang/String;)V", &loads);
+    try std.testing.expectEqual(@as(usize, 3), pi.n);
+    try std.testing.expectEqual(@as(u8, 0x15), loads[0]);
+    try std.testing.expectEqual(@as(u8, 0x17), loads[1]);
+    try std.testing.expectEqual(@as(u8, 0x19), loads[2]);
 }

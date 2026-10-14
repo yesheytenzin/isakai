@@ -60,6 +60,23 @@ public class AssetManager implements AutoCloseable {
         return open(fileName);
     }
 
+    /** Decode a staged binary or plain XML resource with a bounded read. */
+    public XmlResourceParser openXmlResourceParser(String fileName) throws IOException {
+        try (InputStream input = open(fileName)) {
+            byte[] bytes = input.readNBytes(4 * 1024 * 1024 + 1);
+            if (bytes.length > 4 * 1024 * 1024) throw new IOException("XML exceeds 4 MiB");
+            try {
+                return Resources.decodeBinaryXml(bytes, fileName);
+            } catch (Resources.NotFoundException failure) {
+                throw new IOException("Invalid XML resource: " + fileName, failure);
+            }
+        }
+    }
+
+    public XmlResourceParser openXmlResourceParser(int cookie, String fileName) throws IOException {
+        return openXmlResourceParser(fileName);
+    }
+
     /**
      * Open a staged file with offset/length 0/size. Real APKs store assets
      * uncompressed with true offsets; the staged tree is already extracted,

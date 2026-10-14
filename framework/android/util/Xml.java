@@ -26,6 +26,51 @@ public class Xml {
         return new StaxPullParser();
     }
 
+    public static AttributeSet asAttributeSet(XmlPullParser parser) {
+        if(parser==null)throw new NullPointerException("parser");
+        return parser instanceof AttributeSet?(AttributeSet)parser:new PullAttributes(parser);
+    }
+    private static final class PullAttributes implements AttributeSet {
+        private final XmlPullParser parser;
+        PullAttributes(XmlPullParser parser) { this.parser=parser; }
+        public int getAttributeCount(){return parser.getAttributeCount();}
+        public String getAttributeName(int index){return parser.getAttributeName(index);}
+        public String getAttributeValue(int index){return parser.getAttributeValue(index);}
+        public String getAttributeValue(String namespace,String name){return parser.getAttributeValue(namespace,name);}
+        public String getPositionDescription(){return parser.getPositionDescription();}
+        public int getAttributeNameResource(int index){return 0;}
+        public int getAttributeListValue(String namespace,String name,String[] options,int fallback){
+            String value=getAttributeValue(namespace,name);
+            for(int i=0;i<options.length;i++)if(options[i].equals(value))return i;
+            return fallback;
+        }
+        public boolean getAttributeBooleanValue(String namespace,String name,boolean fallback){
+            String value=getAttributeValue(namespace,name);
+            if("true".equals(value))return true;if("false".equals(value))return false;
+            return value==null?fallback:getAttributeIntValue(namespace,name,fallback?1:0)!=0;
+        }
+        public int getAttributeResourceValue(String namespace,String name,int fallback){
+            String value=getAttributeValue(namespace,name);
+            if(value==null || !value.startsWith("@"))return fallback;
+            try{return Integer.decode(value.substring(1));}catch(NumberFormatException e){return fallback;}
+        }
+        public int getAttributeIntValue(String namespace,String name,int fallback){
+            String value=getAttributeValue(namespace,name);
+            if(value==null)return fallback;
+            try{return Integer.decode(value);}catch(NumberFormatException e){return fallback;}
+        }
+        public int getAttributeUnsignedIntValue(String namespace,String name,int fallback){
+            int value=getAttributeIntValue(namespace,name,fallback);return value<0?fallback:value;
+        }
+        public float getAttributeFloatValue(String namespace,String name,float fallback){
+            String value=getAttributeValue(namespace,name);
+            if(value==null)return fallback;
+            try{return Float.parseFloat(value);}catch(NumberFormatException e){return fallback;}
+        }
+        public int getStyleAttribute(){return getAttributeResourceValue(null,"style",0);}
+        public void recycle(){}
+    }
+
     public static XmlSerializer newSerializer() {
         return new StaxSerializer();
     }
@@ -312,8 +357,7 @@ public class Xml {
                     current = e;
                     switch (e.getEventType()) {
                         case javax.xml.stream.XMLStreamConstants.START_DOCUMENT:
-                            event = START_DOCUMENT;
-                            return event;
+                            continue;
                         case javax.xml.stream.XMLStreamConstants.END_DOCUMENT:
                             event = END_DOCUMENT;
                             return event;
@@ -401,7 +445,8 @@ public class Xml {
         @Override
         public int nextTag() throws XmlPullParserException, IOException {
             int t = next();
-            while (t == TEXT && isWhitespace()) t = next();
+            while (t == IGNORABLE_WHITESPACE || t == COMMENT || t == PROCESSING_INSTRUCTION
+                    || (t == TEXT || t == CDSECT) && isWhitespace()) t = next();
             if (t != START_TAG && t != END_TAG) {
                 throw new XmlPullParserException("expected tag", this, null);
             }

@@ -12,7 +12,11 @@
 set -euo pipefail
 here=$(cd "$(dirname "$0")" && pwd)
 root=$(cd "$here/.." && pwd)
-D2J=${D2J:-/tmp/oracle/dex2jar/dex-tools-v2.4}
+D2J=${D2J:-$root/.cache/toolchain/dex_tools/dex-tools-v2.4}
+if [ ! -x "$D2J/d2j-smali.sh" ]; then
+    echo "ERROR: missing dex-tools; run python3 tools/bootstrap.py dex_tools, then source .cache/toolchain/env.sh" >&2
+    exit 1
+fi
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
 

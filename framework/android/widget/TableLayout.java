@@ -20,6 +20,18 @@ public class TableLayout extends LinearLayout {
         super(context, attrs, defStyleAttr);
         setOrientation(VERTICAL);
     }
+    @Override
+    protected void onMeasure(int widthSpec, int heightSpec) {
+        // AOSP TableLayout.measureVertical forces every TableRow child's height to
+        // WRAP_CONTENT before measuring, so rows never consume the full parent height.
+        for (int i = 0; i < getChildCount(); i++) {
+            android.view.View child = getChildAt(i);
+            if (child instanceof TableRow && child.getLayoutParams() != null) {
+                child.getLayoutParams().height = android.view.ViewGroup.LayoutParams.WRAP_CONTENT;
+            }
+        }
+        super.onMeasure(widthSpec, heightSpec);
+    }
 
     public void setStretchAllColumns(boolean stretch) {}
     public void setShrinkAllColumns(boolean shrink) {}

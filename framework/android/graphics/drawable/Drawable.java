@@ -22,6 +22,33 @@ public abstract class Drawable {
     private Callback callback;
     private boolean visible = true;
     private boolean autoMirrored;
+    private ColorStateList tint;
+    private ColorFilter colorFilter;
+    private PorterDuff.Mode tintMode = PorterDuff.Mode.SRC_IN;
+
+    public void setTint(int color) { setTintList(ColorStateList.valueOf(color)); }
+    public void setTintList(ColorStateList tint) {
+        this.tint = tint;
+        if (tint != null && !(this instanceof ColorDrawable) && !(this instanceof GradientDrawable)
+                && !(this instanceof BitmapDrawable) && !(this instanceof VectorDrawable))
+            org.isakai.runtime.Capabilities.unavailable("Drawable.tint: unsupported " + getClass().getName()
+                    + "; solid, gradient, bitmap, and vector path drawables support SRC_IN tint");
+        invalidateSelf();
+    }
+    public void setTintMode(PorterDuff.Mode mode) { tintMode = mode; invalidateSelf(); }
+
+    /** Solid drawable tint; other compositing modes remain explicitly unsupported. */
+    protected final int tintedColor(int color) {
+        if (colorFilter != null) return colorFilter.filterColor(color);
+        if (tint == null || tintMode == null) return color;
+        if (tintMode == PorterDuff.Mode.SRC_IN) {
+            int value = tint.getColorForState(state, tint.getDefaultColor());
+            int alpha = ((value >>> 24) * (color >>> 24) + 127) / 255;
+            return (value & 0xffffff) | (alpha << 24);
+        }
+        org.isakai.runtime.Capabilities.unavailable("Drawable.tintMode: only SRC_IN solid drawable tint is rendered");
+        return color;
+    }
 
     public interface Callback {
         void invalidateDrawable(Drawable who);
@@ -40,7 +67,10 @@ public abstract class Drawable {
     public abstract void draw(Canvas canvas);
 
     public void setAlpha(int alpha) {}
-    public void setColorFilter(ColorFilter colorFilter) {}
+    public void setColorFilter(ColorFilter colorFilter) {
+        this.colorFilter=colorFilter;invalidateSelf();
+    }
+    public ColorFilter getColorFilter() { return colorFilter; }
     public void setColorFilter(int color, PorterDuff.Mode mode) {
         setColorFilter(new android.graphics.PorterDuffColorFilter(color, mode));
     }
@@ -81,11 +111,13 @@ public abstract class Drawable {
 
     public boolean setState(int[] stateSet) {
         this.state = stateSet == null ? new int[0] : stateSet.clone();
-        return onStateChange(this.state);
+        boolean changed = onStateChange(this.state);
+        if (tint != null && tint.isStateful()) { invalidateSelf(); return true; }
+        return changed;
     }
 
     public int[] getState() { return state.clone(); }
-    public boolean isStateful() { return false; }
+    public boolean isStateful() { return tint != null && tint.isStateful(); }
     protected boolean onStateChange(int[] state) { return false; }
     public void jumpToCurrentState() {}
 
@@ -246,9 +278,9 @@ public abstract class Drawable {
      * Inflate the element at the parser's current start tag. Supports the
      * software-rasterized subset: {@code color}, {@code shape} (solid color),
      * {@code bitmap}, {@code selector}, {@code layer-list}, {@code inset},
-     * {@code clip}, {@code animation-list}. Anything else (vector, ripple,
-     * nine-patch, transition, level-list) is fail-closed to {@code null}:
-     * the software rasterizer cannot render it faithfully.
+     * {@code clip}, {@code animation-list}, and filled-path {@code vector}.
+     * Ripple, nine-patch, transition, and level-list XML fail-closed to
+     * {@code null}; vector strokes, trim paths, and gradient fills are not rendered.
      */
     private static Drawable inflateTag(Resources r, org.xmlpull.v1.XmlPullParser parser,
             android.util.AttributeSet attrs, Resources.Theme theme) {
@@ -260,6 +292,11 @@ public abstract class Drawable {
             case "bitmap": return inflateBitmap(r, attrs);
             case "selector": return inflateSelector(r, parser, attrs, theme);
             case "layer-list": return inflateLayerList(r, parser, attrs, theme);
+            case "ripple": {
+                ColorStateList color=ColorStateList.valueOf(resolveColorAttr(r, attrs, "color", theme, 0));
+                LayerDrawable layers=(LayerDrawable)inflateLayerList(r, parser, attrs, theme);
+                return layers==null?null:new RippleDrawable(color,layers);
+            }
             case "inset": return inflateInset(r, parser, attrs, theme);
             case "clip": return inflateClip(r, parser, attrs, theme);
             case "animation-list": return inflateAnimationList(r, parser, attrs, theme);
@@ -435,9 +472,23 @@ public abstract class Drawable {
         return d;
     }
 
+    private static int resourceId(Resources resources, String raw, String type, int fallback) {
+        if (raw == null || !raw.startsWith("@")) return fallback;
+        String ref = raw.substring(1);
+        if (ref.startsWith("+")) ref = ref.substring(1);
+        try {
+            if (ref.startsWith("0x")) return (int) Long.parseLong(ref.substring(2), 16);
+            if (ref.matches("[0-9a-fA-F]+")) return (int) Long.parseLong(ref, 16);
+        } catch (NumberFormatException invalid) { return fallback; }
+        if ("android:id/mask".equals(ref)) return 0x0102002e;
+        int id = resources.getIdentifier(ref, type, null);
+        return id == 0 ? fallback : id;
+    }
+
     private static Drawable inflateLayerList(Resources r, org.xmlpull.v1.XmlPullParser parser,
             android.util.AttributeSet attrs, Resources.Theme theme) {
         java.util.ArrayList<Drawable> layers = new java.util.ArrayList<>();
+        java.util.ArrayList<Integer> layerIds = new java.util.ArrayList<>();
         try {
             while (true) {
                 int t = parser.next();
@@ -451,14 +502,17 @@ public abstract class Drawable {
                     continue;
                 }
                 android.util.AttributeSet itemAttrs = bridgeAttrs(parser);
+                int id = resourceId(r, attr(itemAttrs, "id"), "id", -1);
                 Drawable child = inflateChildFromItem(r, parser, itemAttrs, theme);
-                if (child != null) layers.add(child);
+                if (child != null) { layers.add(child); layerIds.add(id); }
                 skipTag(parser);
             }
         } catch (java.io.IOException | org.xmlpull.v1.XmlPullParserException e) {
             return null;
         }
-        return new LayerDrawable(layers.toArray(new Drawable[0]));
+        LayerDrawable result = new LayerDrawable(layers.toArray(new Drawable[0]));
+        for (int i = 0; i < layerIds.size(); i++) result.setId(i, layerIds.get(i));
+        return result;
     }
 
     private static Drawable inflateInset(Resources r, org.xmlpull.v1.XmlPullParser parser,
@@ -518,6 +572,7 @@ public abstract class Drawable {
     private static Drawable inflateChildFromItem(Resources r,
             org.xmlpull.v1.XmlPullParser parser, android.util.AttributeSet itemAttrs,
             Resources.Theme theme) {
+        String drawableRef = attr(itemAttrs, "drawable");
         try {
             int t = parser.next();
             while (t == org.xmlpull.v1.XmlPullParser.TEXT
@@ -528,14 +583,21 @@ public abstract class Drawable {
             if (t == org.xmlpull.v1.XmlPullParser.START_TAG) {
                 android.util.AttributeSet childAttrs = bridgeAttrs(parser);
                 Drawable inline = inflateTag(r, parser, childAttrs, theme);
-                if (inline != null) return inline;
                 skipTag(parser);
-                return null;
+                // Consume the enclosing item, so a child's end tag cannot terminate
+                // the parent layer-list/selector before its remaining siblings.
+                while (parser.getEventType() != org.xmlpull.v1.XmlPullParser.END_DOCUMENT
+                        && !(parser.getEventType() == org.xmlpull.v1.XmlPullParser.END_TAG
+                             && "item".equals(parser.getName()))) {
+                    parser.next();
+                    if (parser.getEventType() == org.xmlpull.v1.XmlPullParser.START_TAG) skipTag(parser);
+                }
+                return inline;
             }
             // No nested tag (whitespace then the item's END_TAG): fall back to
             // the android:drawable color literal. Refs without a table fail closed.
             if (t == org.xmlpull.v1.XmlPullParser.END_TAG) {
-                String ref = attr(itemAttrs, "drawable");
+                String ref = drawableRef;
                 if (ref == null || ref.isEmpty()) return null;
                 ref = ref.trim();
                 if (ref.charAt(0) == '#') {
@@ -546,7 +608,8 @@ public abstract class Drawable {
                         return null;
                     }
                 }
-                return null;
+                int id = resourceId(r, ref, "drawable", 0);
+                return id == 0 ? null : r.getDrawable(id, theme);
             }
             return null;
         } catch (java.io.IOException | org.xmlpull.v1.XmlPullParserException e) {

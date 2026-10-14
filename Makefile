@@ -12,7 +12,7 @@
 # lib/libisakai_jni.so), $(DESTDIR)/usr/share/polkit-1/actions/*.policy.
 #
 # The polkit policy pins org.freedesktop.policykit.exec.path to
-# /usr/bin/isakai, so install refuses any PREFIX other than /usr unless
+# /usr/bin/isakai-*-uid, so install refuses any PREFIX other than /usr unless
 # INSTALL_POLICY=0 skips the policy (dev relocatable installs).
 
 PREFIX ?= /usr
@@ -20,10 +20,10 @@ DESTDIR ?=
 INSTALL_POLICY ?= 1
 STAGE ?= .stage-install
 
-POLICY_SRC = $(STAGE)/share/polkit-1/actions/id.isakai.allocate-uid.policy
-POLICY_DST = $(DESTDIR)/usr/share/polkit-1/actions/id.isakai.allocate-uid.policy
+POLICY_SRC = $(STAGE)/share/polkit-1/actions/id.isakai.policy
+POLICY_DST = $(DESTDIR)/usr/share/polkit-1/actions/id.isakai.policy
 
-.PHONY: build test install uninstall clean
+.PHONY: build test verify verify-wayland verify-privileged install uninstall clean
 
 build:
 	zig build -Doptimize=ReleaseSafe
@@ -31,14 +31,24 @@ build:
 test:
 	zig build test
 
+verify:
+	tools/checks.sh core
+
+verify-wayland:
+	tools/checks.sh wayland
+
+verify-privileged:
+	tools/checks.sh privileged
+
 install:
 ifeq ($(INSTALL_POLICY),1)
 	@if [ "$(PREFIX)" != /usr ]; then \
-		echo "error: polkit policy pins exec.path=/usr/bin/isakai; refusing PREFIX=$(PREFIX) (use PREFIX=/usr, or INSTALL_POLICY=0 to skip the policy)"; \
+		echo "error: polkit policy pins wrapper paths under /usr/bin; refusing PREFIX=$(PREFIX) (use PREFIX=/usr, or INSTALL_POLICY=0 to skip the policy)"; \
 		exit 1; \
 	fi
 endif
-	zig build -Doptimize=ReleaseSafe --prefix $(STAGE)
+	# DESTDIR belongs to the FHS copy below, not Zig's private staging build.
+	env -u DESTDIR zig build -Doptimize=ReleaseSafe --prefix $(STAGE)
 	install -D -m755 $(STAGE)/bin/isakai $(DESTDIR)$(PREFIX)/bin/isakai
 	install -D -m755 $(STAGE)/bin/isakai-dbus-bridge $(DESTDIR)$(PREFIX)/bin/isakai-dbus-bridge
 	install -D -m755 $(STAGE)/bin/isakai-allocate-uid $(DESTDIR)$(PREFIX)/bin/isakai-allocate-uid
@@ -48,13 +58,14 @@ endif
 	cp -r $(STAGE)/framework $(DESTDIR)$(PREFIX)/share/isakai/framework
 ifeq ($(INSTALL_POLICY),1)
 	install -D -m644 $(POLICY_SRC) $(POLICY_DST)
+	rm -f $(DESTDIR)/usr/share/polkit-1/actions/id.isakai.allocate-uid.policy
 endif
 
 uninstall:
 	rm -f $(DESTDIR)$(PREFIX)/bin/isakai $(DESTDIR)$(PREFIX)/bin/isakai-dbus-bridge
 	rm -f $(DESTDIR)$(PREFIX)/bin/isakai-allocate-uid $(DESTDIR)$(PREFIX)/bin/isakai-remove-uid $(DESTDIR)$(PREFIX)/bin/isakai-run-app
 	rm -rf $(DESTDIR)$(PREFIX)/share/isakai
-	rm -f $(DESTDIR)/usr/share/polkit-1/actions/id.isakai.allocate-uid.policy
+	rm -f $(DESTDIR)/usr/share/polkit-1/actions/id.isakai.policy $(DESTDIR)/usr/share/polkit-1/actions/id.isakai.allocate-uid.policy
 
 clean:
 	rm -rf zig-out .zig-cache $(STAGE)

@@ -7,6 +7,7 @@
 
 const std = @import("std");
 const registry = @import("registry");
+const pathmod = @import("bridge_path");
 
 pub const HelperError = error{
     BadPackage,
@@ -192,8 +193,8 @@ fn ensureUser(gpa: std.mem.Allocator, io: std.Io, user: []const u8, uid: u32) He
     const uid_s = std.fmt.allocPrint(gpa, "{d}", .{uid}) catch return error.OutOfMemory;
     defer gpa.free(uid_s);
     runCmd(io, &.{
-        "/usr/bin/useradd", "--system", "--no-create-home", "--gid", uid_s,
-        "--shell", "/usr/bin/nologin", "--uid", uid_s, user,
+        "/usr/bin/useradd", "--system",         "--no-create-home", "--gid", uid_s,
+        "--shell",          "/usr/bin/nologin", "--uid",            uid_s,   user,
     }) catch return error.UseraddFailed;
     const created = (try passwdLookup(gpa, io, user, null)) orelse return error.UseraddFailed;
     defer gpa.free(created.name);
@@ -309,8 +310,6 @@ fn ensureOneBridgeDir(work: []const u8, package: []const u8, kind: []const u8, u
     _ = linux.fchown(fd, uid, uid);
     _ = linux.fchmod(fd, 0o700);
 }
-
-
 
 pub fn remove(gpa: std.mem.Allocator, io: std.Io, args: AllocateArgs) HelperError!void {
     if (args.uid < 200000 or args.uid > 299999) return error.BadUid;
@@ -498,6 +497,7 @@ pub fn runAs(
     work: []const u8,
     cmd: []const [:0]const u8,
     wayland_sock: ?[]const u8,
+    bridge_dir: ?[]const u8,
     framework_dir: ?[]const u8,
     confinement_disabled: bool,
     err_writer: *std.Io.Writer,
@@ -510,6 +510,16 @@ pub fn runAs(
     if (!validPackage(package)) {
         try err_writer.writeAll("uid-helper run: bad package\n");
         return 2;
+    }
+    if (!validWaylandSockPath(work) or std.mem.eql(u8, work, "/")) {
+        try err_writer.writeAll("uid-helper run: bad work path\n");
+        return 2;
+    }
+    if (framework_dir) |path| {
+        if (!validWaylandSockPath(path) or std.mem.eql(u8, path, "/")) {
+            try err_writer.writeAll("uid-helper run: bad framework path\n");
+            return 2;
+        }
     }
     if (cmd.len == 0) {
         try err_writer.writeAll("uid-helper run: no command\n");
@@ -560,6 +570,18 @@ pub fn runAs(
             return 2;
         }
     }
+    // --bridge-dir, when given, is the launcher-created desktop-bridge
+    // endpoint: absolute, no `..`, short enough for sun_path, named inside
+    // /tmp/isakai-*, a real directory owned by a *different* uid than the
+    // app (the app must not be able to replace the socket) and not
+    // group/other writable. Fail-closed: the sandbox env and the Landlock
+    // grant must name a directory the launcher actually prepared.
+    if (bridge_dir) |dir| {
+        if (!validBridgeEndpointDir(dir, uid)) {
+            try err_writer.writeAll("uid-helper run: bad bridge dir (want /tmp/isakai-<uid>-<digest>, owned by another uid, not group/other writable)\n");
+            return 2;
+        }
+    }
     const pid_usize = linux.fork();
     const errno_fork = linux.errno(pid_usize);
     if (errno_fork != .SUCCESS) {
@@ -568,9 +590,9 @@ pub fn runAs(
     }
     const pid: std.posix.pid_t = @bitCast(@as(u32, @truncate(pid_usize)));
     if (pid == 0) {
-        // Child: confine, drop privileges, set env, exec. Async-signal-safe
+        // Child: mount setup, drop privileges, confine, set env, exec. Async-signal-safe
         // only; on any failure _exit(127) — never return to the caller.
-        childMain(uid, data_dir, work, package, cmd, wayland_sock, framework_dir, confinement_disabled);
+        childMain(uid, data_dir, work, package, cmd, wayland_sock, bridge_dir, framework_dir, confinement_disabled);
     }
     // Parent: wait and translate status.
     while (true) {
@@ -584,7 +606,7 @@ pub fn runAs(
         }
         const st: u32 = @bitCast(status);
         if (linux.W.IFEXITED(st)) return linux.W.EXITSTATUS(st);
-        if (linux.W.IFSIGNALED(st)) return @intCast(128 + @intFromEnum(linux.W.TERMSIG(st)));
+        if (linux.W.IFSIGNALED(st)) return @intCast(128 + @backingInt(linux.W.TERMSIG(st)));
         // Stopped/continued: keep waiting.
     }
 }
@@ -659,10 +681,30 @@ pub fn isStreamSocket(path: []const u8) bool {
     return stx.mode & linux.S.IFMT == linux.S.IFSOCK;
 }
 
-fn childMain(uid: u32, data_dir: []const u8, work: []const u8, package: []const u8, cmd: []const [:0]const u8, wayland_sock: ?[]const u8, framework_dir: ?[]const u8, confinement_disabled: bool) noreturn {
-    // Aliased so the confinement block reads naturally: the staged code
-    // dir IS the registry's apk/code_dir field (<work>/code/<pkg>/<digest>).
-    const package_code_dir = package;
+/// True when `dir` is a desktop-bridge endpoint the helper may export to
+/// the sandbox and grant to Landlock: shape-checked by the shared module
+/// (absolute, inside /tmp/isakai-*, short enough for `<dir>/bridge.sock`),
+/// an existing directory (no symlink), owned by a uid other than the app's
+/// (so the app cannot swap the socket node), and not group/other writable
+/// (so no third party can). Allocation-free: runs pre-fork.
+pub fn validBridgeEndpointDir(dir: []const u8, app_uid: u32) bool {
+    const linux = std.os.linux;
+    if (!pathmod.validDir(dir)) return false;
+    if (!pathmod.fitsSocketPath(dir)) return false;
+    var zbuf: [pathmod.max_dir + 1]u8 = undefined;
+    @memcpy(zbuf[0..dir.len], dir);
+    zbuf[dir.len] = 0;
+    const z: [*:0]const u8 = @ptrCast(&zbuf);
+    var stx: linux.Statx = undefined;
+    const rc = linux.statx(linux.AT.FDCWD, z, linux.AT.SYMLINK_NOFOLLOW, .{ .TYPE = true, .MODE = true, .UID = true }, &stx);
+    if (linux.errno(rc) != .SUCCESS) return false;
+    if (stx.mode & linux.S.IFMT != linux.S.IFDIR) return false;
+    if (stx.uid == app_uid) return false;
+    if (stx.mode & 0o022 != 0) return false;
+    return true;
+}
+
+fn childMain(uid: u32, data_dir: []const u8, work: []const u8, package: []const u8, cmd: []const [:0]const u8, wayland_sock: ?[]const u8, bridge_dir: ?[]const u8, framework_dir: ?[]const u8, confinement_disabled: bool) noreturn {
     const linux = std.os.linux;
     // 0. Close every fd >= 3 (no descriptor leaks into the app). Prefer
     // close_range(3, ~0, 0); fall back to a bounded loop when ENOSYS.
@@ -678,40 +720,6 @@ fn childMain(uid: u32, data_dir: []const u8, work: []const u8, package: []const 
     // propagation is slave/private so later bind mounts never escape to
     // the host. Fail-closed with a stderr diagnostic; _exit(127).
     confineChild();
-    // -1b. Kernel confinement: Landlock fs rules + seccomp syscall
-    // allowlist. Still root, still pre-drop (needs setresuid etc. later,
-    // which are in the seccomp allowlist). RO trees: the JVM binary's
-    // tree, the staged code dir (classes + resources.arsc), and the
-    // framework (when the launcher passed --framework). RW: data_dir.
-    // Fail-closed: any hard error _exit(127) with a stderr diagnostic;
-    // missing kernel support degrades with a warning (UID isolation and
-    // NNP still hold).
-    {
-        const confine = @import("confine.zig");
-        var ro_buf: [3][]const u8 = undefined;
-        var n_ro: usize = 0;
-        // JVM tree: dirname of the (absolute, validated) java path.
-        if (std.mem.lastIndexOfScalar(u8, cmd[0], '/')) |slash| {
-            if (slash > 0) {
-                ro_buf[n_ro] = cmd[0][0..slash];
-                n_ro += 1;
-            }
-        }
-        ro_buf[n_ro] = package_code_dir;
-        n_ro += 1;
-        if (framework_dir) |f| {
-            ro_buf[n_ro] = f;
-            n_ro += 1;
-        }
-        confine.confineAndRestrict(data_dir, ro_buf[0..n_ro], confinement_disabled) catch |err| {
-            const prefix = "uid-helper run: confinement failed: ";
-            _ = linux.write(linux.STDERR_FILENO, prefix, prefix.len);
-            const ename = @errorName(err);
-            _ = linux.write(linux.STDERR_FILENO, ename.ptr, ename.len);
-            _ = linux.write(linux.STDERR_FILENO, "\n", 1);
-            linux.exit(127);
-        };
-    }
     // 0b. Wayland brokering: bind-mount the compositor socket onto
     // <data_dir>/run/<basename> (regular-file 0600 target) inside the
     // private mount ns, still root pre-drop. Fail-closed: _exit(127).
@@ -736,6 +744,16 @@ fn childMain(uid: u32, data_dir: []const u8, work: []const u8, package: []const 
         const z: [*:0]const u8 = @ptrCast(&dbuf);
         if (linux.errno(linux.chdir(z)) != .SUCCESS) linux.exit(127);
     }
+    // All privileged filesystem setup is complete. Rules refer to this app's
+    // code tree, not its package-name string; stage is writable, bridge is RO.
+    applyRuntimeConfinement(data_dir, work, package, bridge_dir, cmd[0], framework_dir, confinement_disabled) catch |err| {
+        const prefix = "uid-helper run: confinement failed: ";
+        _ = linux.write(linux.STDERR_FILENO, prefix, prefix.len);
+        const name = @errorName(err);
+        _ = linux.write(linux.STDERR_FILENO, name.ptr, name.len);
+        _ = linux.write(linux.STDERR_FILENO, "\n", 1);
+        linux.exit(127);
+    };
     // 5. Tight umask: app-created files default 0600 / dirs 0700.
     _ = linux.syscall1(.umask, 0o077);
     // 6. Per-app environment. Fixed-size stack buffers (no allocation
@@ -750,13 +768,18 @@ fn childMain(uid: u32, data_dir: []const u8, work: []const u8, package: []const 
     _ = tmpdir;
     _ = rundir;
     _ = home;
-    // Bridge/stage paths mirror launch.bridgeDirs (work/run+work/stage):
-    // rebuilt here (allocation-free) as the 5th/6th env vars. No
-    // DBUS_* vars are set: the sandbox reaches the bus only via the
-    // bridge socket.
+    // Bridge/stage paths: the launcher passes the desktop-bridge endpoint
+    // explicitly (short /tmp socket dir, mirrored into the Landlock grant
+    // above); legacy callers without --bridge-dir keep the work/run/<pkg>
+    // anchor. No DBUS_* vars are set: the sandbox reaches the bus only via
+    // the bridge socket.
     var bridge_buf: [4352]u8 = undefined;
     var stage_buf: [4352]u8 = undefined;
-    const bridge = std.fmt.bufPrint(&bridge_buf, "ISAKAI_BRIDGE={s}/run/{s}\x00", .{ work, package }) catch linux.exit(127);
+    var legacy_endpoint_buf: [4096]u8 = undefined;
+    const endpoint: []const u8 = bridge_dir orelse blk: {
+        break :blk std.fmt.bufPrint(&legacy_endpoint_buf, "{s}/run/{s}", .{ work, package }) catch linux.exit(127);
+    };
+    const bridge = std.fmt.bufPrint(&bridge_buf, "ISAKAI_BRIDGE={s}\x00", .{endpoint}) catch linux.exit(127);
     const stage = std.fmt.bufPrint(&stage_buf, "ISAKAI_STAGE={s}/stage/{s}\x00", .{ work, package }) catch linux.exit(127);
     _ = bridge;
     _ = stage;
@@ -817,6 +840,84 @@ fn childMain(uid: u32, data_dir: []const u8, work: []const u8, package: []const 
     _ = linux.write(linux.STDERR_FILENO, exe0.ptr, exe0.len);
     _ = linux.write(linux.STDERR_FILENO, "\n", 1);
     linux.exit(127);
+}
+
+/// Build an allocation-free policy from anchored app paths and the canonical
+/// Java executable. Shared with the live runtime regression launcher.
+/// `bridge_dir` is the launcher-created desktop-bridge endpoint
+/// (`/tmp/isakai-<uid>-<digest>`); null keeps the legacy
+/// `<work>/run/<package>` anchor and tolerates its absence.
+pub fn applyRuntimeConfinement(data_dir: []const u8, work: []const u8, package: []const u8, bridge_dir: ?[]const u8, java: []const u8, framework_dir: ?[]const u8, disabled: bool) !void {
+    const confine = @import("confine");
+    const linux = std.os.linux;
+    var code_buf: [4096]u8 = undefined;
+    var stage_buf: [4096]u8 = undefined;
+    var bridge_buf: [4096]u8 = undefined;
+    const code = try std.fmt.bufPrint(&code_buf, "{s}/code/{s}", .{ work, package });
+    const stage = try std.fmt.bufPrint(&stage_buf, "{s}/stage/{s}", .{ work, package });
+    // The endpoint holds the bridge socket: read-only (connect only).
+    const bridge = bridge_dir orelse try std.fmt.bufPrint(&bridge_buf, "{s}/run/{s}", .{ work, package });
+    // Endpoints outside the work tree may legitimately be absent on a
+    // bridge-less run; an explicitly passed endpoint must exist.
+    const bridge_optional = bridge_dir == null;
+    // Resolve symlinked /usr/bin/java before choosing its JDK home.
+    var java_z_buf: [4096]u8 = undefined;
+    const java_z = toZ(java, &java_z_buf) orelse return error.BadJavaPath;
+    const opened = linux.openat(linux.AT.FDCWD, java_z, .{ .PATH = true, .CLOEXEC = true }, 0);
+    if (linux.errno(opened) != .SUCCESS) return error.BadJavaPath;
+    const fd: i32 = @intCast(opened);
+    defer _ = linux.close(fd);
+    var link_buf: [64]u8 = undefined;
+    _ = try std.fmt.bufPrint(&link_buf, "/proc/self/fd/{d}\x00", .{fd});
+    const link: [*:0]const u8 = @ptrCast(&link_buf);
+    var resolved_buf: [4096]u8 = undefined;
+    const n = linux.readlink(link, &resolved_buf, resolved_buf.len);
+    if (linux.errno(n) != .SUCCESS or n == resolved_buf.len) return error.BadJavaPath;
+    const bin = std.fs.path.dirname(resolved_buf[0..n]) orelse return error.BadJavaPath;
+    if (!std.mem.eql(u8, std.fs.path.basename(bin), "bin")) return error.BadJavaPath;
+    const java_home = std.fs.path.dirname(bin) orelse return error.BadJavaPath;
+    if (std.mem.eql(u8, java_home, "/")) return error.BadJavaPath;
+    // Opening conf separately follows distro symlinks outside JAVA_HOME.
+    var java_conf_buf: [4096]u8 = undefined;
+    const java_conf = try std.fmt.bufPrint(&java_conf_buf, "{s}/conf", .{java_home});
+    var rules: [64]confine.Rule = undefined;
+    var count: usize = 0;
+    for ([_][]const u8{ java_home, code }) |path| {
+        rules[count] = .{ .path = path };
+        count += 1;
+    }
+    rules[count] = .{ .path = bridge, .optional = bridge_optional };
+    count += 1;
+    rules[count] = .{ .path = java_conf, .optional = true };
+    count += 1;
+    if (framework_dir) |path| {
+        rules[count] = .{ .path = path };
+        count += 1;
+    }
+    for ([_][]const u8{ data_dir, stage }) |path| {
+        rules[count] = .{ .path = path, .access = confine.read_write };
+        count += 1;
+    }
+    // Distro runtime libraries/configuration, not /usr or /etc wholesale.
+    // /proc/self supports JVM introspection; another app's /proc tree is not
+    // granted. Optional entries differ between Arch and Debian installations.
+    for ([_][]const u8{
+        "/lib",                  "/lib64",              "/usr/lib",                       "/usr/lib64",
+        "/etc/ld.so.cache",      "/etc/ld.so.conf",     "/etc/ld.so.conf.d",              "/etc/ssl/certs",
+        "/etc/pki",              "/etc/resolv.conf",    "/etc/hosts",                     "/etc/nsswitch.conf",
+        "/etc/localtime",        "/etc/fonts",          "/etc/pulse",                     "/usr/share/fonts",
+        "/usr/share/fontconfig", "/usr/share/zoneinfo", "/proc/self",                     "/proc/cpuinfo",
+        "/proc/meminfo",         "/proc/stat",          "/proc/sys/vm/overcommit_memory", "/sys/devices/system/cpu",
+        "/sys/fs/cgroup",        "/usr/bin/ffmpeg",     "/usr/bin/ffprobe",
+    }) |path| {
+        rules[count] = .{ .path = path, .optional = true };
+        count += 1;
+    }
+    for ([_][]const u8{ "/dev/null", "/dev/zero", "/dev/random", "/dev/urandom" }) |path| {
+        rules[count] = .{ .path = path, .access = confine.read_write };
+        count += 1;
+    }
+    try confine.confineAndRestrict(rules[0..count], disabled);
 }
 
 /// NO_NEW_PRIVS + private mount namespace, still root, pre-drop.

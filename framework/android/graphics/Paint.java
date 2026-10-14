@@ -45,6 +45,13 @@ public class Paint {
     private boolean filterBitmap;
     private boolean elegantTextHeight;
     private Typeface typeface;
+    private Xfermode xfermode;
+    public Xfermode setXfermode(Xfermode mode) {
+        Xfermode previous=xfermode;xfermode=mode;
+        if(mode!=null)org.isakai.runtime.Capabilities.unavailable("android.graphics.Paint.xfermodeRendering");
+        return previous;
+    }
+    public Xfermode getXfermode() { return xfermode; }
     private Shader shader;
     private ColorFilter colorFilter;
     private String fontFeatureSettings;

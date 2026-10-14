@@ -65,15 +65,25 @@ public class ListView extends AbsListView {
 
     @Override
     protected void dispatchDraw(Canvas canvas) {
+        drawRows(canvas, getLeft(), getTop());
+    }
+
+    @Override
+    protected void dispatchDrawAt(Canvas canvas, int offsetX, int offsetY) {
+        drawRows(canvas, offsetX, offsetY);
+    }
+
+    private void drawRows(Canvas canvas, int originX, int originY) {
         ListAdapter adapter = getAdapter();
         if (adapter == null || canvas == null) return;
-        int y = getTop();
+        int y = 0;
         int rowH = 24;
-        for (int i = 0; i < adapter.getCount() && y < getBottom(); i++) {
+        int bottom = getHeight();
+        for (int i = 0; i < adapter.getCount() && y < bottom; i++) {
             View row = adapter.getView(i, null, this);
             if (row == null) continue;
-            row.layout(getLeft(), y, getRight(), y + rowH);
-            row.draw(canvas);
+            row.layout(0, y, getWidth(), y + rowH);
+            row.drawAt(canvas, originX, originY);
             y += rowH + dividerHeight;
         }
     }

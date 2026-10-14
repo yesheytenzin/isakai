@@ -26,7 +26,20 @@ public class IsakaiMain {
             System.err.println("usage: IsakaiMain <data-dir> [app-class] [activity-class] [package] [title]");
             System.exit(2);
         }
+        Thread.setDefaultUncaughtExceptionHandler((thread,failure)-> {
+            synchronized(System.err) {
+                System.err.print("Exception in thread \""+thread.getName()+"\" ");
+                failure.printStackTrace(System.err);
+            }
+            System.exit(1);
+        });
+        android.os.Looper.prepareMainLooper();
+        if (args.length > 7) System.setProperty("isakai.targetSdk", args[7]);
+        if (args.length > 8) System.setProperty("isakai.minSdk", args[8]);
         String dataDir = args[0];
+        System.setProperty("isakai.dataDir",dataDir);
+        System.setProperty("user.home",dataDir);
+        java.nio.file.Files.createDirectories(java.nio.file.Path.of(dataDir,".cache","fontconfig"));
         Application app = new Application();
         if (args.length > 1 && !args[1].isEmpty() && !args[1].equals("-")) {
             Class<?> appClass = Class.forName(args[1]);
@@ -57,6 +70,11 @@ public class IsakaiMain {
             }
             System.out.println("isakai: activity " + act.getClass().getName() + " destroyed");
         }
+        android.os.Looper.getMainLooper().dispatchPending();
+        android.os.Looper.getMainLooper().quitSafely();
         System.out.println("isakai: run complete");
+        // One launch owns one JVM. After lifecycle/queue cleanup, app executor
+        // threads must not keep a closed desktop window's process alive.
+        System.exit(0);
     }
 }

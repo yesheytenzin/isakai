@@ -17,6 +17,13 @@
 
 const std = @import("std");
 
+// The host JVM owns signal handling. Zig's default 256 KiB TLS signal
+// stack exceeds the JVM process-reaper thread stack when this DSO is loaded.
+pub const std_options: std.Options = .{
+    .enable_segfault_handler = false,
+    .signal_stack_size = null,
+};
+
 const prop_value_max = 92; // bionic PROP_VALUE_MAX
 
 extern fn vsnprintf(str: [*]u8, size: usize, format: [*:0]const u8, ap: *anyopaque) c_int;

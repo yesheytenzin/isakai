@@ -27,6 +27,8 @@ public final class IsakaiWindow {
     public static native long nOpen(String title, String appId, int w, int h);
 
     /** Copy path. Returns 0 on success, -1 on failure. */
+    public static native int nSetTitle(long handle,String title);
+
     public static native int nPost(long handle, int[] pixels, int w, int height, int stride);
 
     /**
@@ -113,6 +115,11 @@ public final class IsakaiWindow {
             return handle;
         }
 
+        /** False once the host window has been closed (or the handle released). */
+        public boolean isOpen() {
+            return handle != 0;
+        }
+
         private static int checked(int r, String what) {
             if (r < 0) throw new IllegalStateException("isakai: " + what + " failed");
             return r;
@@ -123,6 +130,7 @@ public final class IsakaiWindow {
             if (ptr == 0) throw new IllegalStateException("isakai: nOpen failed");
             return new Window(ptr);
         }
+        public void setTitle(String title) { checked(nSetTitle(h(),title),"nSetTitle"); }
         public void post(int[] pixels, int w, int height, int stride) {
             checked(nPost(h(), pixels, w, height, stride), "nPost");
         }

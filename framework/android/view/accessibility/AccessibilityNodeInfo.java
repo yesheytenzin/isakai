@@ -47,6 +47,16 @@ public class AccessibilityNodeInfo {
         }
     }
 
+    public static class RangeInfo {
+        public static final int RANGE_TYPE_INT = 0;
+        public static final int RANGE_TYPE_FLOAT = 1;
+        public static final int RANGE_TYPE_PERCENT = 2;
+
+        public static RangeInfo obtain(int type, float min, float max, float current) {
+            return new RangeInfo();
+        }
+    }
+
     private CharSequence text;
     private CharSequence contentDescription;
     private CharSequence className;

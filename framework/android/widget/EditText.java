@@ -11,12 +11,19 @@ import android.view.MotionEvent;
 /**
  * Minimal single-line EditText: an Editable buffer with a cursor,
  * printable-key insert, DEL/BACKSPACE delete-before-cursor, DPAD move,
- * ENTER clears focus. No multiline, no selection, no IME in M3.
+ * selection, clipboard shortcuts and an editable-backed input connection.
  */
 public class EditText extends TextView {
-    private final Editable editable = new Editable();
+    private Editable editable = Editable.Factory.getInstance().newEditable("");
     private int cursor = 0;
+    private int anchor = 0;
     private int scrollX = 0;
+    @Override public void setEditableFactory(Editable.Factory factory) {
+        super.setEditableFactory(factory);editable=factory.newEditable(editable.toString());notifyEditableChanged();
+    }
+    private boolean singleLine = true;
+    public void setSingleLine(boolean value) { singleLine=value; }
+    public void setSingleLine() { singleLine=true; }
 
     public EditText() {
         super();
@@ -46,6 +53,7 @@ public class EditText extends TextView {
     public void setText(CharSequence text) {
         editable.replaceAll(text);
         cursor = editable.length();
+        anchor = cursor;
         scrollX = 0;
         super.setText((CharSequence) editable.toString());
     }
@@ -59,18 +67,50 @@ public class EditText extends TextView {
         return editable;
     }
 
-    public int getSelectionStart() {
-        return cursor;
+    public int getSelectionStart() { return anchor; }
+    public int getSelectionEnd() { return cursor; }
+    public void setSelection(int index) { setSelection(index,index); }
+    public void setSelection(int start,int end) {
+        anchor = boundary(start); cursor = boundary(end);
+        ensureCursorVisible(); invalidate();
     }
-
-    public int getSelectionEnd() {
-        return cursor;
+    private int boundary(int value) {
+        int index=Math.max(0,Math.min(value,editable.length()));
+        if(index>0 && index<editable.length() && Character.isLowSurrogate(editable.charAt(index))
+                && Character.isHighSurrogate(editable.charAt(index-1)))index--;
+        return index;
     }
-
-    public void setSelection(int index) {
-        cursor = Math.max(0, Math.min(index, editable.length()));
-        ensureCursorVisible();
-        invalidate();
+    public void selectAll() { setSelection(0,editable.length()); }
+    public void replaceSelection(CharSequence text) {
+        int start=Math.min(anchor,cursor),end=Math.max(anchor,cursor);
+        String value=text==null?"":text.toString();
+        editable.delete(start,end); editable.insert(start,value);
+        anchor=cursor=start+value.length();refresh();
+    }
+    public void notifyEditableChanged() { anchor=boundary(anchor);cursor=boundary(cursor);refresh(); }
+    public android.view.inputmethod.InputConnection onCreateInputConnection(android.view.inputmethod.EditorInfo info) {
+        info.initialSelStart=anchor;info.initialSelEnd=cursor;
+        return new android.view.inputmethod.BaseInputConnection(this,true);
+    }
+    public boolean onCheckIsTextEditor() { return true; }
+    private android.content.ClipboardManager clipboard() {
+        Object service=getContext()==null?null:getContext().getSystemService("clipboard");
+        return service instanceof android.content.ClipboardManager?(android.content.ClipboardManager)service:null;
+    }
+    private boolean copy(boolean cut) {
+        android.content.ClipboardManager manager=clipboard();
+        if(manager==null || anchor==cursor)return false;
+        manager.setPrimaryClip(android.content.ClipData.newPlainText("",
+                editable.subSequence(Math.min(anchor,cursor),Math.max(anchor,cursor))));
+        if(cut)replaceSelection("");
+        return true;
+    }
+    private boolean paste() {
+        android.content.ClipboardManager manager=clipboard();
+        if(manager==null)return false;
+        CharSequence value=manager.getText();
+        if(value==null)return false;
+        replaceSelection(value);return true;
     }
 
     @Override
@@ -88,52 +128,46 @@ public class EditText extends TextView {
     @Override
     public boolean onKeyDown(int keyCode, KeyEvent event) {
         if (!isEnabled() || !isFocused()) return false;
-        switch (keyCode) {
+        if(getKeyListener()!=null && getKeyListener().onKeyDown(this,editable,keyCode,event)) { notifyEditableChanged();return true; }
+        boolean ctrl=(event.getMetaState()&KeyEvent.META_CTRL_MASK)!=0;
+        boolean shift=(event.getMetaState()&KeyEvent.META_SHIFT_MASK)!=0;
+        if(ctrl) {
+            if(keyCode==KeyEvent.KEYCODE_A){selectAll();return true;}
+            if(keyCode==KeyEvent.KEYCODE_C)return copy(false);
+            if(keyCode==KeyEvent.KEYCODE_X)return copy(true);
+            if(keyCode==KeyEvent.KEYCODE_V)return paste();
+        }
+        switch(keyCode) {
             case KeyEvent.KEYCODE_DEL:
-                if (cursor > 0) {
-                    editable.delete(cursor - 1, cursor);
-                    cursor--;
-                    refresh();
-                }
+                if(anchor!=cursor)replaceSelection("");
+                else if(cursor>0) { anchor=editable.toString().offsetByCodePoints(cursor,-1);replaceSelection(""); }
                 return true;
             case KeyEvent.KEYCODE_FORWARD_DEL:
-                if (cursor < editable.length()) {
-                    editable.delete(cursor, cursor + 1);
-                    refresh();
-                }
+                if(anchor!=cursor)replaceSelection("");
+                else if(cursor<editable.length()) { anchor=editable.toString().offsetByCodePoints(cursor,1);replaceSelection(""); }
                 return true;
-            case KeyEvent.KEYCODE_DPAD_LEFT:
             case KeyEvent.KEYCODE_MOVE_HOME:
-                if (cursor > 0) {
-                    cursor--;
-                    ensureCursorVisible();
-                    invalidate();
-                }
-                return true;
-            case KeyEvent.KEYCODE_DPAD_RIGHT:
+                cursor=0; if(!shift)anchor=cursor;ensureCursorVisible();invalidate();return true;
             case KeyEvent.KEYCODE_MOVE_END:
-                if (cursor < editable.length()) {
-                    cursor++;
-                    ensureCursorVisible();
-                    invalidate();
-                }
-                return true;
+                cursor=editable.length(); if(!shift)anchor=cursor;ensureCursorVisible();invalidate();return true;
+            case KeyEvent.KEYCODE_DPAD_LEFT:
+                if(!shift && anchor!=cursor)cursor=Math.min(anchor,cursor);
+                else if(cursor>0)cursor=editable.toString().offsetByCodePoints(cursor,-1);
+                if(!shift)anchor=cursor;ensureCursorVisible();invalidate();return true;
+            case KeyEvent.KEYCODE_DPAD_RIGHT:
+                if(!shift && anchor!=cursor)cursor=Math.max(anchor,cursor);
+                else if(cursor<editable.length())cursor=editable.toString().offsetByCodePoints(cursor,1);
+                if(!shift)anchor=cursor;ensureCursorVisible();invalidate();return true;
             case KeyEvent.KEYCODE_ENTER:
             case KeyEvent.KEYCODE_NUMPAD_ENTER:
-            case KeyEvent.KEYCODE_DPAD_CENTER:
-                clearFocus();
-                return true;
-            default:
-                break;
+                if(dispatchEditorAction(0,event))return true;
+                if(!singleLine){replaceSelection("\n");return true;}
+                clearFocus();return true;
+            default:break;
         }
-        if (event.getAction() == KeyEvent.ACTION_DOWN) {
-            int c = event.getUnicodeChar();
-            if (c >= 32 && c != 127) {
-                editable.insert(cursor, String.valueOf((char) c));
-                cursor++;
-                refresh();
-                return true;
-            }
+        int cp=event.getUnicodeChar();
+        if(!ctrl && event.getAction()==KeyEvent.ACTION_DOWN && cp>=32 && cp!=127 && Character.isValidCodePoint(cp)) {
+            replaceSelection(new String(Character.toChars(cp)));return true;
         }
         return false;
     }
@@ -150,35 +184,42 @@ public class EditText extends TextView {
             scrollX = 0;
             return;
         }
-        int cursorX = cursor * cell - scrollX;
+        int prefix = Canvas.measureText(editable.toString().substring(0,cursor),getTextPixelSize());
+        int cursorX = prefix - scrollX;
         if (cursorX < 0) {
-            scrollX = cursor * cell;
+            scrollX = prefix;
         } else if (cursorX >= inner) {
-            scrollX = cursor * cell - inner + cell;
+            scrollX = prefix - inner + cell;
         }
         if (scrollX < 0) scrollX = 0;
     }
 
     @Override
     protected void onDraw(Canvas canvas) {
-        // TextView.onDraw would draw the CharSequence copy; draw the live
-        // buffer with the horizontal scroll instead.
+        drawEditText(canvas, getLeft(), getTop());
+    }
+
+    @Override
+    protected void onDrawAt(Canvas canvas, int offsetX, int offsetY) {
+        drawEditText(canvas, offsetX, offsetY);
+    }
+
+    private void drawEditText(Canvas canvas, int originX, int originY) {
         canvas.drawColor(backgroundColor);
-        String s = editable.toString();
-        int from = 0;
-        int cell = cellStep();
-        if (cell > 0 && scrollX > 0) {
-            from = scrollX / cell;
-            if (from < 0) from = 0;
-            if (from > s.length()) from = s.length();
-        }
-        int dx = 4 - (scrollX - from * cell);
-        drawTextAt(canvas, from == 0 ? s : s.substring(from), dx, 4, getTextSize(), getTextColor());
-        if (isFocused()) {
-            int cx = getLeft() + 4 + cursor * cell - scrollX;
-            int top = getTop() + 4;
-            int scale = BitmapFont.scaleFor(getTextSize());
-            canvas.fillRect(cx, top, cx + scale, top + BitmapFont.HEIGHT * scale, Color.BLACK);
+        String text=editable.toString();
+        int x=originX+4-scrollX,y=originY+4;
+        int lineHeight=BitmapFont.lineStep(getTextPixelSize());
+        int selectionStart=Math.min(anchor,cursor),selectionEnd=Math.max(anchor,cursor),offset=0;
+        for(String line:text.split("\n",-1)) {
+            int start=Math.max(0,selectionStart-offset),end=Math.min(line.length(),selectionEnd-offset);
+            if(end>start)canvas.fillRect(x+Canvas.measureText(line.substring(0,start),getTextPixelSize()),y,
+                    x+Canvas.measureText(line.substring(0,end),getTextPixelSize()),y+lineHeight,0xffbbd7ff);
+            canvas.drawText(line,x,y,getTextPixelSize(),getTextColor());
+            if(isFocused() && cursor>=offset && cursor<=offset+line.length()) {
+                int cx=x+Canvas.measureText(line.substring(0,cursor-offset),getTextPixelSize());
+                canvas.fillRect(cx,y,cx+1,y+lineHeight,Color.BLACK);
+            }
+            offset+=line.length()+1;y+=lineHeight;
         }
     }
 }

@@ -38,19 +38,28 @@ public class Button extends TextView {
 
     @Override
     protected void onDraw(Canvas canvas) {
+        drawButton(canvas, getLeft(), getTop());
+    }
+
+    @Override
+    protected void onDrawAt(Canvas canvas, int offsetX, int offsetY) {
+        drawButton(canvas, offsetX, offsetY);
+    }
+
+    private void drawButton(Canvas canvas, int originX, int originY) {
         int bg = isPressed() ? Color.DKGRAY : backgroundColor;
         canvas.drawColor(bg);
         String s = getText() != null ? getText().toString() : "";
         if (s.isEmpty()) return;
-        int cell = BitmapFont.cellWidth(getTextSize());
+        int cell = BitmapFont.cellWidth(getTextPixelSize());
         int w = s.length() * cell;
         int inner = getWidth() - 8;
         int dx = 4;
         if (inner > w) dx = 4 + (inner - w) / 2;
-        int lineH = BitmapFont.lineStep(getTextSize());
+        int lineH = BitmapFont.lineStep(getTextPixelSize());
         int innerH = getHeight() - 8;
         int dy = 4;
         if (innerH > lineH) dy = 4 + (innerH - lineH) / 2;
-        drawTextAt(canvas, s, dx, dy, getTextSize(), getTextColor());
+        drawTextAtOffset(canvas, s, dx, dy, getTextPixelSize(), getTextColor(), originX, originY);
     }
 }

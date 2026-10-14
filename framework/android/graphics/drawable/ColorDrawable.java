@@ -25,7 +25,11 @@ public class ColorDrawable extends Drawable {
 
     @Override
     public void draw(Canvas canvas) {
-        if (canvas != null && Color.alpha(color) != 0) canvas.drawColor(color);
+        if (canvas == null) return;
+        int rendered = tintedColor(color);
+        if (Color.alpha(rendered) == 0) return;
+        android.graphics.Rect b = getBounds();
+        canvas.fillRect(b.left, b.top, b.right, b.bottom, rendered);
     }
 
     @Override

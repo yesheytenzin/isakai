@@ -138,6 +138,12 @@ public class Intent {
         return this;
     }
 
+    /** Store a Serializable extra and return this. */
+    public Intent putExtra(String name, java.io.Serializable value) {
+        extras.put(name, value);
+        return this;
+    }
+
     /** Store an int extra and return this. */
     public Intent putExtra(String name, int value) {
         extras.put(name, Integer.valueOf(value));
@@ -211,6 +217,11 @@ public class Intent {
         return v instanceof android.os.Bundle ? (android.os.Bundle) v : null;
     }
 
+    public java.io.Serializable getSerializableExtra(String name) {
+        Object v = extras.get(name);
+        return v instanceof java.io.Serializable ? (java.io.Serializable) v : null;
+    }
+
     public Intent putExtras(android.os.Bundle bundle) {
         if (bundle != null) {
             for (String key : bundle.keySet()) {
@@ -250,9 +261,8 @@ public class Intent {
         return this;
     }
 
-    public Intent removeExtra(String name) {
+    public void removeExtra(String name) {
         extras.remove(name);
-        return this;
     }
 
     /** True when an extra under {@code name} is present. */

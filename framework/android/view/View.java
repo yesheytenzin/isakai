@@ -17,6 +17,40 @@ import android.graphics.Rect;
  * no-ops on the software canvas.
  */
 public class View {
+    public interface OnDragListener { boolean onDrag(View view,DragEvent event); }
+    private OnDragListener dragListener;
+    public void setOnDragListener(OnDragListener listener) {
+        dragListener=listener;
+        if(listener!=null)org.isakai.runtime.Capabilities.unavailable("android.view.View.hostDragAndDrop");
+    }
+    public boolean dispatchDragEvent(DragEvent event) {
+        return dragListener!=null && dragListener.onDrag(this,event) || onDragEvent(event);
+    }
+    public boolean onDragEvent(DragEvent event) { return false; }
+    public final void cancelPendingInputEvents() { onCancelPendingInputEvents(); }
+    public void onCancelPendingInputEvents() { setPressed(false); }
+
+    private CharSequence tooltipText;
+    public void setTooltipText(CharSequence text) {
+        tooltipText=text;
+        if(text!=null && text.length()>0)org.isakai.runtime.Capabilities.unavailable("android.view.View.tooltipRendering");
+    }
+    public CharSequence getTooltipText() { return tooltipText; }
+    protected int computeHorizontalScrollOffset() { return getScrollX(); }
+    protected int computeVerticalScrollOffset() { return getScrollY(); }
+    protected int computeHorizontalScrollExtent() { return getWidth(); }
+    protected int computeVerticalScrollExtent() { return getHeight(); }
+    protected int computeHorizontalScrollRange() { return getWidth(); }
+    protected int computeVerticalScrollRange() { return getHeight(); }
+    private int systemUiVisibility;
+    public int getSystemUiVisibility() { return systemUiVisibility; }
+    public void setSystemUiVisibility(int flags) {
+        systemUiVisibility=flags;
+        if(flags!=0)org.isakai.runtime.Capabilities.unavailable("android.view.View.androidSystemBars");
+    }
+    private boolean fitsSystemWindows;
+    public boolean getFitsSystemWindows() { return fitsSystemWindows; }
+    public void setFitsSystemWindows(boolean fits) { fitsSystemWindows=fits; requestLayout(); }
     public static final int VISIBLE = 0;
     public static final int INVISIBLE = 4;
     public static final int GONE = 8;
@@ -30,6 +64,10 @@ public class View {
     public static final int FOCUS_FORWARD = 2;
     public static final int FOCUS_BACKWARD = 1;
 
+    public static final int NOT_FOCUSABLE = 0;
+    public static final int FOCUSABLE = 1;
+    public static final int FOCUSABLE_AUTO = 16;
+    public static final int FOCUSABLE_NONE = 0;
     public static final int LAYOUT_DIRECTION_LTR = 0;
     public static final int LAYOUT_DIRECTION_RTL = 1;
     public static final int LAYOUT_DIRECTION_INHERIT = 2;
@@ -106,6 +144,7 @@ public class View {
 
     private int id = NO_ID;
     private Object tag;
+    private java.util.HashMap<Integer, Object> keyedTags;
     private int visibility = VISIBLE;
     private int paddingLeft;
     private int paddingTop;
@@ -117,8 +156,15 @@ public class View {
     private float translationY;
     private float translationZ;
     private float rotation;
+    private float rotationX;
+    private float rotationY;
     private float scaleX = 1.0f;
     private float scaleY = 1.0f;
+    private float pivotX;
+    private float pivotY;
+    private float cameraDistance = 1280.0f * 8.0f;
+    private float transitionAlpha = 1.0f;
+    private boolean pivotSet;
     private int layoutDirection = LAYOUT_DIRECTION_INHERIT;
     private CharSequence contentDescription;
     private ViewGroup.LayoutParams layoutParams;
@@ -132,7 +178,12 @@ public class View {
     private boolean focused;
     private boolean enabled = true;
     private boolean pressed;
+    private boolean longPressFired;
+    private float downX;
+    private float downY;
+    private Runnable pendingLongPress;
     private boolean attachedToWindow;
+    private boolean hasTransientState;
     private boolean laidOut;
     private boolean layoutRequested = true;
     private OnClickListener clickListener;
@@ -162,6 +213,16 @@ public class View {
         this(context);
     }
 
+    public android.window.OnBackInvokedDispatcher findOnBackInvokedDispatcher() {
+        android.content.Context context=viewContext;
+        java.util.Set<android.content.Context> seen=java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<>());
+        while(context!=null && seen.add(context)) {
+            if(context instanceof android.app.Activity)return ((android.app.Activity)context).getOnBackInvokedDispatcher();
+            if(!(context instanceof android.content.ContextWrapper))break;
+            context=((android.content.ContextWrapper)context).getBaseContext();
+        }
+        return null;
+    }
     public android.content.Context getContext() {
         return viewContext;
     }
@@ -188,11 +249,13 @@ public class View {
     }
 
     public void setTag(int key, Object tag) {
-        this.tag = tag;
+        if (keyedTags == null) keyedTags = new java.util.HashMap<Integer, Object>();
+        if (tag == null) keyedTags.remove(key);
+        else keyedTags.put(key, tag);
     }
 
     public Object getTag(int key) {
-        return tag;
+        return keyedTags == null ? null : keyedTags.get(key);
     }
 
     public void setVisibility(int visibility) {
@@ -213,6 +276,11 @@ public class View {
         this.paddingBottom = bottom;
     }
 
+    public int getPaddingStart() { return isLayoutRtl() ? paddingRight : paddingLeft; }
+    public int getPaddingEnd() { return isLayoutRtl() ? paddingLeft : paddingRight; }
+    public void setPaddingRelative(int start, int top, int end, int bottom) {
+        setPadding(isLayoutRtl() ? end : start, top, isLayoutRtl() ? start : end, bottom);
+    }
     public int getPaddingLeft() { return paddingLeft; }
     public int getPaddingTop() { return paddingTop; }
     public int getPaddingRight() { return paddingRight; }
@@ -229,6 +297,21 @@ public class View {
     }
 
     public float getElevation() { return elevation; }
+    private boolean clipToOutline;
+    private ViewOutlineProvider outlineProvider = ViewOutlineProvider.BACKGROUND;
+
+    /**
+     * Outline clipping is a no-op on the software canvas (CardView calls it
+     * unconditionally at inflate); the flag/provider round-trip for callers.
+     */
+    public void setClipToOutline(boolean clipToOutline) { this.clipToOutline = clipToOutline; }
+    public boolean getClipToOutline() { return clipToOutline; }
+    public void setOutlineProvider(ViewOutlineProvider provider) {
+        if (provider != null) outlineProvider = provider;
+    }
+    public ViewOutlineProvider getOutlineProvider() { return outlineProvider; }
+    public void invalidateOutline() {}
+
 
     public void setTranslationX(float tx) { this.translationX = tx; }
     public float getTranslationX() { return translationX; }
@@ -236,12 +319,30 @@ public class View {
     public float getTranslationY() { return translationY; }
     public void setTranslationZ(float tz) { this.translationZ = tz; }
     public float getTranslationZ() { return translationZ; }
+    /** AOSP: Z is elevation + translationZ; setting Z moves translationZ. */
+    public float getZ() { return elevation + translationZ; }
+    public void setZ(float z) { this.translationZ = z - elevation; }
+
     public void setRotation(float rotation) { this.rotation = rotation; }
     public float getRotation() { return rotation; }
+    public void setRotationX(float rotationX) { this.rotationX = rotationX; }
+    public float getRotationX() { return rotationX; }
+    public void setRotationY(float rotationY) { this.rotationY = rotationY; }
+    public float getRotationY() { return rotationY; }
     public void setScaleX(float sx) { this.scaleX = sx; }
     public float getScaleX() { return scaleX; }
     public void setScaleY(float sy) { this.scaleY = sy; }
     public float getScaleY() { return scaleY; }
+    public void setPivotX(float pivotX) { this.pivotX = pivotX; this.pivotSet = true; }
+    public float getPivotX() { return pivotX; }
+    public void setPivotY(float pivotY) { this.pivotY = pivotY; this.pivotSet = true; }
+    public float getPivotY() { return pivotY; }
+    public boolean isPivotSet() { return pivotSet; }
+    public void resetPivot() { this.pivotSet = false; }
+    public void setCameraDistance(float distance) { this.cameraDistance = distance; }
+    public float getCameraDistance() { return cameraDistance; }
+    public void setTransitionAlpha(float alpha) { this.transitionAlpha = alpha; }
+    public float getTransitionAlpha() { return transitionAlpha; }
 
     public void setLayoutDirection(int direction) {
         this.layoutDirection = direction;
@@ -273,6 +374,11 @@ public class View {
 
     public android.os.IBinder getWindowToken() {
         return windowToken;
+    }
+
+    /** Host display identity for attached views; dimensions come from Resources. */
+    public Display getDisplay() {
+        return attachedToWindow ? new Display(0) : null;
     }
 
     public void setBackgroundColor(int color) {
@@ -319,39 +425,82 @@ public class View {
         public void unscheduleDrawable(android.graphics.drawable.Drawable who, Runnable what) {}
     }
 
+    public static class MeasureSpec {
+        public static final int UNSPECIFIED = android.view.MeasureSpec.UNSPECIFIED;
+        public static final int EXACTLY = android.view.MeasureSpec.EXACTLY;
+        public static final int AT_MOST = android.view.MeasureSpec.AT_MOST;
+        public static int makeMeasureSpec(int size, int mode) { return android.view.MeasureSpec.makeMeasureSpec(size, mode); }
+        public static int getMode(int spec) { return android.view.MeasureSpec.getMode(spec); }
+        public static int getSize(int spec) { return android.view.MeasureSpec.getSize(spec); }
+    }
+    public static int resolveSize(int desired, int spec) {
+        int mode = MeasureSpec.getMode(spec), size = MeasureSpec.getSize(spec);
+        return mode == MeasureSpec.EXACTLY ? size : mode == MeasureSpec.AT_MOST ? Math.min(desired, size) : desired;
+    }
+    public static final int MEASURED_SIZE_MASK=0x00ffffff, MEASURED_STATE_MASK=0xff000000;
+    public static final int MEASURED_HEIGHT_STATE_SHIFT=16, MEASURED_STATE_TOO_SMALL=0x01000000;
+    public static int resolveSizeAndState(int desired, int spec, int state) {
+        int result=resolveSize(desired,spec);
+        if(MeasureSpec.getMode(spec)==MeasureSpec.AT_MOST && desired>MeasureSpec.getSize(spec)) result|=MEASURED_STATE_TOO_SMALL;
+        return result|(state&MEASURED_STATE_MASK);
+    }
+    public final int getMeasuredWidthAndState() { return measuredWidth; }
+    public final int getMeasuredHeightAndState() { return measuredHeight; }
+    public final int getMeasuredState() {
+        return (measuredWidth&MEASURED_STATE_MASK)|((measuredHeight>>MEASURED_HEIGHT_STATE_SHIFT)&(MEASURED_STATE_MASK>>MEASURED_HEIGHT_STATE_SHIFT));
+    }
+    public static int combineMeasuredStates(int current, int next) { return current | next; }
+    public static int getDefaultSize(int desired, int spec) {
+        return MeasureSpec.getMode(spec) == MeasureSpec.UNSPECIFIED ? desired : MeasureSpec.getSize(spec);
+    }
     public void setMeasuredDimension(int width, int height) {
         this.measuredWidth = width;
         this.measuredHeight = height;
     }
 
     public final void measure(int width, int height) {
-        onMeasure(width, height);
-        if (measuredWidth == 0 && measuredHeight == 0) {
-            measuredWidth = MeasureSpec.getSize(width);
-            measuredHeight = MeasureSpec.getSize(height);
+        if (layoutParams instanceof ViewGroup.MarginLayoutParams) {
+            ((ViewGroup.MarginLayoutParams) layoutParams).resolveLayoutDirection(getLayoutDirection());
         }
+        onMeasure(width, height);
     }
 
+    private int minimumWidth,minimumHeight;
+    public void setMinimumWidth(int value) { minimumWidth=Math.max(0,value);requestLayout(); }
+    public void setMinimumHeight(int value) { minimumHeight=Math.max(0,value);requestLayout(); }
+    public int getMinimumWidth() { return minimumWidth; }
+    public int getMinimumHeight() { return minimumHeight; }
+    protected int getSuggestedMinimumWidth() { return Math.max(minimumWidth,background==null?0:background.getMinimumWidth()); }
+    protected int getSuggestedMinimumHeight() { return Math.max(minimumHeight,background==null?0:background.getMinimumHeight()); }
     protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
-        setMeasuredDimension(MeasureSpec.getSize(widthMeasureSpec), MeasureSpec.getSize(heightMeasureSpec));
+        setMeasuredDimension(getDefaultSize(getSuggestedMinimumWidth(),widthMeasureSpec),
+                getDefaultSize(getSuggestedMinimumHeight(),heightMeasureSpec));
     }
 
     public final int getMeasuredWidth() {
-        return measuredWidth;
+        return measuredWidth & MEASURED_SIZE_MASK;
     }
 
     public final int getMeasuredHeight() {
-        return measuredHeight;
+        return measuredHeight & MEASURED_SIZE_MASK;
     }
 
     public void requestLayout() {
         layoutRequested = true;
+        if(parent!=null)parent.requestLayout();
         invalidate();
     }
 
-    public void forceLayout() {}
+    public void forceLayout() { layoutRequested=true; }
 
     public final void layout(int left, int top, int right, int bottom) {
+        // AOSP View.layout resolves margin direction before positioning so
+        // ConstraintLayout-style params copy guide/constraint fields (a/b/c
+        // -> m0/n0/o0) into their resolved slots; without this, guidelines
+        // stay at 0 and constrained children collapse (OpenCalc display).
+        if (layoutParams instanceof ViewGroup.MarginLayoutParams) {
+            ((ViewGroup.MarginLayoutParams) layoutParams).resolveLayoutDirection(getLayoutDirection());
+        }
         boolean changed = this.left != left || this.top != top || this.right != right || this.bottom != bottom;
         int oldL = this.left, oldT = this.top, oldR = this.right, oldB = this.bottom;
         this.left = left;
@@ -360,6 +509,9 @@ public class View {
         this.bottom = bottom;
         laidOut = true;
         layoutRequested = false;
+        if (right - left != oldR - oldL || bottom - top != oldB - oldT) {
+            onSizeChanged(right - left, bottom - top, oldR - oldL, oldB - oldT);
+        }
         onLayout(changed, left, top, right, bottom);
         if (changed) {
             for (OnLayoutChangeListener l : layoutListeners.toArray(new OnLayoutChangeListener[0])) {
@@ -368,7 +520,7 @@ public class View {
         }
     }
 
-    protected void onLayout(boolean changed, int left, int top, int right, int bottom) {}
+    protected void onLayout(boolean changed, int left, int top, int right, int bottom) { onLayout(left, top, right, bottom); }
 
     protected void onLayout(int left, int top, int right, int bottom) {}
 
@@ -399,10 +551,7 @@ public class View {
     }
 
     public void getLocationOnScreen(int[] out) {
-        if (out != null && out.length >= 2) {
-            out[0] = left;
-            out[1] = top;
-        }
+        getLocationInWindow(out);
     }
 
     public void offsetLeftAndRight(int offset) {
@@ -452,9 +601,41 @@ public class View {
         return true;
     }
 
-    public boolean postDelayed(Runnable action, long delayMillis) {
-        return post(action);
+    /** Main-looper handler for this view's actions (Compose recomposer cleanup). */
+    public android.os.Handler getHandler() {
+        return mainHandler();
     }
+    /**
+     * Deferred post on the main looper queue (the window loop pumps it every
+     * slice). Delays are honoured: long-press arming depends on it. Actions
+     * without a delay still land on the queue, never inline.
+     */
+    public boolean postDelayed(Runnable action, long delayMillis) {
+        if (action == null) return false;
+        android.os.Handler handler = mainHandler();
+        if (handler == null) {
+            if (delayMillis <= 0) action.run();
+            return true;
+        }
+        return handler.postDelayed(action, Math.max(0, delayMillis));
+    }
+
+    /**
+     * One process-wide handler for the main looper: the queue matches
+     * messages by their Handler target, so posting and removing must use the
+     * same instance.
+     */
+    private static android.os.Handler mainHandler() {
+        android.os.Handler cached = MAIN_HANDLER;
+        if (cached != null) return cached;
+        android.os.Looper looper = android.os.Looper.getMainLooper();
+        if (looper == null) return null;
+        cached = new android.os.Handler(looper);
+        MAIN_HANDLER = cached;
+        return cached;
+    }
+
+    private static volatile android.os.Handler MAIN_HANDLER;
 
     public void postOnAnimation(Runnable action) {
         post(action);
@@ -469,7 +650,11 @@ public class View {
     }
 
     public boolean removeCallbacks(Runnable action) {
-        return false;
+        android.os.Handler handler = mainHandler();
+        if (handler == null || action == null) return false;
+        boolean queued = handler.hasCallbacks(action);
+        handler.removeCallbacks(action);
+        return queued;
     }
 
 
@@ -487,7 +672,13 @@ public class View {
         return d;
     }
 
+    /**
+     * AOSP semantics: attaching a click listener makes the view clickable
+     * (apps rarely call setClickable themselves; without this the touch
+     * path drops the event and the listener never fires).
+     */
     public void setOnClickListener(OnClickListener l) {
+        if (l != null && !clickable) clickable = true;
         this.clickListener = l;
     }
 
@@ -515,7 +706,9 @@ public class View {
         this.focusListener = l;
     }
 
+    /** AOSP semantics: attaching a long-click listener makes the view long-clickable. */
     public void setOnLongClickListener(OnLongClickListener l) {
+        if (l != null && !longClickable) longClickable = true;
         this.longClickListener = l;
     }
 
@@ -535,7 +728,24 @@ public class View {
         layoutListeners.remove(l);
     }
 
-    public void setOnApplyWindowInsetsListener(OnApplyWindowInsetsListener l) {}
+    private OnApplyWindowInsetsListener insetsListener;
+    private boolean applyInsetsRequested;
+    public void setOnApplyWindowInsetsListener(OnApplyWindowInsetsListener l) { insetsListener=l; }
+    public void requestApplyInsets() {
+        View root=this;
+        while(root.getParent() instanceof View)root=(View)root.getParent();
+        root.applyInsetsRequested=true;
+        root.requestLayout();
+    }
+    /** Desktop content has no Android system-bar/IME inset backend. */
+    public final void dispatchHostInsets() {
+        if(!applyInsetsRequested)return;
+        applyInsetsRequested=false;
+        dispatchApplyWindowInsets(new WindowInsets());
+    }
+    public WindowInsets dispatchApplyWindowInsets(WindowInsets insets) {
+        return insetsListener==null?onApplyWindowInsets(insets):insetsListener.onApplyWindowInsets(this,insets);
+    }
 
     public void setOnUnhandledKeyEventListener(OnUnhandledKeyEventListener l) {}
 
@@ -614,6 +824,10 @@ public class View {
         this.focusable = focusable;
     }
 
+    public void setFocusable(int focusable) {
+        this.focusable = focusable != FOCUSABLE_NONE && focusable != NOT_FOCUSABLE;
+    }
+
     public boolean isFocusable() {
         return focusable;
     }
@@ -630,12 +844,28 @@ public class View {
         return focused;
     }
 
+    public View findFocus() { return focused ? this : null; }
+    /** AOSP: focusable and enabled (groups override to include descendants). */
+    public boolean hasFocusable() {
+        return focusable && enabled;
+    }
+
+
     public boolean hasWindowFocus() {
         return focused;
     }
 
     public boolean isInTouchMode() {
         return false;
+    }
+
+    /** AOSP transient-state flag (RecyclerView tracks recycled views with it). */
+    public boolean hasTransientState() {
+        return hasTransientState;
+    }
+
+    public void setHasTransientState(boolean hasTransientState) {
+        this.hasTransientState = hasTransientState;
     }
 
     public boolean isAttachedToWindow() {
@@ -687,20 +917,56 @@ public class View {
     protected void onFocusChanged(boolean gainFocus) {}
 
     public void onWindowFocusChanged(boolean hasWindowFocus) {}
+    /**
+     * Scrollbars are not rendered on the software canvas; callers only need
+     * the lifecycle return values (RecyclerView awakens bars on data change).
+     */
+    public boolean awakenScrollBars() { return awakenScrollBars(0, true); }
+    protected boolean awakenScrollBars(int startDelay, boolean invalidate) { return false; }
+    public void setHorizontalScrollBarEnabled(boolean enabled) {}
+    public void setVerticalScrollBarEnabled(boolean enabled) {}
+    public boolean isHorizontalScrollBarEnabled() { return false; }
+    public boolean isVerticalScrollBarEnabled() { return false; }
 
-    protected void onAttachedToWindow() {
+
+    /** Host window attachment, separate from overridable application hooks. */
+    public final void dispatchHostAttached() {
+        if (attachedToWindow) return;
+        windowToken = parent instanceof View && ((View) parent).getWindowToken() != null
+                ? ((View) parent).getWindowToken() : new android.os.Binder();
         attachedToWindow = true;
+        onAttachedToWindow();
+        requestApplyInsets();
         for (OnAttachStateChangeListener l : attachListeners.toArray(new OnAttachStateChangeListener[0])) {
             l.onViewAttachedToWindow(this);
         }
+        if (this instanceof ViewGroup) {
+            ViewGroup group = (ViewGroup) this;
+            java.util.ArrayList<View> snapshot = new java.util.ArrayList<>();
+            for (int i = 0; i < group.getChildCount(); i++) snapshot.add(group.getChildAt(i));
+            for (View child : snapshot) if (child.getParent() == group) child.dispatchHostAttached();
+        }
     }
 
-    protected void onDetachedFromWindow() {
-        attachedToWindow = false;
+    public final void dispatchHostDetached() {
+        if (!attachedToWindow) return;
+        onDetachedFromWindow();
         for (OnAttachStateChangeListener l : attachListeners.toArray(new OnAttachStateChangeListener[0])) {
             l.onViewDetachedFromWindow(this);
         }
+        attachedToWindow = false;
+        windowToken = null;
+        if (this instanceof ViewGroup) {
+            ViewGroup group = (ViewGroup) this;
+            java.util.ArrayList<View> snapshot = new java.util.ArrayList<>();
+            for (int i = 0; i < group.getChildCount(); i++) snapshot.add(group.getChildAt(i));
+            for (View child : snapshot) child.dispatchHostDetached();
+        }
     }
+
+    protected void onAttachedToWindow() {}
+
+    protected void onDetachedFromWindow() {}
 
     protected void onFinishInflate() {}
 
@@ -759,6 +1025,9 @@ public class View {
         if (!enabled) return false;
         if (!clickable && !longClickable) return false;
         int action = event.getActionMasked();
+        // ViewGroup.dispatchTouchEvent offsets the event into each child's
+        // parent frame before dispatch; bounds are parent-relative, so the
+        // event coords hit-test directly.
         float x = event.getX();
         float y = event.getY();
         boolean inside = containsPoint(x, y);
@@ -766,25 +1035,60 @@ public class View {
             case MotionEvent.ACTION_DOWN:
                 if (!inside) return false;
                 setPressed(true);
+                downX = x;
+                downY = y;
+                longPressFired = false;
+                if (longClickable) armLongPress();
                 return true;
             case MotionEvent.ACTION_POINTER_DOWN:
+                // Extra pointers end long-press candidacy (AOSP behaviour).
+                cancelLongPress();
+                return true;
             case MotionEvent.ACTION_MOVE:
                 setPressed(inside);
+                if (longClickable && Math.abs(x - downX) > touchSlop() || Math.abs(y - downY) > touchSlop()) {
+                    cancelLongPress();
+                }
                 return true;
             case MotionEvent.ACTION_POINTER_UP:
             case MotionEvent.ACTION_UP:
+                cancelLongPress();
                 if (!pressed) return false;
                 setPressed(false);
-                if (inside) {
+                if (inside && !longPressFired) {
                     performClick();
                     return true;
                 }
                 return false;
             case MotionEvent.ACTION_CANCEL:
+                cancelLongPress();
                 setPressed(false);
                 return true;
             default:
                 return false;
+        }
+    }
+
+    private static int touchSlop() {
+        return android.view.ViewConfiguration.get(null).getScaledTouchSlop();
+    }
+
+    /** Arm the pending long-press check on the main queue. */
+    private void armLongPress() {
+        cancelLongPress();
+        pendingLongPress = () -> {
+            pendingLongPress = null;
+            if (!pressed || !longClickable) return;
+            longPressFired = true;
+            performLongClick();
+        };
+        postDelayed(pendingLongPress, android.view.ViewConfiguration.getLongPressTimeout());
+    }
+
+    public void cancelLongPress() {
+        if (pendingLongPress != null) {
+            removeCallbacks(pendingLongPress);
+            pendingLongPress = null;
         }
     }
 
@@ -819,20 +1123,39 @@ public class View {
     }
 
     /**
-     * Draw this view clipped to its own bounds. The canvas is translated
-     * so subclasses draw in view-relative coordinates.
+     * Draw this view clipped to its own bounds. Bounds are parent-relative,
+     * so each level offsets by its own left/top; the canvas clips in root
+     * coordinates and children compose offsets down the tree.
      */
     public void draw(Canvas canvas) {
+        drawAt(canvas, 0, 0);
+    }
+
+    /** Draw with an accumulated parent offset (root coordinates). */
+    public void drawAt(Canvas canvas, int offsetX, int offsetY) {
         if (visibility != VISIBLE) return;
+        int absLeft = offsetX + left;
+        int absTop = offsetY + top;
         canvas.save();
-        canvas.clipRect(left, top, right, bottom);
+        canvas.clipRect(absLeft, absTop, absLeft + (right - left), absTop + (bottom - top));
         if (background != null) {
-            background.setBounds(left, top, right, bottom);
+            background.setBounds(absLeft, absTop, absLeft + (right - left), absTop + (bottom - top));
             background.draw(canvas);
         }
-        onDraw(canvas);
-        dispatchDraw(canvas);
+        viewTreeObserver.dispatchOnDraw();
+        onDrawAt(canvas, absLeft, absTop);
+        dispatchDrawAt(canvas, absLeft, absTop);
         canvas.restore();
+    }
+
+    /** Subclass content draw with this view's root offset. Default keeps legacy behavior. */
+    protected void onDrawAt(Canvas canvas, int offsetX, int offsetY) {
+        onDraw(canvas);
+    }
+
+    /** Group child dispatch with this view's root offset. Default draws nothing extra. */
+    protected void dispatchDrawAt(Canvas canvas, int offsetX, int offsetY) {
+        dispatchDraw(canvas);
     }
 
     protected void onDraw(Canvas canvas) {
@@ -851,13 +1174,44 @@ public class View {
         return true;
     }
 
-    public boolean getFocusedRect(Rect r) {
+    public void getFocusedRect(Rect r) {
         if (r != null) r.set(left, top, right, bottom);
-        return true;
     }
 
+    private final ViewTreeObserver viewTreeObserver = new ViewTreeObserver();
+    public interface OnScrollChangeListener { void onScrollChange(View view,int x,int y,int oldX,int oldY); }
+    private OnScrollChangeListener scrollChangeListener;
+    private int hostScrollX,hostScrollY;
+    public void setOnScrollChangeListener(OnScrollChangeListener listener){scrollChangeListener=listener;}
+    public int getScrollX(){return hostScrollX;}
+    public int getScrollY(){return hostScrollY;}
+    public void scrollTo(int x,int y){
+        int oldX=hostScrollX,oldY=hostScrollY;hostScrollX=x;hostScrollY=y;
+        if(x!=oldX || y!=oldY){
+            onScrollChanged(x,y,oldX,oldY);
+            if(scrollChangeListener!=null)scrollChangeListener.onScrollChange(this,x,y,oldX,oldY);
+            viewTreeObserver.dispatchOnScrollChanged();invalidate();
+        }
+    }
+    protected void onScrollChanged(int l,int t,int oldl,int oldt) {}
+    public void scrollBy(int x,int y){scrollTo(hostScrollX+x,hostScrollY+y);}
+    public void dispatchHostLayout() {
+        viewTreeObserver.dispatchOnGlobalLayout();
+        if(this instanceof ViewGroup){
+            ViewGroup group=(ViewGroup)this;
+            for(int i=0;i<group.getChildCount();i++)group.getChildAt(i).dispatchHostLayout();
+        }
+    }
+    public boolean dispatchHostPreDraw() {
+        boolean cancel=viewTreeObserver.dispatchOnPreDraw();
+        if(this instanceof ViewGroup){
+            ViewGroup group=(ViewGroup)this;
+            for(int i=0;i<group.getChildCount();i++)cancel|=group.getChildAt(i).dispatchHostPreDraw();
+        }
+        return cancel;
+    }
     public ViewTreeObserver getViewTreeObserver() {
-        return ViewTreeObserver.getInstance();
+        return viewTreeObserver;
     }
 
     private AccessibilityDelegate accessibilityDelegate;
@@ -895,6 +1249,22 @@ public class View {
         }
     }
 
+    private boolean saveEnabled=true;
+    private boolean saveFromParentEnabled=true;
+    public void setSaveFromParentEnabled(boolean enabled) { saveFromParentEnabled=enabled; }
+    public boolean isSaveFromParentEnabled() { return saveFromParentEnabled; }
+    public void setSaveEnabled(boolean enabled) { saveEnabled=enabled; }
+    public boolean isSaveEnabled() { return saveEnabled; }
+    public void saveHierarchyState(android.util.SparseArray<android.os.Parcelable> state) { dispatchSaveInstanceState(state); }
+    public void restoreHierarchyState(android.util.SparseArray<android.os.Parcelable> state) { dispatchRestoreInstanceState(state); }
+    protected void dispatchSaveInstanceState(android.util.SparseArray<android.os.Parcelable> state) {
+        if(saveEnabled && id!=NO_ID) {
+            android.os.Parcelable saved=onSaveInstanceState();if(saved!=null)state.put(id,saved);
+        }
+    }
+    protected void dispatchRestoreInstanceState(android.util.SparseArray<android.os.Parcelable> state) {
+        if(saveEnabled && id!=NO_ID && state.get(id)!=null)onRestoreInstanceState(state.get(id));
+    }
     protected android.os.Parcelable onSaveInstanceState() {
         return AbsSavedState.EMPTY_STATE;
     }
@@ -919,6 +1289,7 @@ public class View {
 
     private int importantForAccessibility;
     private int importantForAutofill;
+    private int importantForContentCapture;
 
     public void setImportantForAccessibility(int mode) {
         this.importantForAccessibility = mode;
@@ -936,7 +1307,129 @@ public class View {
         return importantForAutofill;
     }
 
-    public void onInitializeAccessibilityEvent(android.view.accessibility.AccessibilityEvent event) {}
+    public void setImportantForContentCapture(int mode) {
+        this.importantForContentCapture = mode;
+    }
+
+    public int getImportantForContentCapture() {
+        return importantForContentCapture;
+    }
+
+    public android.view.contentcapture.ContentCaptureSession getContentCaptureSession() {
+        return null;
+    }
+
+    public void setContentCaptureSession(android.view.contentcapture.ContentCaptureSession session) {}
+
+    public void setDefaultFocusHighlightEnabled(boolean enabled) {}
+
+    public boolean getDefaultFocusHighlightEnabled() {
+        return false;
+    }
+
+    public android.view.autofill.AutofillId getAutofillId() {
+        return null;
+    }
+
+    public void setForceDarkAllowed(boolean allowed) {}
+
+    public boolean isForceDarkAllowed() {
+        return false;
+    }
+
+    public void setViewTranslationCallback(android.view.translation.ViewTranslationCallback callback) {}
+
+    public android.view.translation.ViewTranslationCallback getViewTranslationCallback() {
+        return null;
+    }
+
+    public long getDrawingTime() {
+        return System.currentTimeMillis();
+    }
+
+    public long getUniqueDrawingId() {
+        return System.identityHashCode(this);
+    }
+
+    public boolean requestFocusFromTouch() {
+        return requestFocus();
+    }
+
+    private int layerType;
+    private android.graphics.Paint layerPaint;
+
+    public void setLayerType(int layerType, android.graphics.Paint paint) {
+        this.layerType = layerType;
+        this.layerPaint = paint;
+    }
+
+    public int getLayerType() {
+        return layerType;
+    }
+
+    private android.graphics.Rect clipBounds;
+
+    public void setClipBounds(android.graphics.Rect clipBounds) {
+        this.clipBounds = clipBounds;
+    }
+
+    public android.graphics.Rect getClipBounds() {
+        return clipBounds;
+    }
+
+    private android.animation.StateListAnimator stateListAnimator;
+
+    public void setStateListAnimator(android.animation.StateListAnimator animator) {
+        this.stateListAnimator = animator;
+    }
+
+    public android.animation.StateListAnimator getStateListAnimator() {
+        return stateListAnimator;
+    }
+
+    public android.view.ActionMode startActionMode(android.view.ActionMode.Callback callback, int type) {
+        return null;
+    }
+
+    public android.view.ActionMode startActionMode(android.view.ActionMode.Callback callback) {
+        return null;
+    }
+
+    public void getLocationInWindow(int[] location) {
+        if (location == null || location.length < 2) return;
+        int x = left, y = top;
+        View p = this;
+        while (p.parent != null) {
+            p = p.parent;
+            x += p.left;
+            y += p.top;
+        }
+        location[0] = x;
+        location[1] = y;
+    }
+
+    public android.graphics.Matrix getMatrix() {
+        return new android.graphics.Matrix();
+    }
+
+    public void transformMatrixToLocal(android.graphics.Matrix matrix) {}
+
+    public void transformMatrixToGlobal(android.graphics.Matrix matrix) {}
+
+    public boolean dispatchGenericMotionEvent(android.view.MotionEvent event) {
+        return false;
+    }
+
+    public boolean dispatchGenericPointerEvent(android.view.MotionEvent event) {
+        return false;
+    }
+
+    private static final java.util.concurrent.atomic.AtomicInteger sNextViewId =
+            new java.util.concurrent.atomic.AtomicInteger(1);
+
+    public static int generateViewId() {
+        return sNextViewId.getAndIncrement();
+    }
     public void onInitializeAccessibilityNodeInfo(android.view.accessibility.AccessibilityNodeInfo info) {}
     public void onPopulateAccessibilityEvent(android.view.accessibility.AccessibilityEvent event) {}
 

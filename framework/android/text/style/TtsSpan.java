@@ -120,4 +120,12 @@ public class TtsSpan extends CharacterStyle implements Parcelable {
             return new TtsSpan(type, args);
         }
     }
+    public static class VerbatimBuilder extends Builder {
+        public VerbatimBuilder() { super(TYPE_VERBATIM); }
+        public VerbatimBuilder(String verbatim) { this(); setVerbatim(verbatim); }
+        public VerbatimBuilder setVerbatim(String verbatim) {
+            setStringArgument(ARG_VERBATIM,verbatim); return this;
+        }
+    }
+
 }

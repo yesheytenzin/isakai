@@ -1,17 +1,23 @@
-# Isakai (Zig rewrite)
+# Isakai
 
 Run Android apps as native Linux processes. No Android OS, no container, no
 kernel binder, no runtime bundle download: host JVM + translated DEX +
 reimplemented `android.*` on Wayland.
 
-## Status: M6 complete
+## Project status
 
-`progress.json` is the milestone tracker. M0 (install pipeline), M1 (DEX
-translate + headless run), M2 (Wayland window), M3 (keyboard/pointer input),
-M4 (app services) and M5 (release: packaging, security, upgrades) are complete and gated.
-M6 (remaining gaps: native shim, media, WebView, sensors/location, apksig, polkit, privileged E2E) is complete.
+Isakai is a compatibility prototype. Installation, DEX translation, Wayland
+rendering, storage and desktop bridges exist, but real-app readiness still
+requires dispatch, navigation and app-specific compatibility work. Windows now
+remain open until closed; WebView has no rendering engine.
 
-## Install (clean machine)
+The next delivery target is **three pinned utility apps completing useful
+visible tasks under default isolation**. [The delivery plan](docs/PLAN.md)
+defines the work and acceptance criteria; [progress.json](progress.json) is the
+single tracker for status, blockers, app versions and verification evidence.
+Historical M0–M6 completion reports are retained there as historical claims.
+
+## Build and install (development preview)
 
 Host requirements: Linux x86_64, Zig 0.17 + a C toolchain, JDK 17+
 (`javac` to build, `java` to run), and the JNI system libraries
@@ -105,7 +111,7 @@ verify failed), 2 usage error. Global `--work` overrides `ISAKAI_WORK`.
   `docs/TESTING.md`. `oracle/lines.sh` checks LineNumberTables.
 - `tools/fetch-apksig-vectors.sh` — one-time re-vendor of the AOSP golden
   APKs into `testdata/apksig/` (tests themselves are offline).
-- `tools/e2e-privileged.sh` — privileged install+windowed launch E2E (environment-gated: SKIP without sudo/wrappers, PASS on privileged CI).
+- `tools/e2e-privileged.sh --required` — app-side isolation and live window acceptance; missing prerequisites and failed launches fail the required gate. See [verification instructions](verify-isakai/SKILL.md).
 
 ## Layout
 
@@ -130,11 +136,19 @@ verify failed), 2 usage error. Global `--work` overrides `ISAKAI_WORK`.
 ## Development
 
 `zig build test` (all unit tests) and `./oracle/diff.sh` (translator
-parity) must be green. Design log: `docs/limitations-fix-plan.md`;
-system map: `docs/ARCHITECTURE.md`; test inventory: `docs/TESTING.md`;
-host requirements: `docs/HOST_REQUIREMENTS.md`; supported API list:
-`docs/SUPPORTED_APIS.md`; gap closure plan: `docs/M6-GAPS-PLAN.md`.
+parity) are baseline checks; real-app flow evidence is also required.
+
+- [Delivery plan](docs/PLAN.md): scope, sequencing and acceptance criteria.
+- [Progress tracker](progress.json): the only task-status and evidence record.
+- [Architecture](docs/ARCHITECTURE.md): system map and host interface index.
+- [Testing](docs/TESTING.md): commands, limitations and acceptance rules.
+- [Host requirements](docs/HOST_REQUIREMENTS.md): dependencies and environment.
+- [API catalog](docs/SUPPORTED_APIS.md): available classes and behavioral limits.
 
 ## License
 
 GPL-3.0-or-later.
+
+AOSP-derived default color values retain Apache-2.0 attribution in
+[SystemColors.java](framework/android/content/res/SystemColors.java); see
+[the Apache license](LICENSES/Apache-2.0.txt).

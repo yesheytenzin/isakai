@@ -8,7 +8,7 @@ package android.database;
  * {@link IllegalArgumentException}. Type getters coerce like AOSP (numeric
  * strings parse, null yields 0/0.0/false/null).
  */
-public interface Cursor extends AutoCloseable {
+public interface Cursor extends java.io.Closeable {
     int getCount();
 
     int getColumnCount();

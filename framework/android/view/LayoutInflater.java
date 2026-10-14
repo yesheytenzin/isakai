@@ -144,7 +144,7 @@ public abstract class LayoutInflater {
             View temp = createViewFromTag(root, name, attrs, false);
             ViewGroup.LayoutParams params = null;
             if (root != null) {
-                params = layoutParamsOf(temp);
+                params = root.generateLayoutParams(attrs);
             }
             rInflateChildren(parser, temp, attrsOf(parser));
             temp.onFinishInflate();
@@ -179,11 +179,22 @@ public abstract class LayoutInflater {
             }
             if ("include".equals(name)) {
                 int layout = attrRes(childAttrs, "layout", 0);
-                if (layout != 0) {
-                    inflate(layout, parent, true);
-                } else {
-                    android.util.Log.w("LayoutInflater",
-                            "skip <include> without layout");
+                if (layout == 0) throw new InflateException("<include> requires a layout resource");
+                int previousCount=parent.getChildCount();
+                inflate(layout,parent,true);
+                if(parent.getChildCount()==previousCount+1) {
+                    View included=parent.getChildAt(previousCount);
+                    int includeId=attrRes(childAttrs,"id",View.NO_ID);
+                    if(includeId==View.NO_ID)includeId=parseIdString(attrRaw(childAttrs,"id"));
+                    if(includeId!=View.NO_ID)included.setId(includeId);
+                    String visibility=attrRaw(childAttrs,"visibility");
+                    if(visibility!=null) {
+                        if("gone".equalsIgnoreCase(visibility) || "2".equals(visibility) || "8".equals(visibility))included.setVisibility(View.GONE);
+                        else if("invisible".equalsIgnoreCase(visibility) || "1".equals(visibility) || "4".equals(visibility))included.setVisibility(View.INVISIBLE);
+                        else included.setVisibility(View.VISIBLE);
+                    }
+                    if(attrRaw(childAttrs,"layout_width")!=null && attrRaw(childAttrs,"layout_height")!=null)
+                        included.setLayoutParams(parent.generateLayoutParams(childAttrs));
                 }
                 skipSubtree(parser);
                 continue;
@@ -193,7 +204,7 @@ public abstract class LayoutInflater {
                 continue;
             }
             View child = createViewFromTag(parent, name, childAttrs, false);
-            ViewGroup.LayoutParams params = layoutParamsOf(child);
+            ViewGroup.LayoutParams params = parent.generateLayoutParams(childAttrs);
             rInflateChildren(parser, child, attrsOf(parser));
             child.onFinishInflate();
             if (params != null) child.setLayoutParams(params);
@@ -289,8 +300,22 @@ public abstract class LayoutInflater {
         if (view == null) {
             view = placeholder(name);
         }
+        applyCompatibilityDefaults(view);
         applyAttributes(view, attrs);
         return view;
+    }
+
+    /**
+     * Material AppBarLayout normally receives a state-list elevation from its
+     * theme. The translated app theme does not contain that animator, but the
+     * elevation still matters for sibling hit testing: a scrolling content
+     * view must not consume taps intended for the toolbar.
+     */
+    private void applyCompatibilityDefaults(View view) {
+        String className = view.getClass().getName();
+        if (className.indexOf("AppBarLayout") >= 0 && view.getElevation() <= 0f) {
+            view.setElevation(4f);
+        }
     }
 
     protected View createView(String name, String prefix, android.util.AttributeSet attrs) {
@@ -401,14 +426,17 @@ public abstract class LayoutInflater {
                     return (View) ctor.newInstance();
                 }
             }
-        } catch (Exception e) {
+        } catch (ClassNotFoundException e) {
             return null;
+        } catch (java.lang.reflect.InvocationTargetException e) {
+            throw new InflateException("Constructor failed for " + full,e.getCause());
+        } catch (ReflectiveOperationException e) {
+            throw new InflateException("Cannot construct " + full,e);
         }
     }
 
     private View placeholder(String name) {
-        android.util.Log.w("LayoutInflater", "unknown view " + name + "; using FrameLayout");
-        return new android.widget.FrameLayout(mContext);
+        throw new InflateException("Cannot resolve view " + name);
     }
 
     private ViewGroup.LayoutParams layoutParamsOf(View child) {
@@ -430,10 +458,10 @@ public abstract class LayoutInflater {
         }
         String vis = attrRaw(attrs, "visibility");
         if (vis != null) {
-            if ("gone".equalsIgnoreCase(vis)) view.setVisibility(View.GONE);
+            if ("gone".equalsIgnoreCase(vis) || "2".equals(vis) || "8".equals(vis)) view.setVisibility(View.GONE);
             else if ("invisible".equalsIgnoreCase(vis)
-                    || "hidden".equalsIgnoreCase(vis)) view.setVisibility(View.INVISIBLE);
-            else if ("visible".equalsIgnoreCase(vis)) view.setVisibility(View.VISIBLE);
+                    || "hidden".equalsIgnoreCase(vis) || "1".equals(vis) || "4".equals(vis)) view.setVisibility(View.INVISIBLE);
+            else if ("visible".equalsIgnoreCase(vis) || "0".equals(vis)) view.setVisibility(View.VISIBLE);
         }
         String desc = attrRaw(attrs, "contentDescription");
         if (desc != null) view.setContentDescription(desc);
@@ -445,10 +473,10 @@ public abstract class LayoutInflater {
         if (focusable >= 0) view.setFocusable(focusable != 0);
         if (view instanceof android.widget.LinearLayout) {
             String o = attrRaw(attrs, "orientation");
-            if ("horizontal".equalsIgnoreCase(o)) {
+            if ("horizontal".equalsIgnoreCase(o) || "0".equals(o)) {
                 ((android.widget.LinearLayout) view).setOrientation(
                         android.widget.LinearLayout.HORIZONTAL);
-            } else if ("vertical".equalsIgnoreCase(o)) {
+            } else if ("vertical".equalsIgnoreCase(o) || "1".equals(o)) {
                 ((android.widget.LinearLayout) view).setOrientation(
                         android.widget.LinearLayout.VERTICAL);
             } else if (o != null) {
@@ -485,11 +513,72 @@ public abstract class LayoutInflater {
         if (click != null && !click.isEmpty()) {
             bindOnClick(view, click);
         }
+        applyMinSize(view, attrs);
+        applyElevation(view, attrs);
         int w = parseLayoutDim(attrRaw(attrs, "layout_width"),
                 ViewGroup.LayoutParams.WRAP_CONTENT);
         int h = parseLayoutDim(attrRaw(attrs, "layout_height"),
                 ViewGroup.LayoutParams.WRAP_CONTENT);
         view.setLayoutParams(new ViewGroup.LayoutParams(w, h));
+    }
+
+    /** Minimum size from android:minWidth/minHeight (dimension or raw px). */
+    private void applyMinSize(View view, android.util.AttributeSet attrs) {
+        if (view == null || attrs == null || mContext == null) return;
+        android.content.res.TypedArray a;
+        try {
+            a = mContext.obtainStyledAttributes(attrs,
+                    new int[]{0x0101013f, 0x01010140});
+        } catch (RuntimeException e) {
+            return;
+        }
+        try {
+            int minW = a.getDimensionPixelSize(0, -1);
+            if (minW >= 0) view.setMinimumWidth(minW);
+            int minH = a.getDimensionPixelSize(1, -1);
+            if (minH >= 0) view.setMinimumHeight(minH);
+        } catch (RuntimeException e) {
+        } finally {
+            a.recycle();
+        }
+    }
+
+    /** Elevation from android:elevation (dimension or raw px). */
+    private void applyElevation(View view, android.util.AttributeSet attrs) {
+        if (view == null || attrs == null || mContext == null) return;
+        String raw = attrRaw(attrs, "elevation");
+        if (raw == null) return;
+        raw = raw.trim();
+        float px = parseDimensionPx(raw);
+        if (!Float.isNaN(px) && px > 0) view.setElevation(px);
+    }
+
+    /** Parse a dimension literal (dp/sp/px suffix or bare number) to px. */
+    private float parseDimensionPx(String raw) {
+        if (raw == null || raw.isEmpty()) return Float.NaN;
+        raw = raw.trim();
+        int i = 0;
+        while (i < raw.length()
+                && (Character.isDigit(raw.charAt(i)) || raw.charAt(i) == '.' || raw.charAt(i) == '-')) {
+            i++;
+        }
+        if (i == 0) return Float.NaN;
+        try {
+            float value = Float.parseFloat(raw.substring(0, i));
+            String unit = raw.substring(i).trim().toLowerCase(java.util.Locale.ROOT);
+            if (unit.isEmpty() || unit.equals("px")) return value;
+            float density = 1.0f;
+            try {
+                density = mContext.getResources().getDisplayMetrics().density;
+            } catch (RuntimeException e) {
+            }
+            if (unit.equals("dp") || unit.equals("dip") || unit.equals("sp") || unit.equals("sip")) {
+                return value * density;
+            }
+            return Float.NaN;
+        } catch (NumberFormatException e) {
+            return Float.NaN;
+        }
     }
 
     private void bindOnClick(View view, final String method) {
@@ -567,16 +656,18 @@ public abstract class LayoutInflater {
     private static int attrBool(android.util.AttributeSet attrs, String name, int def) {
         if (attrs == null) return def;
         try {
-            boolean d = def != 0;
-            boolean v = attrs.getAttributeBooleanValue(null, name, d);
             String raw = attrRaw(attrs, name);
-            if (raw == null && v == d) {
-                v = attrs.getAttributeBooleanValue(
-                        "http://schemas.android.com/apk/res/android", name, d);
-                raw = "ns";
+            if (raw == null) {
+                // Namespaced lookup: fall back to the android: attribute.
+                String v = attrs.getAttributeValue(
+                        "http://schemas.android.com/apk/res/android", name);
+                if (v == null) return def;
+                raw = v;
             }
-            if (raw == null && v == d) return def;
-            return v ? 1 : 0;
+            raw = raw.trim();
+            if ("true".equalsIgnoreCase(raw) || "1".equals(raw)) return 1;
+            if ("false".equalsIgnoreCase(raw) || "0".equals(raw)) return 0;
+            return def;
         } catch (RuntimeException e) {
             return def;
         }

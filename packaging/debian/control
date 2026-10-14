@@ -2,7 +2,7 @@ Source: isakai
 Section: utils
 Priority: optional
 Maintainer: Isakai contributors <https://github.com/yesheytenzin/isakai>
-Build-Depends: debhelper-compat (= 13), zig (>= 0.17), default-jdk | openjdk-17-jdk, libxkbcommon-dev, libpulse-dev, libsqlite3-dev
+Build-Depends: debhelper-compat (= 13), zig (>= 0.17), default-jdk | openjdk-17-jdk, libxkbcommon-dev, libpulse-dev, libsqlite3-dev, libicu-dev
 Standards-Version: 4.6.2
 Rules-Requires-Root: no
 

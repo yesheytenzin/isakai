@@ -61,4 +61,14 @@ public class CheckedTextView extends TextView implements Checkable {
             checkMark.draw(canvas);
         }
     }
+
+    @Override
+    protected void onDrawAt(Canvas canvas, int offsetX, int offsetY) {
+        super.onDrawAt(canvas, offsetX, offsetY);
+        if (checkMark != null && checked && canvas != null) {
+            int size = Math.min(getWidth(), getHeight());
+            checkMark.setBounds(offsetX + getWidth() - size, offsetY, offsetX + getWidth(), offsetY + size);
+            checkMark.draw(canvas);
+        }
+    }
 }

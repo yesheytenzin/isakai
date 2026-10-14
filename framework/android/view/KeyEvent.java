@@ -6,7 +6,7 @@ package android.view;
  * unicode char, event time. No ACTION_MULTIPLE in M3 (native never sends
  * repeats; long-press is out of scope).
  */
-public class KeyEvent {
+public class KeyEvent extends InputEvent {
     public static final int ACTION_DOWN = 0;
     public static final int ACTION_UP = 1;
 

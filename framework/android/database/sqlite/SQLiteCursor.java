@@ -20,6 +20,14 @@ public final class SQLiteCursor implements Cursor {
         this.rows = Collections.unmodifiableList(rows);
     }
 
+    public SQLiteCursor(SQLiteCursorDriver driver,String editTable,SQLiteQuery query) {
+        SQLiteCursor snapshot=query.execute();
+        names=snapshot.names;rows=snapshot.rows;
+    }
+    public SQLiteCursor(SQLiteDatabase db,SQLiteCursorDriver driver,String editTable,SQLiteQuery query) {
+        this(driver,editTable,query);
+    }
+
     private void checkOpen() {
         if (closed) throw new IllegalStateException("cursor closed");
     }

@@ -13,12 +13,16 @@ import java.util.concurrent.TimeUnit;
 import org.isakai.bridge.IsakaiSensor;
 
 /**
- * SensorManager backed by host iio-sensor-proxy (D-Bus) when present,
- * falling back to virtual sensors (accelerometer = gravity, light = 0).
+ * SensorManager. No host sensor backend is wired yet (iio-sensor-proxy over
+ * D-Bus would be the host source), so {@link #getDefaultSensor} reports
+ * "no such sensor" and {@link #registerListener} returns false: apps must
+ * handle absence instead of receiving fabricated readings. Tests can opt in
+ * to synthetic accelerometer/light readings with ISAKAI_FAKE_SENSORS=1.
  *
- * <p>Dispatch is via Handler.post when a Handler is supplied, else the
- * caller's thread. Only TYPE_ACCELEROMETER and TYPE_LIGHT have real
- * values today; others return null from getDefaultSensor.
+ * <p>Dispatch is via Handler.post when a Handler is supplied, else a
+ * per-manager scheduled thread. A registration is marked inactive before
+ * the listener is dropped, so a queued or in-flight delivery after
+ * {@link #unregisterListener} is suppressed.
  */
 public class SensorManager {
     private static final String TAG = "SensorManager";
@@ -59,6 +63,7 @@ public class SensorManager {
         final Sensor sensor;
         final Handler handler;
         final int rateUs;
+        volatile boolean active = true;
         ScheduledFuture<?> future;
         Registration(SensorEventListener l, Sensor s, Handler h, int rateUs) { listener = l; sensor = s; handler = h; this.rateUs = rateUs; }
     }
@@ -68,6 +73,7 @@ public class SensorManager {
     public Sensor getDefaultSensor(int type) { return getDefaultSensor(type, false); }
 
     public Sensor getDefaultSensor(int type, boolean wakeUp) {
+        if (!IsakaiSensor.available(type)) return null;
         if (type == TYPE_ACCELEROMETER) return ACCEL;
         if (type == TYPE_LIGHT) return LIGHT;
         if (type == TYPE_ALL) return ALL_SENSORS.isEmpty() ? null : ALL_SENSORS.get(0);
@@ -75,7 +81,11 @@ public class SensorManager {
     }
 
     public List<Sensor> getSensorList(int type) {
-        if (type == TYPE_ALL) return ALL_SENSORS;
+        if (type == TYPE_ALL) {
+            List<Sensor> available = new ArrayList<>();
+            for (Sensor s : ALL_SENSORS) if (IsakaiSensor.available(s.getType())) available.add(s);
+            return Collections.unmodifiableList(available);
+        }
         Sensor s = getDefaultSensor(type);
         if (s == null) return Collections.emptyList();
         return Collections.singletonList(s);
@@ -88,13 +98,14 @@ public class SensorManager {
     public boolean registerListener(SensorEventListener listener, Sensor sensor, int samplingPeriodUs, Handler handler) {
         if (listener == null || sensor == null) return false;
         if (sensor != ACCEL && sensor != LIGHT) return false;
+        // No provider for this type: AOSP returns false instead of
+        // registering a listener that never fires or fabricating events.
+        if (!IsakaiSensor.available(sensor.getType())) return false;
         // deduplicate
         synchronized (registrations) {
             for (Registration r : registrations) if (r.listener == listener && r.sensor == sensor) return true;
         }
         long periodMs = delayToMs(samplingPeriodUs);
-        // try D-Bus first; if absent, virtual values still dispatch
-        IsakaiSensor.Reading cached = IsakaiSensor.poll(sensor.getType());
         Registration reg = new Registration(listener, sensor, handler, samplingPeriodUs);
         reg.future = exec.scheduleAtFixedRate(() -> dispatch(reg), 0, periodMs, TimeUnit.MILLISECONDS);
         synchronized (registrations) { registrations.add(reg); }
@@ -107,7 +118,10 @@ public class SensorManager {
             for (Registration r : registrations) if (r.listener == listener) toCancel.add(r);
             registrations.removeAll(toCancel);
         }
-        for (Registration r : toCancel) if (r.future != null) r.future.cancel(false);
+        for (Registration r : toCancel) {
+            r.active = false;
+            if (r.future != null) r.future.cancel(false);
+        }
     }
 
     public void unregisterListener(SensorEventListener listener, Sensor sensor) {
@@ -116,10 +130,14 @@ public class SensorManager {
             for (Registration r : registrations) if (r.listener == listener && r.sensor == sensor) toCancel.add(r);
             registrations.removeAll(toCancel);
         }
-        for (Registration r : toCancel) if (r.future != null) r.future.cancel(false);
+        for (Registration r : toCancel) {
+            r.active = false;
+            if (r.future != null) r.future.cancel(false);
+        }
     }
 
     private void dispatch(Registration reg) {
+        if (!reg.active) return;
         IsakaiSensor.Reading reading = IsakaiSensor.poll(reg.sensor.getType());
         SensorEvent ev;
         if (reg.sensor.getType() == TYPE_ACCELEROMETER) {
@@ -137,7 +155,10 @@ public class SensorManager {
         ev.sensor = reg.sensor;
         ev.accuracy = SENSOR_STATUS_ACCURACY_HIGH;
         ev.timestamp = System.nanoTime();
-        Runnable deliver = () -> reg.listener.onSensorChanged(ev);
+        Runnable deliver = () -> {
+            if (!reg.active) return; // unregistered while queued
+            reg.listener.onSensorChanged(ev);
+        };
         if (reg.handler != null) reg.handler.post(deliver);
         else deliver.run();
     }

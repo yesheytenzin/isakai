@@ -8,6 +8,7 @@ const dex = @import("dex");
 const translate = @import("translate");
 const registry = @import("registry");
 const install = @import("install");
+const pathmod = @import("bridge_path");
 
 /// Translate all classes.dex/classesN.dex in the staged code dir to JVM
 /// classes. Writes into <code_dir>/classes/. Idempotent: skips if the
@@ -46,9 +47,14 @@ pub fn translateApp(
         if (n > 1000) break; // sanity cap
     }
 
-    // Marker: newline-joined per-dex digests; skip when unchanged.
+    // A DEX-only marker would keep executing old bytecode after translator
+    // fixes. Include source and toolchain identity, not just APK identity.
     var marker: std.ArrayListUnmanaged(u8) = .empty;
     defer marker.deinit(gpa);
+    const compiler = translatorFingerprint();
+    try marker.appendSlice(gpa, "translator:");
+    try marker.appendSlice(gpa, &compiler);
+    try marker.append(gpa, '\n');
     for (dex_names.items) |dn| {
         const full = try std.fmt.allocPrint(gpa, "{s}/{s}", .{ code_dir, dn });
         defer gpa.free(full);
@@ -86,6 +92,16 @@ pub fn translateApp(
         for (0..header.class_defs_size) |i| {
             var tc = try translate.translateClass(aa, d, i, &fwd, &.{});
             defer tc.deinit(aa);
+            // Platform classes ship in the framework, not the app: stub DEXes
+            // embed android.* throw-stubs (e.g. AutofillCallback) that would
+            // shadow the real framework classes on the app-first classpath.
+            // Bundled libraries (androidx, kotlin, kotlinx, android.support)
+            // still translate: only the android/ platform tree is skipped.
+            if (std.mem.startsWith(u8, tc.internal_name, "android/") and
+                !std.mem.startsWith(u8, tc.internal_name, "android/support/"))
+            {
+                continue;
+            }
             const gop = try seen.getOrPut(gpa, tc.internal_name);
             if (gop.found_existing) {
                 std.log.err("duplicate class {s} in {s} (already translated)", .{ tc.internal_name, dn });
@@ -127,6 +143,14 @@ pub fn translateApp(
             }
             var pit = plan.iterator();
             while (pit.next()) |e| {
+                // Platform classes are never written (see the first-pass
+                // skip above); a forward naming one has no directory and
+                // must not be created.
+                if (std.mem.startsWith(u8, e.key_ptr.*, "android/") and
+                    !std.mem.startsWith(u8, e.key_ptr.*, "android/support/"))
+                {
+                    continue;
+                }
                 const found = translate.dexDefIndexByInternal(d, aa, e.key_ptr.*) orelse continue;
                 var tc = try translate.translateClass(aa, d, found, &fwd, e.value_ptr.items);
                 defer tc.deinit(aa);
@@ -148,6 +172,23 @@ pub fn translateApp(
     var mfw = mf.writer(io, &mbuf);
     try mfw.interface.writeAll(marker.items);
     try mfw.interface.flush();
+}
+
+fn translatorFingerprint() [64]u8 {
+    var hash = std.crypto.hash.sha2.Sha256.init(.{});
+    hash.update(@embedFile("translate.zig"));
+    hash.update(@embedFile("dex.zig"));
+    hash.update(@embedFile("launch.zig"));
+    hash.update(@import("builtin").zig_version_string);
+    return std.fmt.bytesToHex(hash.finalResult(), .lower);
+}
+
+test "translation fingerprint is a stable nonempty SHA-256 identity" {
+    const first = translatorFingerprint();
+    const second = translatorFingerprint();
+    try std.testing.expectEqualStrings(&first, &second);
+    for (first) |c| try std.testing.expect((c >= '0' and c <= '9') or (c >= 'a' and c <= 'f'));
+    try std.testing.expect(!std.mem.allEqual(u8, &first, '0'));
 }
 
 /// Parse a JEP 223 / legacy version string to its FEATURE number.
@@ -307,23 +348,28 @@ pub fn buildJvmArgv(
     code_dir: []const u8,
     app_theme: []const u8,
     act_theme: []const u8,
+    target_sdk: []const u8,
+    min_sdk: []const u8,
 ) ![][]const u8 {
-    const argv = try gpa.alloc([]const u8, 15);
+    const argv = try gpa.alloc([]const u8, 18);
     argv[0] = java;
     argv[1] = "--enable-native-access=ALL-UNNAMED";
     argv[2] = lib_path;
     argv[3] = windowed_prop;
     argv[4] = try std.fmt.allocPrint(gpa, "-Disakai.codeDir={s}", .{code_dir});
-    argv[5] = "-cp";
-    argv[6] = cp;
-    argv[7] = "org.isakai.runtime.IsakaiMain";
-    argv[8] = data_dir;
-    argv[9] = app_arg;
-    argv[10] = act_arg;
-    argv[11] = pkg_name;
-    argv[12] = title;
-    argv[13] = app_theme;
-    argv[14] = act_theme;
+    argv[5] = try std.fmt.allocPrint(gpa, "-Djava.io.tmpdir={s}/cache/tmp", .{data_dir});
+    argv[6] = "-cp";
+    argv[7] = cp;
+    argv[8] = "org.isakai.runtime.IsakaiMain";
+    argv[9] = data_dir;
+    argv[10] = app_arg;
+    argv[11] = act_arg;
+    argv[12] = pkg_name;
+    argv[13] = title;
+    argv[14] = app_theme;
+    argv[15] = act_theme;
+    argv[16] = target_sdk;
+    argv[17] = min_sdk;
     return argv;
 }
 
@@ -338,31 +384,54 @@ pub fn spawnInherit(io: std.Io, argv: []const []const u8) !std.process.Child {
     });
 }
 
-/// Bridge/stage dir anchors: work/run/<package> + work/stage/<package>.
-/// Caller owns both results.
-pub fn bridgeDirs(gpa: std.mem.Allocator, work: []const u8, package: []const u8) !struct { bridge: []u8, stage: []u8 } {
-    const bridge = try std.fmt.allocPrint(gpa, "{s}/run/{s}", .{ work, package });
+/// Bridge/stage dir anchors: `<tmp>/isakai-<uid>-<digest>` (the desktop
+/// bridge socket endpoint; see src/bridge/path.zig for why it cannot live
+/// under the work dir) + work/stage/<package>. Caller owns both results.
+pub fn bridgeDirs(gpa: std.mem.Allocator, work: []const u8, package: []const u8, uid: u32) !struct { bridge: []u8, stage: []u8 } {
+    const bridge = try pathmod.dirFor(gpa, work, package, uid);
     errdefer gpa.free(bridge);
     const stage = try std.fmt.allocPrint(gpa, "{s}/stage/{s}", .{ work, package });
     return .{ .bridge = bridge, .stage = stage };
 }
 
-/// Pre-bind the bridge + stage dirs. Creates work/run + work/stage parents.
-/// run/<pkg> is launcher-owned 0711: the daemon binds there, and the
-/// sandboxed app uid traverses (x-only, no listing) to reach the socket
-/// (SO_PEERCRED gates clients). stage/<pkg> is 0700; the privileged
-/// helper chowns it to the app uid at install (app writes transfers).
-pub fn prebindBridgeDirs(io: std.Io, bridge_dir: []const u8, stage_dir: []const u8) void {
-    if (std.fs.path.dirname(bridge_dir)) |parent| {
-        std.Io.Dir.cwd().createDirPath(io, parent) catch {};
+/// Pre-bind the bridge + stage dirs, fail-closed. The bridge endpoint is
+/// created (never reused) when owned by us: launcher-owned 0711 so the
+/// sandboxed app uid can traverse to the socket without listing the
+/// directory, and no other local user can create or replace the socket
+/// node inside it. A pre-existing directory owned by someone else is a
+/// hijack attempt (or an unrelated collision) and refuses the launch.
+/// stage/<pkg> is 0700; the privileged helper chowns it to the app uid at
+/// install (app writes transfers).
+pub fn prebindBridgeDirs(io: std.Io, bridge_dir: []const u8, stage_dir: []const u8) !void {
+    const linux = std.os.linux;
+    if (!pathmod.validDir(bridge_dir)) return error.BadBridgeDir;
+    const cwd = std.Io.Dir.cwd();
+    cwd.createDirPath(io, bridge_dir) catch |err| switch (err) {
+        // Another process (concurrent launch, retry after crash, or a
+        // foreign user) got there first: fine only if we own the result.
+        error.PathAlreadyExists => {},
+        else => return err,
+    };
+    {
+        var zbuf: [pathmod.max_dir + 1]u8 = undefined;
+        @memcpy(zbuf[0..bridge_dir.len], bridge_dir);
+        zbuf[bridge_dir.len] = 0;
+        const z: [*:0]const u8 = @ptrCast(&zbuf);
+        var stx: linux.Statx = undefined;
+        const rc = linux.statx(linux.AT.FDCWD, z, linux.AT.SYMLINK_NOFOLLOW, .{ .TYPE = true, .MODE = true, .UID = true }, &stx);
+        if (linux.errno(rc) != .SUCCESS) return error.BadBridgeDir;
+        if (stx.mode & linux.S.IFMT != linux.S.IFDIR) return error.BadBridgeDir;
+        // A directory owned by another uid cannot be trusted: that uid
+        // could replace bridge.sock with its own listener.
+        if (stx.uid != linux.geteuid()) return error.BadBridgeDirOwner;
+        if (stx.mode & 0o022 != 0) return error.BadBridgeDirMode;
     }
-    std.Io.Dir.cwd().createDirPath(io, bridge_dir) catch {};
-    std.Io.Dir.cwd().setFilePermissions(io, bridge_dir, .fromMode(0o711), .{}) catch {};
+    cwd.setFilePermissions(io, bridge_dir, .fromMode(0o711), .{}) catch {};
     if (std.fs.path.dirname(stage_dir)) |parent| {
-        std.Io.Dir.cwd().createDirPath(io, parent) catch {};
+        cwd.createDirPath(io, parent) catch {};
     }
-    std.Io.Dir.cwd().createDirPath(io, stage_dir) catch {};
-    std.Io.Dir.cwd().setFilePermissions(io, stage_dir, .fromMode(0o700), .{}) catch {};
+    cwd.createDirPath(io, stage_dir) catch {};
+    cwd.setFilePermissions(io, stage_dir, .fromMode(0o700), .{}) catch {};
 }
 
 /// Resolve the bridge executable: sibling of `exe` when exe contains a
@@ -395,9 +464,12 @@ pub fn spawnBridge(
     });
 }
 
-/// Wait for the bridge socket to appear (up to ~5s). False on timeout.
+/// Wait for the bridge socket to appear (up to ~5s). False on timeout or
+/// when the endpoints disagree about the socket path (a length/shape
+/// mismatch is reported by the daemon's own diagnostic).
 pub fn waitBridgeSocket(io: std.Io, gpa: std.mem.Allocator, bridge_dir: []const u8) bool {
-    const sock = std.fmt.allocPrint(gpa, "{s}/bridge.sock", .{bridge_dir}) catch return false;
+    if (!pathmod.validDir(bridge_dir)) return false;
+    const sock = pathmod.socketPath(gpa, bridge_dir) catch return false;
     defer gpa.free(sock);
     var i: usize = 0;
     while (i < 50) : (i += 1) {
@@ -445,12 +517,12 @@ pub fn resolveWaylandSocket(gpa: std.mem.Allocator, env: *const std.process.Envi
         if (runtime.len == 0) return null;
         path = try std.fmt.allocPrint(gpa, "{s}/{s}", .{ runtime, display });
     }
-    if (!validBridgeDir(path)) {
+    if (!validAbsPath(path)) {
         gpa.free(path);
         return error.BadWaylandSocket;
     }
     // Fit check: sockaddr_un path field is 108 bytes incl. NUL.
-    if (path.len + 1 > 108) {
+    if (path.len + 1 > pathmod.max_path) {
         gpa.free(path);
         return error.BadWaylandSocket;
     }
@@ -478,12 +550,14 @@ pub fn resolveWaylandSocket(gpa: std.mem.Allocator, env: *const std.process.Envi
 
 /// Build the `uid-helper run` argv head (everything through `--`):
 /// `exe uid-helper run <pkg> <uid> <data> <work> [--wayland-sock S]
-/// [--framework F] --`.
+/// [--bridge-dir B] [--framework F] --`.
 /// The wayland flag appears only when `wayland_sock` is non-null
-/// (privileged windowed with a resolved compositor socket); the
-/// framework flag only when `framework_dir` is non-null (privileged
-/// Landlock confinement needs the read-only tree). Unprivileged and
-/// headless runs keep the historical argv byte-identical. All borrowed.
+/// (privileged windowed with a resolved compositor socket); the bridge
+/// flag only when `bridge_dir` is non-null (the helper must pass the very
+/// same endpoint to the sandbox env and its Landlock rules); the framework
+/// flag only when `framework_dir` is non-null (privileged Landlock
+/// confinement needs the read-only tree). Unprivileged and headless runs
+/// keep the historical argv byte-identical. All borrowed.
 pub fn helperRunHead(
     gpa: std.mem.Allocator,
     exe: []const u8,
@@ -492,6 +566,7 @@ pub fn helperRunHead(
     data_dir: []const u8,
     work: []const u8,
     wayland_sock: ?[]const u8,
+    bridge_dir: ?[]const u8,
     framework_dir: ?[]const u8,
 ) !std.ArrayListUnmanaged([]const u8) {
     var argv: std.ArrayListUnmanaged([]const u8) = .empty;
@@ -500,6 +575,9 @@ pub fn helperRunHead(
     if (wayland_sock) |s| {
         try argv.appendSlice(gpa, &.{ "--wayland-sock", s });
     }
+    if (bridge_dir) |b| {
+        try argv.appendSlice(gpa, &.{ "--bridge-dir", b });
+    }
     if (framework_dir) |f| {
         try argv.appendSlice(gpa, &.{ "--framework", f });
     }
@@ -507,8 +585,10 @@ pub fn helperRunHead(
     return argv;
 }
 
-/// True when a bridge/stage dir override is safe: absolute, no `..`.
-pub fn validBridgeDir(s: []const u8) bool {
+/// True when an override path is safe to hand to the privileged helper:
+/// absolute, no `..`, bounded length. The bridge endpoint has its own
+/// stricter rule in src/bridge/path.zig.
+pub fn validAbsPath(s: []const u8) bool {
     if (s.len == 0 or s.len > 4000) return false;
     if (s[0] != '/') return false;
     if (std.mem.indexOf(u8, s, "..") != null) return false;
@@ -581,10 +661,11 @@ fn hasRunWrapper(io: std.Io) bool {
 /// output streams to the caller's terminal. `wayland_sock` is the resolved
 /// compositor socket (privileged windowed only); it becomes a discrete
 /// `--wayland-sock <abs>` flag before `--` so the helper can bind-mount it
-/// into the app runtime dir. `framework_dir` is the read-only framework
-/// tree (privileged runs only): it becomes `--framework <abs>` so the
-/// helper can Landlock-confine the child. Null keeps the historical argv
-/// byte-identical.
+/// into the app runtime dir. `bridge_dir` becomes `--bridge-dir <abs>` so
+/// the helper exports and permits the same endpoint the launcher created.
+/// `framework_dir` is the read-only framework tree (privileged runs only):
+/// it becomes `--framework <abs>` so the helper can Landlock-confine the
+/// child. Null keeps the historical argv byte-identical.
 fn spawnViaHelper(
     io: std.Io,
     gpa: std.mem.Allocator,
@@ -592,6 +673,7 @@ fn spawnViaHelper(
     exe: []const u8,
     pkg: *const registry.Package,
     work: []const u8,
+    bridge_dir: []const u8,
     jvm_argv: []const []const u8,
     wayland_sock: ?[]const u8,
     framework_dir: ?[]const u8,
@@ -604,7 +686,7 @@ fn spawnViaHelper(
     if (!noninteractive) {
         // pkexec if present, else fall back to sudo -n on spawn failure.
         try argv.append(gpa, "/usr/bin/pkexec");
-        var head = try helperRunHead(gpa, exe, pkg.name, uid_s, pkg.data_dir, work, wayland_sock, framework_dir);
+        var head = try helperRunHead(gpa, exe, pkg.name, uid_s, pkg.data_dir, work, wayland_sock, bridge_dir, framework_dir);
         defer head.deinit(gpa);
         // M6f: prefer the per-operation run wrapper (matches the
         // id.isakai.run-app policy action's exec.path → its own dialog
@@ -619,6 +701,8 @@ fn spawnViaHelper(
                 try argv.append(gpa, "--wayland-sock");
                 try argv.append(gpa, s);
             }
+            try argv.append(gpa, "--bridge-dir");
+            try argv.append(gpa, bridge_dir);
             if (framework_dir) |f| {
                 try argv.append(gpa, "--framework");
                 try argv.append(gpa, f);
@@ -634,7 +718,7 @@ fn spawnViaHelper(
                 argv.clearRetainingCapacity();
                 try argv.append(gpa, "/usr/bin/sudo");
                 try argv.append(gpa, "-n");
-                var head2 = try helperRunHead(gpa, exe, pkg.name, uid_s, pkg.data_dir, work, wayland_sock, framework_dir);
+                var head2 = try helperRunHead(gpa, exe, pkg.name, uid_s, pkg.data_dir, work, wayland_sock, bridge_dir, framework_dir);
                 defer head2.deinit(gpa);
                 try argv.appendSlice(gpa, head2.items);
                 try argv.appendSlice(gpa, jvm_argv);
@@ -645,7 +729,7 @@ fn spawnViaHelper(
     }
     try argv.append(gpa, "/usr/bin/sudo");
     try argv.append(gpa, "-n");
-    var head = try helperRunHead(gpa, exe, pkg.name, uid_s, pkg.data_dir, work, wayland_sock, framework_dir);
+    var head = try helperRunHead(gpa, exe, pkg.name, uid_s, pkg.data_dir, work, wayland_sock, bridge_dir, framework_dir);
     defer head.deinit(gpa);
     try argv.appendSlice(gpa, head.items);
     try argv.appendSlice(gpa, jvm_argv);
@@ -713,6 +797,11 @@ pub fn launch(
     try reg.updateState(io, gpa, work, pkg);
 
     const no_priv = registry.envFlag(env, "ISAKAI_NO_PRIVILEGE");
+    if (no_priv) {
+        const temp_dir = try std.fmt.allocPrint(gpa, "{s}/cache/tmp", .{pkg.data_dir});
+        defer gpa.free(temp_dir);
+        try std.Io.Dir.cwd().createDirPath(io, temp_dir);
+    }
     const java = (try findJava(io, gpa, env, !no_priv)) orelse return error.NoJava;
     defer gpa.free(java);
     const classes_dir = try std.fmt.allocPrint(gpa, "{s}/classes", .{pkg.apk});
@@ -747,6 +836,10 @@ pub fn launch(
     defer gpa.free(app_theme_arg);
     const act_theme_arg = try std.fmt.allocPrint(gpa, "{d}", .{m.activity_theme});
     defer gpa.free(act_theme_arg);
+    const target_sdk_arg = try std.fmt.allocPrint(gpa, "{d}", .{m.target_sdk});
+    defer gpa.free(target_sdk_arg);
+    const min_sdk_arg = try std.fmt.allocPrint(gpa, "{d}", .{m.min_sdk});
+    defer gpa.free(min_sdk_arg);
     const windowed: bool = registry.envFlag(env, "ISAKAI_WINDOW");
     // Privileged windowed runs need the compositor socket brokered into the
     // app sandbox (the helper bind-mounts it into the per-app runtime dir):
@@ -772,25 +865,31 @@ pub fn launch(
     );
     defer gpa.free(lib_path);
     const windowed_prop = if (windowed) "-Disakai.windowed=true" else "-Disakai.windowed=false";
-    const jvm_argv = try buildJvmArgv(gpa, java, lib_path, windowed_prop, cp, pkg.data_dir, app_arg, act_arg, pkg.name, title_arg, pkg.apk, app_theme_arg, act_theme_arg);
+    const jvm_argv = try buildJvmArgv(gpa, java, lib_path, windowed_prop, cp, pkg.data_dir, app_arg, act_arg, pkg.name, title_arg, pkg.apk, app_theme_arg, act_theme_arg, target_sdk_arg, min_sdk_arg);
     defer gpa.free(jvm_argv);
     defer gpa.free(jvm_argv[4]);
+    defer gpa.free(jvm_argv[5]);
     // Desktop bridge: validated --bridge-dir/--stage-dir under
     // work/run/<pkg> + work/stage/<pkg>, pre-bound before the spawn.
     // ISAKAI_BRIDGE_DIR/ISAKAI_STAGE_DIR env overrides (validated) let
     // tests redirect; the sandbox gets ISAKAI_BRIDGE/ISAKAI_STAGE.
-    const dirs = try bridgeDirs(gpa, work, pkg.name);
+    const dirs = try bridgeDirs(gpa, work, pkg.name, std.os.linux.getuid());
     defer gpa.free(dirs.bridge);
     defer gpa.free(dirs.stage);
     const bridge_dir = env.get("ISAKAI_BRIDGE_DIR") orelse dirs.bridge;
     const stage_dir = env.get("ISAKAI_STAGE_DIR") orelse dirs.stage;
-    if (!validBridgeDir(bridge_dir) or !validBridgeDir(stage_dir)) {
-        std.log.err("bridge/stage dir must be absolute without '..'", .{});
+    if (!pathmod.validDir(bridge_dir) or !validAbsPath(stage_dir)) {
+        std.log.err("bridge dir must be absolute {s}/{s}<uid>-<digest>; stage dir absolute without '..'", .{ pathmod.tmp_base, pathmod.dir_prefix });
         rollbackToInstalled(&reg, io, gpa, work, pkg);
         lock.release();
         return error.BadBridgeDir;
     }
-    prebindBridgeDirs(io, bridge_dir, stage_dir);
+    prebindBridgeDirs(io, bridge_dir, stage_dir) catch |err| {
+        std.log.err("bridge dir unusable: {s} ({t})", .{ bridge_dir, err });
+        rollbackToInstalled(&reg, io, gpa, work, pkg);
+        lock.release();
+        return error.BadBridgeDir;
+    };
     // Spawn the bridge before the JVM so the socket is ready; it runs
     // as the user (not the app uid) with --uid for SO_PEERCRED gating.
     // ISAKAI_NO_BRIDGE=1 skips it (headless/bridge-less runs).
@@ -799,17 +898,19 @@ pub fn launch(
     defer gpa.free(bridge_path);
     var bridge_child: ?std.process.Child = null;
     if (!no_bridge) {
-        if (spawnBridge(io, gpa, bridge_path, bridge_dir, stage_dir, pkg.uid)) |bc| {
+        if (spawnBridge(io, gpa, bridge_path, bridge_dir, stage_dir, if (no_priv) std.os.linux.getuid() else pkg.uid)) |bc| {
             bridge_child = bc;
         } else |err| {
             std.log.warn("bridge spawn failed ({t}); continuing without desktop integration", .{err});
         }
         if (bridge_child != null) {
             if (!waitBridgeSocket(io, gpa, bridge_dir)) {
-                std.log.warn("bridge socket never appeared; continuing without desktop integration", .{});
+                std.log.warn("bridge socket {s}/bridge.sock never appeared (see bridge stderr above); continuing without desktop integration", .{bridge_dir});
                 var bc = bridge_child.?;
                 _ = bc.wait(io) catch {};
                 bridge_child = null;
+            } else {
+                std.log.info("desktop bridge ready at {s}/{s}", .{ bridge_dir, pathmod.sock_name });
             }
         }
     }
@@ -847,7 +948,7 @@ pub fn launch(
             return err;
         };
     } else {
-        child = spawnViaHelper(io, gpa, &child_env, exe, &pkg, work, jvm_argv, wayland_sock, framework_dir) catch |err| {
+        child = spawnViaHelper(io, gpa, &child_env, exe, &pkg, work, bridge_dir, jvm_argv, wayland_sock, framework_dir) catch |err| {
             rollbackToInstalled(&reg, io, gpa, work, pkg);
             lock.release();
             return err;
@@ -921,17 +1022,20 @@ test "buildJvmArgv shape: native-access first, codeDir 5th, 5th IsakaiMain arg i
         "/code/com.foo/abc",
         "0",
         "0",
+        "35",
+        "21",
     );
     defer {
         std.testing.allocator.free(argv[4]);
+        std.testing.allocator.free(argv[5]);
         std.testing.allocator.free(argv);
     }
-    try std.testing.expectEqual(@as(usize, 15), argv.len);
+    try std.testing.expectEqual(@as(usize, 18), argv.len);
     try std.testing.expectEqualStrings("--enable-native-access=ALL-UNNAMED", argv[1]);
     try std.testing.expectEqualStrings("-Disakai.codeDir=/code/com.foo/abc", argv[4]);
-    try std.testing.expectEqualStrings("org.isakai.runtime.IsakaiMain", argv[7]);
-    try std.testing.expectEqualStrings("com.foo", argv[11]);
-    try std.testing.expectEqualStrings("Fixture", argv[12]);
+    try std.testing.expectEqualStrings("org.isakai.runtime.IsakaiMain", argv[8]);
+    try std.testing.expectEqualStrings("com.foo", argv[12]);
+    try std.testing.expectEqualStrings("Fixture", argv[13]);
 }
 
 test "resolveWaylandSocket: null when unconfigured, resolves runtime/display" {
@@ -1054,7 +1158,7 @@ test "helperRunHead: no flag without socket, discrete flag with socket" {
     const gpa = std.testing.allocator;
     // Headless/unprivileged shape: byte-identical to the historical argv.
     {
-        var head = try helperRunHead(gpa, "isakai", "com.foo", "200001", "/data", "/work", null, null);
+        var head = try helperRunHead(gpa, "isakai", "com.foo", "200001", "/data", "/work", null, null, null);
         defer head.deinit(gpa);
         const want = [_][]const u8{ "isakai", "uid-helper", "run", "com.foo", "200001", "/data", "/work", "--" };
         try std.testing.expectEqual(want.len, head.items.len);
@@ -1062,7 +1166,7 @@ test "helperRunHead: no flag without socket, discrete flag with socket" {
     }
     // Privileged windowed: one discrete flag pair before `--`, nothing else.
     {
-        var head = try helperRunHead(gpa, "isakai", "com.foo", "200001", "/data", "/work", "/run/user/1000/wayland-1", null);
+        var head = try helperRunHead(gpa, "isakai", "com.foo", "200001", "/data", "/work", "/run/user/1000/wayland-1", null, null);
         defer head.deinit(gpa);
         const want = [_][]const u8{ "isakai", "uid-helper", "run", "com.foo", "200001", "/data", "/work", "--wayland-sock", "/run/user/1000/wayland-1", "--" };
         try std.testing.expectEqual(want.len, head.items.len);
@@ -1070,10 +1174,42 @@ test "helperRunHead: no flag without socket, discrete flag with socket" {
     }
     // Privileged with confinement: framework tree passed for Landlock.
     {
-        var head = try helperRunHead(gpa, "isakai", "com.foo", "200001", "/data", "/work", null, "/usr/share/isakai/framework");
+        var head = try helperRunHead(gpa, "isakai", "com.foo", "200001", "/data", "/work", null, null, "/usr/share/isakai/framework");
         defer head.deinit(gpa);
         const want = [_][]const u8{ "isakai", "uid-helper", "run", "com.foo", "200001", "/data", "/work", "--framework", "/usr/share/isakai/framework", "--" };
         try std.testing.expectEqual(want.len, head.items.len);
         for (want, head.items) |w, h| try std.testing.expectEqualStrings(w, h);
     }
+    // Production privileged launch: windowed + bridge endpoint + framework.
+    {
+        var head = try helperRunHead(gpa, "isakai", "com.foo", "200001", "/data", "/work", "/run/user/1000/wayland-1", "/tmp/isakai-1000-0123456789abcdef", "/usr/share/isakai/framework");
+        defer head.deinit(gpa);
+        const want = [_][]const u8{
+            "isakai",                            "uid-helper",                 "run",
+            "com.foo",                           "200001",                     "/data",
+            "/work",                             "--wayland-sock",             "/run/user/1000/wayland-1",
+            "--bridge-dir",                      "/tmp/isakai-1000-0123456789abcdef", "--framework",
+            "/usr/share/isakai/framework",        "--",
+        };
+        try std.testing.expectEqual(want.len, head.items.len);
+        for (want, head.items) |w, h| try std.testing.expectEqualStrings(w, h);
+    }
+}
+
+test "bridgeDirs stays short for a deep work dir and binds once" {
+    const gpa = std.testing.allocator;
+    const work = "/home/tenzin/development/isakai/.cache/isakai/recheck/opencalc6";
+    const dirs = try bridgeDirs(gpa, work, "com.darkempire78.opencalculator", 1000);
+    defer gpa.free(dirs.bridge);
+    defer gpa.free(dirs.stage);
+    try std.testing.expect(std.mem.startsWith(u8, dirs.bridge, "/tmp/isakai-1000-"));
+    try std.testing.expect(pathmod.validDir(dirs.bridge));
+    try std.testing.expectEqualStrings("/home/tenzin/development/isakai/.cache/isakai/recheck/opencalc6/stage/com.darkempire78.opencalculator", dirs.stage);
+    // The legacy layout this replaced did not fit sun_path.
+    const legacy = try std.fmt.allocPrint(gpa, "{s}/run/com.darkempire78.opencalculator/bridge.sock", .{work});
+    defer gpa.free(legacy);
+    try std.testing.expect(!pathmod.fitsSocketPath(legacy));
+    const sock = try pathmod.socketPath(gpa, dirs.bridge);
+    defer gpa.free(sock);
+    try std.testing.expect(pathmod.fitsSocketPath(sock));
 }
