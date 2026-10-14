@@ -842,6 +842,16 @@
       ".cache/isakai/evidence/com.darkempire78.opencalculator.sway-opencalc.log"
      ],
      "command": "zig build; python3 verify-isakai/sway-flow.py opencalc --work .cache/isakai/recheck/opencalc10"
+    },
+    {
+     "date": "2026-10-14",
+     "result": "partial",
+     "detail": "Calculator settings renders blank: SettingsActivity opens (content structure attaches: AppCompat FrameLayout + container + stub) but the Compose settings UI (r1.l1/r1.w full-size) never gains composed children over 70s. setContent runs and the composition gate flag is set (verified in translated bytecode); jstack shows zero worker threads, so the recomposer loop never runs. No fragments involved (app uses none for settings); the coroutines dispatcher runtime is stripped to exception classes. Next: trace what launches the recomposer loop in the obfuscated Compose runtime (j0) and what dispatcher/context it needs (candidate: stage META-INF/services resources and/or back Dispatchers.Main with the main looper)).",
+     "artifacts": [
+      ".cache/isakai/evidence/simple-04-settings.png",
+      ".cache/isakai/evidence/com.simplemobiletools.calculator.sway-calculator.log"
+     ],
+     "command": "python3 verify-isakai/sway-flow.py calculator --work .cache/isakai/recheck/calculator2"
     }
    ],
    "acceptance": "Each fixed failure is proven by the affected real visible flow. Unresolved failures stay explicit rather than becoming silent default returns."
@@ -946,6 +956,14 @@
       ".cache/isakai/evidence/com.darkempire78.opencalculator.sway-opencalc.log"
      ],
      "command": "python3 verify-isakai/sway-flow.py opencalc --work .cache/isakai/recheck/opencalc10"
+    },
+    {
+     "date": "2026-10-14",
+     "result": "partial",
+     "detail": "Calculator: calculate 2+2=4 works and the toolbar settings item now opens SettingsActivity (prior overlap blocker gone), but the preference toggle/persistence flow is blocked on the blank Compose settings content above. Back-navigation and restart persistence unverified pending the recomposer fix.",
+     "artifacts": [
+      ".cache/isakai/evidence/simple-04-settings.png"
+     ]
     }
    ],
    "acceptance": "All three apps complete their defined flows with expected saved results, remain usable beyond 30 seconds, and exit cleanly. Upgrade/rollback preserves data and a changed signer is rejected."
