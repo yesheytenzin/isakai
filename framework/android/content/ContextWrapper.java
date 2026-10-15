@@ -27,6 +27,11 @@ public class ContextWrapper extends Context {
     }
 
     @Override
+    public android.content.res.Resources.Theme getTheme() {
+        return base.getTheme();
+    }
+
+    @Override
     public Object getSystemService(String name) {
         return base.getSystemService(name);
     }

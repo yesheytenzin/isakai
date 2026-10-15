@@ -70,6 +70,42 @@ pub fn translateApp(
     } else |_| {}
     try std.Io.Dir.cwd().createDirPath(io, classes_dir);
 
+    // Mirror staged ServiceLoader configurations into the translated
+    // classes root. Stock ServiceLoader (used by the obfuscated coroutine
+    // dispatcher factories the pinned apps ship under META-INF/services/)
+    // reads the JVM classpath, never the staged tree, so without this
+    // mirror Dispatchers.Main has no factory and Compose never schedules
+    // its recomposer. Placed after the marker decision so a retranslate
+    // (which wipes classes/) cannot remove the mirror; idempotent, so
+    // every full translation ends with current service bytes.
+    {
+        const svc_src = try std.fmt.allocPrint(gpa, "{s}/META-INF/services", .{code_dir});
+        defer gpa.free(svc_src);
+        if (std.Io.Dir.cwd().openDir(io, svc_src, .{ .iterate = true })) |*svc_dir| {
+            defer svc_dir.close(io);
+            const svc_dst = try std.fmt.allocPrint(gpa, "{s}/META-INF/services", .{classes_dir});
+            defer gpa.free(svc_dst);
+            std.Io.Dir.cwd().createDirPath(io, svc_dst) catch {};
+            var it = svc_dir.iterate();
+            while (it.next(io) catch null) |entry| {
+                if (entry.kind != .file) continue;
+                const src_path = try std.fmt.allocPrint(gpa, "{s}/{s}", .{ svc_src, entry.name });
+                defer gpa.free(src_path);
+                const bytes = std.Io.Dir.cwd().readFileAlloc(io, src_path, gpa, .limited(65536)) catch continue;
+                defer gpa.free(bytes);
+                const dst_path = try std.fmt.allocPrint(gpa, "{s}/{s}", .{ svc_dst, entry.name });
+                defer gpa.free(dst_path);
+                var f = std.Io.Dir.cwd().createFile(io, dst_path, .{}) catch continue;
+                defer f.close(io);
+                var wbuf: [8192]u8 = undefined;
+                var fw = f.writer(io, &wbuf);
+                fw.interface.writeAll(bytes) catch continue;
+                fw.interface.flush() catch continue;
+                std.Io.Dir.cwd().setFilePermissions(io, dst_path, .fromMode(0o644), .{}) catch {};
+            }
+        } else |_| {}
+    }
+
     var seen: std.StringHashMapUnmanaged(void) = .empty;
     defer {
         var sit = seen.iterator();

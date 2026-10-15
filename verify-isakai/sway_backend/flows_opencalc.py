@@ -4,18 +4,35 @@ Calculate 12+34, assert the app's own recorded result, long-press copy it
 to the real clipboard, resize through the compositor, stay live 31s, and
 close through the compositor with exit 0.
 """
+import subprocess
 import time
 
 from .compositor import SwayError
-from .helpers import history_results, last_equation, wait_for_result
+from .helpers import history_results, last_equation, prefs_mtime, wait_for_result
+from .vinput import isolated_env
+
+
+def _clipboard_sentinel(text):
+    subprocess.run(["wl-copy", "--type", "text/plain"], input=text.encode("utf-8"),
+                   env=isolated_env(), check=True, timeout=10)
 
 
 def run(run_app, comp):
     steps = {}
     comp.shot('01-initial')
+    # Fresh-result gate (N1): snapshot history length, prefs mtime, log
+    # offset and clipboard BEFORE typing so retained history from previous
+    # sessions can never satisfy the assertions below.
+    package = run_app.app['package']
+    baseline_count = len(history_results(run_app.work, package))
+    baseline_mtime = prefs_mtime(run_app.work, package)
+    log_base = len(run_app.read_log())
+    _clipboard_sentinel('ISAKAI-BASELINE')
+    time.sleep(0.3)
+    steps['baseline_history_count'] = baseline_count
     comp.type_text('12+34')
     time.sleep(1.0)
-    equation = last_equation(run_app.read_log())
+    equation = last_equation(run_app.read_log(), since=log_base)
     if equation != '12+34':
         raise SwayError('typed expression was not recorded as 12+34 (got %r)' % equation)
     steps['expression_logged'] = True
@@ -23,17 +40,24 @@ def run(run_app, comp):
     # equals commits MainActivity.H and the app records history.
     comp.click_window(560, 700)
     time.sleep(2.0)
-    expected = wait_for_result(run_app.work, run_app.app['package'], '12+34')
+    expected = wait_for_result(run_app.work, package, '12+34', baseline_count=baseline_count)
     if expected is None:
         comp.shot('02-no-result')
-        raise SwayError('the app never recorded a result for 12+34 in its own history')
+        raise SwayError('the app never recorded a NEW result for 12+34 in its own history '
+                        '(baseline %d entries; retained rows do not count)' % baseline_count)
+    if expected == 'Syntax':
+        comp.shot('02-no-result')
+        raise SwayError('the evaluator recorded Syntax for 12+34 instead of a result: '
+                        'app-side evaluation defect, not a copy defect')
+    if prefs_mtime(run_app.work, package) == baseline_mtime and baseline_mtime != 0:
+        raise SwayError('history match without prefs store update; refusing stale satisfaction')
     steps['expected_result'] = expected
     time.sleep(1.5)
     comp.shot('02-result')
     # Copy via keyboard first: focus the input field, select all, copy.
     # This drives the app's own EditText/ClipboardManager/clipboard bridge
-    # with no layout dependence. Touch long-press on the history rows needs
-    # the panel expanded (separate C5 work); the sweep below stays as fallback.
+    # with no layout dependence. The clipboard holds the sentinel, so any
+    # read of `expected` below proves a fresh transition, not stale state.
     comp.click_window(40, 60)
     comp.key('CTRL+A')
     comp.key('CTRL+C')
@@ -61,7 +85,7 @@ def run(run_app, comp):
                 if copied != baseline:
                     steps['copy_hit'] = '%d,%d' % (dx, dy)
                     steps['copy_value'] = copied[:40]
-                equation = last_equation(run_app.read_log())
+                equation = last_equation(run_app.read_log(), since=log_base)
                 # After evaluation the display holds the result, which the app
                 # also logs as an equation line; both states are legitimate.
                 # Anything else means a press reached the keypad.

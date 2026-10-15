@@ -1166,7 +1166,11 @@ public class Resources {
                     outValue.string = v.string;
                     outValue.data = v.data;
                     outValue.assetCookie = v.assetCookie;
-                    outValue.resourceId = v.resourceId != 0 ? v.resourceId : id;
+                    // Dangling style/attr references are kept with
+                    // resourceId 0; report the reference target so
+                    // callers applying it as a style resolve the target.
+                    outValue.resourceId = v.resourceId != 0 ? v.resourceId
+                            : (v.type == TypedValue.TYPE_REFERENCE ? v.data : id);
                     outValue.changingConfigurations = v.changingConfigurations;
                     outValue.density = v.density;
                     return true;
@@ -1616,8 +1620,8 @@ public class Resources {
             for (Pkg pkg : packages) {
                 if (packageName != null && !packageName.equals(pkg.name)) continue;
                 for (TypeChunk tc : pkg.types) {
-                    if (tc.id >= pkg.typeNames.length) continue;
-                    if (!"style".equals(pkg.typeNames[tc.id])) continue;
+                    if (tc.id < 1 || tc.id > pkg.typeNames.length) continue;
+                    if (!"style".equals(pkg.typeNames[tc.id - 1])) continue;
                     for (int e = 0; e < tc.entryCount; e++) {
                         int rel = s32(bytes, tc.off + tc.header + e * 4);
                         if (rel == -1) continue;

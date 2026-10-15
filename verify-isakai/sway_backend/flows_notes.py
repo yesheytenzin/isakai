@@ -12,7 +12,7 @@ from .compositor import SwayError
 from .vinput import isolated_env
 
 EDITOR = (320, 155)
-PLUS = (592, 22)
+PLUS = (600, 15)
 MARKER = "Isakai 日本語 – note"
 
 

@@ -3,6 +3,7 @@ package android.app;
 
 import android.content.Context;
 import android.os.Bundle;
+import android.view.ContextThemeWrapper;
 import android.view.KeyEvent;
 import android.view.MotionEvent;
 import android.view.View;
@@ -27,7 +28,12 @@ public class Dialog implements android.content.DialogInterface {
     }
 
     public Dialog(Context context, int themeResId) {
-        this.context = context;
+        // AOSP parity: the dialog holds a themed context so that
+        // defStyleAttr lookups (e.g. alertDialogStyle) resolve against
+        // the passed theme layered over the base context theme.
+        // Previously the id was discarded and AlertController layouts
+        // resolved to 0.
+        this.context = themeResId == 0 ? context : new ContextThemeWrapper(context, themeResId);
     }
 
     public Context getContext() {

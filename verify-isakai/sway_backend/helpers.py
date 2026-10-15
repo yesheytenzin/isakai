@@ -4,9 +4,17 @@ import time
 from pathlib import Path
 
 
-def last_equation(log_text):
-    matches = re.findall(r'Equation BigDecimal : (.*)', log_text)
+def last_equation(log_text, since=0):
+    matches = re.findall(r'Equation BigDecimal : (.*)', log_text[since:])
     return matches[-1].strip() if matches else ''
+
+
+def prefs_mtime(work, package):
+    prefs = Path(work) / 'data' / package / 'shared_prefs' / (package + '_preferences.xml')
+    try:
+        return prefs.stat().st_mtime_ns
+    except OSError:
+        return 0
 
 
 def history_results(work, package):
@@ -27,10 +35,19 @@ def history_results(work, package):
     return entries
 
 
-def wait_for_result(work, package, expression, timeout=20.0):
+def wait_for_result(work, package, expression, timeout=20.0, baseline_count=0):
+    """Newly committed result for `expression`, or None on timeout.
+
+    Only entries appended after `baseline_count` (snapshot before typing)
+    are eligible, so retained history from previous sessions can never
+    satisfy the assertion. Returns the recorded value verbatim, including
+    'Syntax' when the evaluator failed: callers must reject that as an
+    evaluator defect, not a copy defect.
+    """
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
-        for entry in reversed(history_results(work, package)):
+        entries = history_results(work, package)
+        for entry in entries[baseline_count:]:
             if entry['a'] == expression:
                 return entry['b']
         time.sleep(0.5)

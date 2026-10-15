@@ -345,9 +345,9 @@ class Compositor:
         return run(['wl-paste', '--no-newline'], check=False).stdout
 
 
-def last_equation(log_text):
+def last_equation(log_text, since=0):
     """The app's own echo of its input ("Equation BigDecimal : 12+34")."""
-    matches = re.findall(r'Equation BigDecimal : (.*)', log_text)
+    matches = re.findall(r'Equation BigDecimal : (.*)', log_text[since:])
     return matches[-1].strip() if matches else ''
 
 
@@ -375,11 +375,16 @@ def history_results(work, package):
     return entries
 
 
-def wait_for_result(work, package, expression, timeout=20.0):
-    """Last recorded result for `expression`, or None on timeout."""
+def wait_for_result(work, package, expression, timeout=20.0, baseline_count=0):
+    """Newly committed result for `expression`, or None on timeout.
+
+    Only entries appended after `baseline_count` are eligible, so retained
+    history can never satisfy the assertion. A recorded 'Syntax' is
+    returned verbatim for the caller to reject as an evaluator defect.
+    """
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
-        for entry in reversed(history_results(work, package)):
+        for entry in history_results(work, package)[baseline_count:]:
             if entry['a'] == expression:
                 return entry['b']
         time.sleep(0.5)
@@ -516,18 +521,24 @@ def opencalc_flow(run_app, comp, client):
     """Calculate, verify the result, copy it, resize, close."""
     steps = {}
     comp.shot('01-initial')
+    baseline_count = len(history_results(run_app.work, run_app.app['package']))
+    log_base = len(run_app.read_log())
     comp.type_text('12+34')
     time.sleep(1.0)
-    if last_equation(run_app.read_log()) != '12+34':
+    if last_equation(run_app.read_log(), since=log_base) != '12+34':
         raise FlowError('typed expression was not recorded as 12+34 (got %r): another process owns '
-                        'the keyboard focus' % last_equation(run_app.read_log()))
+                        'the keyboard focus' % last_equation(run_app.read_log(), since=log_base))
     if '12+34' not in run_app.read_log():
         raise FlowError('typed expression never reached the evaluator')
     steps['expression_logged'] = True
-    expected = wait_for_result(run_app.work, run_app.app['package'], '12+34')
+    expected = wait_for_result(run_app.work, run_app.app['package'], '12+34', baseline_count=baseline_count)
     if expected is None:
         comp.shot('02-no-result')
-        raise FlowError('the app never recorded a result for 12+34 in its own history')
+        raise FlowError('the app never recorded a NEW result for 12+34 in its own history '
+                        '(baseline %d entries; retained rows do not count)' % baseline_count)
+    if expected == 'Syntax':
+        comp.shot('02-no-result')
+        raise FlowError('the evaluator recorded Syntax for 12+34 instead of a result')
     steps['expected_result'] = expected
     time.sleep(1.5)  # let the display repaint the settled value
     display = comp.shot('02-result', (0, 0, 949, 270))
@@ -554,8 +565,11 @@ def opencalc_flow(run_app, comp, client):
             if copied != baseline:
                 steps['copy_hit'] = '%d,%d' % (dx, dy)
                 steps['copy_value'] = copied[:40]
-            equation = last_equation(run_app.read_log())
-            if equation != '12+34':
+            equation = last_equation(run_app.read_log(), since=log_base)
+            # After evaluation the display holds the result, which the app
+            # also logs as an equation line; both states are legitimate.
+            # Anything else means a press reached the keypad.
+            if equation != '12+34' and equation != expected:
                 raise FlowError('the app input changed to %r (panel top y=%d, press %d,%d): a press '
                                 'reached the keypad or another process typed into the focused window; '
                                 'rerun the flow when the desktop session is idle'

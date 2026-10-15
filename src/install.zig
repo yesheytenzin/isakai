@@ -795,6 +795,13 @@ fn wantEntry(name: []const u8) bool {
     if (std.mem.eql(u8, name, "AndroidManifest.xml")) return true;
     if (std.mem.startsWith(u8, name, "res/")) return true;
     if (std.mem.startsWith(u8, name, "assets/")) return true;
+    // ServiceLoader configuration survives obfuscation (interface and file
+    // names are renamed together), but only when the file reaches the JVM
+    // classpath. Service files never contain '/'; anything deeper is not a
+    // valid service configuration (traversal itself is rejected in
+    // validateEntry for every zip entry).
+    if (std.mem.startsWith(u8, name, "META-INF/services/") and
+        std.mem.indexOfScalar(u8, name["META-INF/services/".len..], '/') == null) return true;
     if (std.mem.startsWith(u8, name, "lib/x86_64/")) return true;
     if (std.mem.startsWith(u8, name, "classes") and std.mem.endsWith(u8, name, ".dex") and
         std.mem.indexOfScalar(u8, name, '/') == null) return true;
