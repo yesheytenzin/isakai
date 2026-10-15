@@ -400,11 +400,19 @@ public class Activity extends android.content.Context implements android.view.Wi
             Class<?> savedOwner = Class.forName("l4.g", false, loader);
             Class<?> lifecycle = Class.forName("androidx.lifecycle.x", false, loader);
             final Object[] lifecycleRef = new Object[1];
+            final Object[] savedStateRef = new Object[1];
             Object owner = java.lang.reflect.Proxy.newProxyInstance(loader,
                     new Class<?>[]{lifecycleOwner, savedOwner}, (proxy, method, args) -> {
                         if ("k".equals(method.getName())) return lifecycleRef[0];
-                        if ("d".equals(method.getName()))
-                            return Class.forName("l4.e", false, loader).getConstructor().newInstance();
+                        if ("d".equals(method.getName())) {
+                            // Stable per-owner registry: rememberSaveable
+                            // consumes and registers on the same instance.
+                            if (savedStateRef[0] == null) {
+                                savedStateRef[0] = Class.forName("l4.e", false, loader)
+                                        .getConstructor().newInstance();
+                            }
+                            return savedStateRef[0];
+                        }
                         return null;
                     });
             lifecycleRef[0] = lifecycle.getConstructor(lifecycleOwner).newInstance(owner);
@@ -416,11 +424,78 @@ public class Activity extends android.content.Context implements android.view.Wi
             view.setTag(0x7f090052, composeOwner.getConstructor(coroutineContext)
                     .newInstance(context));
             propagateViewTreeOwners(view);
+            // Retain the translated registry plus its event entry point so
+            // the activity lifecycle below can drive it. Discovery is by
+            // shape (single enum parameter carrying the ON_* names), never
+            // by obfuscated method name; anything unrecognized stays silent
+            // and composition for that app remains undriven, not crashed.
+            retainViewTreeLifecycle(lifecycleRef[0]);
+            catchUpViewTreeLifecycle();
         } catch (ClassNotFoundException e) {
             // Ordinary apps do not ship translated Compose lifecycle classes.
         } catch (ReflectiveOperationException e) {
             System.err.println("isakai: unable to install translated lifecycle owner: " + e);
         }
+    }
+
+    private static final String[] LIFECYCLE_EVENT_ORDER = {
+        "ON_CREATE", "ON_START", "ON_RESUME", "ON_PAUSE", "ON_STOP", "ON_DESTROY"
+    };
+
+    private Object viewTreeLifecycle;
+    private java.lang.reflect.Method viewTreeEventMethod;
+    private Object[] viewTreeEventValues;
+    private int viewTreeEventIndex = -1;
+
+    private void retainViewTreeLifecycle(Object lifecycle) {
+        viewTreeLifecycle = null;
+        viewTreeEventMethod = null;
+        viewTreeEventValues = null;
+        viewTreeEventIndex = -1;
+        if (lifecycle == null) return;
+        for (java.lang.reflect.Method m : lifecycle.getClass().getMethods()) {
+            if (m.getParameterCount() != 1) continue;
+            Class<?> param = m.getParameterTypes()[0];
+            if (!param.isEnum()) continue;
+            try {
+                Object[] values = new Object[LIFECYCLE_EVENT_ORDER.length];
+                for (int i = 0; i < values.length; i++) {
+                    values[i] = Enum.valueOf(param.asSubclass(Enum.class), LIFECYCLE_EVENT_ORDER[i]);
+                }
+                viewTreeLifecycle = lifecycle;
+                viewTreeEventMethod = m;
+                viewTreeEventValues = values;
+                return;
+            } catch (Throwable t) {
+                // Not the lifecycle Event enum (or unreadable, including
+                // linkage errors from foreign bytecode); keep looking.
+                // Any failure here leaves composition undriven, never crashed.
+            }
+        }
+    }
+
+    private void sendViewTreeEvent(int index) {
+        if (viewTreeLifecycle == null || viewTreeEventMethod == null) return;
+        try {
+            if (index > viewTreeEventIndex) {
+                for (int i = viewTreeEventIndex + 1; i <= index; i++) {
+                    viewTreeEventMethod.invoke(viewTreeLifecycle, viewTreeEventValues[i]);
+                }
+            } else {
+                // Restart-style transition (e.g. start after stop): the
+                // single event alone is the legal move.
+                viewTreeEventMethod.invoke(viewTreeLifecycle, viewTreeEventValues[index]);
+            }
+            viewTreeEventIndex = index;
+        } catch (ReflectiveOperationException e) {
+            System.err.println("isakai: view-tree lifecycle dispatch failed: " + e);
+            viewTreeLifecycle = null;
+        }
+    }
+
+    private void catchUpViewTreeLifecycle() {
+        if (lifecycleState < 0) return;
+        sendViewTreeEvent(Math.min(lifecycleState, 2));
     }
 
     private static void propagateViewTreeOwners(View view) {
@@ -460,6 +535,7 @@ public class Activity extends android.content.Context implements android.view.Wi
         dispatchLifecycle(callback -> callback.onActivityPreCreated(this,null));
         onCreate();
         lifecycleState=0;
+        sendViewTreeEvent(0);
         dispatchLifecycle(callback -> callback.onActivityCreated(this,null));
         dispatchLifecycle(callback -> callback.onActivityPostCreated(this,null));
     }
@@ -468,6 +544,7 @@ public class Activity extends android.content.Context implements android.view.Wi
         dispatchLifecycle(callback -> callback.onActivityPreStarted(this));
         onStart();
         lifecycleState=1;
+        sendViewTreeEvent(1);
         dispatchLifecycle(callback -> callback.onActivityStarted(this));
         dispatchLifecycle(callback -> callback.onActivityPostStarted(this));
     }
@@ -476,6 +553,7 @@ public class Activity extends android.content.Context implements android.view.Wi
         dispatchLifecycle(callback -> callback.onActivityPreResumed(this));
         onResume();
         lifecycleState=2;
+        sendViewTreeEvent(2);
         dispatchLifecycle(callback -> callback.onActivityResumed(this));
         dispatchLifecycle(callback -> callback.onActivityPostResumed(this));
     }
@@ -484,6 +562,7 @@ public class Activity extends android.content.Context implements android.view.Wi
         dispatchLifecycle(callback -> callback.onActivityPrePaused(this));
         onPause();
         lifecycleState=1;
+        sendViewTreeEvent(3);
         dispatchLifecycle(callback -> callback.onActivityPaused(this));
         dispatchLifecycle(callback -> callback.onActivityPostPaused(this));
     }
@@ -493,6 +572,7 @@ public class Activity extends android.content.Context implements android.view.Wi
         dispatchLifecycle(callback -> callback.onActivityPreStopped(this));
         onStop();
         lifecycleState=0;
+        sendViewTreeEvent(4);
         dispatchLifecycle(callback -> callback.onActivityStopped(this));
         dispatchLifecycle(callback -> callback.onActivityPostStopped(this));
     }
@@ -502,6 +582,8 @@ public class Activity extends android.content.Context implements android.view.Wi
         dispatchLifecycle(callback -> callback.onActivityPreDestroyed(this));
         onDestroy();
         lifecycleState=-2;
+        sendViewTreeEvent(5);
+        viewTreeLifecycle = null;
         dispatchLifecycle(callback -> callback.onActivityDestroyed(this));
         dispatchLifecycle(callback -> callback.onActivityPostDestroyed(this));
         localLifecycleCallbacks.clear();
@@ -979,7 +1061,7 @@ public class Activity extends android.content.Context implements android.view.Wi
             clipboardManager = new ClipboardManager(window);
             try {
                 windowFocused = true;
-                installViewTreeLifecycleOwner(root);
+                active.installViewTreeLifecycleOwner(root);
                 root.dispatchHostAttached();
                 int width = 640;
                 int height = 480;
@@ -1003,7 +1085,7 @@ public class Activity extends android.content.Context implements android.view.Wi
                         System.err.println("isakai: new root " + root.getClass().getName()
                                 + " bounds=" + root.getLeft() + "," + root.getTop()
                                 + "," + root.getWidth() + "x" + root.getHeight());
-                        installViewTreeLifecycleOwner(root);
+                        active.installViewTreeLifecycleOwner(root);
                         root.dispatchHostAttached();
                         active.clipboardManager = clipboardManager;
                         window.setTitle(active.title==null?title:active.title.toString());
