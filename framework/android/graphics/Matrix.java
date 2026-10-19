@@ -8,6 +8,8 @@ package android.graphics;
  * applies when the last row differs from [0 0 1]).
  */
 public class Matrix {
+    public enum ScaleToFit { FILL, START, CENTER, END }
+
     public static final int MSCALE_X = 0;
     public static final int MSKEW_X = 1;
     public static final int MTRANS_X = 2;
@@ -117,6 +119,32 @@ public class Matrix {
 
     public void setScale(float sx, float sy) {
         setScale(sx, sy, 0, 0);
+    }
+
+    public boolean setRectToRect(RectF src, RectF dst, ScaleToFit mode) {
+        if (src == null || dst == null || mode == null) throw new NullPointerException();
+        reset();
+        if (src.isEmpty()) return false;
+        if (dst.isEmpty()) {
+            m[MSCALE_X] = 0;
+            m[MSCALE_Y] = 0;
+            return true;
+        }
+        float sx = dst.width() / src.width();
+        float sy = dst.height() / src.height();
+        if (mode != ScaleToFit.FILL) sx = sy = Math.min(sx, sy);
+        float tx = dst.left - src.left * sx;
+        float ty = dst.top - src.top * sy;
+        if (mode == ScaleToFit.CENTER || mode == ScaleToFit.END) {
+            float alignment = mode == ScaleToFit.CENTER ? 0.5f : 1.0f;
+            tx += (dst.width() - src.width() * sx) * alignment;
+            ty += (dst.height() - src.height() * sy) * alignment;
+        }
+        m[MSCALE_X] = sx;
+        m[MSCALE_Y] = sy;
+        m[MTRANS_X] = tx;
+        m[MTRANS_Y] = ty;
+        return true;
     }
 
     public boolean preTranslate(float dx, float dy) {

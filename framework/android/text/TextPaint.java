@@ -8,6 +8,7 @@ public class TextPaint extends Paint {
     public float density = 1.0f;
     public int[] drawableState;
     public int linkColor;
+    private String fontVariationSettings;
 
     public TextPaint() {
         super();
@@ -49,5 +50,13 @@ public class TextPaint extends Paint {
         this.density = src.density;
         this.drawableState = src.drawableState;
         this.linkColor = src.linkColor;
+    }
+
+    /** Font variation settings (AOSP API 29+); recorded string, host rasterizer ignores it. */
+    public String getFontVariationSettings() { return fontVariationSettings; }
+
+    public boolean setFontVariationSettings(String fontVariationSettings) {
+        this.fontVariationSettings = fontVariationSettings;
+        return true;
     }
 }

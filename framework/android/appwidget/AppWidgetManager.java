@@ -12,6 +12,15 @@ public class AppWidgetManager {
     public static final String EXTRA_APPWIDGET_IDS = "appWidgetIds";
     public static final String EXTRA_APPWIDGET_ID = "appWidgetId";
     public static final int INVALID_APPWIDGET_ID = 0;
+
+    private static AppWidgetManager instance;
+
+    /** Process-wide singleton, as on device; widget hosting is a no-op. */
+    public static AppWidgetManager getInstance(android.content.Context context) {
+        if (instance == null) instance = new AppWidgetManager();
+        return instance;
+    }
+
     public int[] getAppWidgetIds(ComponentName provider) { return new int[0]; }
     public List getInstalledProviders() { return Collections.emptyList(); }
     public Object getAppWidgetInfo(int appWidgetId) { return null; }

@@ -22,6 +22,8 @@ public class Bitmap {
     private final int[] pixels;
     private boolean recycled;
     private int density;
+    private boolean hasAlpha = true;
+    private ColorSpace colorSpace = ColorSpace.get(ColorSpace.Named.SRGB);
 
     private Bitmap(int width, int height, Config config, int[] pixels) {
         this.width = width;
@@ -38,6 +40,11 @@ public class Bitmap {
     public void setDensity(int density) { this.density = density; }
     public boolean isMutable() { return !recycled; }
     public boolean isPremultiplied() { return true; }
+    public boolean hasAlpha() { return hasAlpha; }
+    public void setHasAlpha(boolean hasAlpha) { this.hasAlpha = hasAlpha; }
+    public void setPremultiplied(boolean premultiplied) {}
+    /** No-op: pixels are already in raster-ready form. */
+    public void prepareToDraw() {}
     public int getByteCount() { return width * height * 4; }
     public int getAllocationByteCount() { return getByteCount(); }
     public int getRowBytes() { return width * 4; }
@@ -112,6 +119,31 @@ public class Bitmap {
     public static Bitmap createBitmap(int width, int height, Config config) {
         if (width <= 0 || height <= 0) throw new IllegalArgumentException("size");
         return new Bitmap(width, height, config, new int[width * height]);
+    }
+
+    /** Density-aware variant: the bitmap inherits the metrics' density. */
+    public static Bitmap createBitmap(android.util.DisplayMetrics metrics, int width, int height, Config config) {
+        Bitmap bitmap = createBitmap(width, height, config);
+        if (metrics != null) bitmap.setDensity(metrics.densityDpi);
+        return bitmap;
+    }
+
+    /** Full variant with alpha semantics and an explicit color space. */
+    public static Bitmap createBitmap(android.util.DisplayMetrics metrics, int width, int height,
+            Config config, boolean hasAlpha, ColorSpace colorSpace) {
+        Bitmap bitmap = createBitmap(metrics, width, height, config);
+        bitmap.setHasAlpha(hasAlpha);
+        if (colorSpace != null) bitmap.setColorSpace(colorSpace);
+        return bitmap;
+    }
+
+    public ColorSpace getColorSpace() {
+        checkLive();
+        return colorSpace;
+    }
+
+    public void setColorSpace(ColorSpace colorSpace) {
+        this.colorSpace = colorSpace == null ? ColorSpace.get(ColorSpace.Named.SRGB) : colorSpace;
     }
 
     /**

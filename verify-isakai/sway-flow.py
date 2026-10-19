@@ -38,6 +38,7 @@ class AppRun:
         self.log_path = Path(log_path)
         self.comp = comp
         self.process = None
+        self._started = False
 
     def start(self, startup_timeout=240):
         env = dict(isolated_env())
@@ -48,7 +49,8 @@ class AppRun:
             'ISAKAI_BRIDGE_DIR': '/tmp/isakai-%d-isosway' % os.getuid(),
             'ISAKAI_STAGE_DIR': '/tmp/isakai-%d-isosway-stage' % os.getuid(),
         })
-        log_file = self.log_path.open('w')
+        log_file = self.log_path.open('a' if self._started else 'w')
+        self._started = True
         self.process = subprocess.Popen(
             [str(ROOT / 'zig-out/bin/isakai'), '--work', str(self.work),
              'launch', self.app['package']],
@@ -89,6 +91,7 @@ class AppRun:
         time.sleep(1.0)
         if self.comp.app_node() is not None:
             raise SwayError('window survived the close request')
+        self._log_file.close()
         return code
 
     def stop(self):

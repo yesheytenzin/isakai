@@ -1,0 +1,29 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+package android.appwidget;
+
+import android.content.BroadcastReceiver;
+import android.content.Context;
+import android.content.Intent;
+import android.os.Bundle;
+
+/** App widget provider base class. Updates are accepted but not hosted. */
+public class AppWidgetProvider extends BroadcastReceiver {
+    public void onUpdate(Context context, AppWidgetManager appWidgetManager, int[] appWidgetIds) {}
+    public void onAppWidgetOptionsChanged(Context context, AppWidgetManager appWidgetManager,
+            int appWidgetId, Bundle newOptions) {}
+    public void onDeleted(Context context, int[] appWidgetIds) {}
+    public void onEnabled(Context context) {}
+    public void onDisabled(Context context) {}
+    public void onRestored(Context context, int[] oldWidgetIds, int[] newWidgetIds) {}
+
+    @Override
+    public void onReceive(Context context, Intent intent) {
+        String action = intent == null ? null : intent.getAction();
+        if (AppWidgetManager.ACTION_APPWIDGET_UPDATE.equals(action)) {
+            Bundle extras = intent.getExtras();
+            int[] ids = extras == null ? null
+                    : extras.getIntArray(AppWidgetManager.EXTRA_APPWIDGET_IDS);
+            onUpdate(context, AppWidgetManager.getInstance(context), ids == null ? new int[0] : ids);
+        }
+    }
+}

@@ -36,6 +36,13 @@ public class RippleDrawable extends LayerDrawable {
 
     public ColorStateList getColor() { return color; }
 
+    private int radius = -1;
+
+    /** Ripple radius hint; the software ripple stays bounds-sized. */
+    public void setRadius(int radius) { this.radius = radius; }
+
+    public int getRadius() { return radius; }
+
     @Override
     public void draw(Canvas canvas) {
         if (canvas == null) return;

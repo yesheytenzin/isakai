@@ -5,7 +5,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /** Mutable in-memory cursor: rows appended before iteration. */
-public class MatrixCursor implements Cursor {
+public class MatrixCursor extends AbstractCursor {
     private final String[] names;
     private final List<Object[]> rows = new ArrayList<>();
     private int position = -1;
@@ -32,6 +32,12 @@ public class MatrixCursor implements Cursor {
         public RowBuilder add(Object columnValue) {
             if (index >= row.length) throw new CursorIndexOutOfBoundsException(index, row.length);
             row[index++] = columnValue; return this;
+        }
+        /** AOSP: write by column name; rows may be built out of order. */
+        public RowBuilder add(String columnName, Object columnValue) {
+            if (columnName == null) throw new IllegalArgumentException("columnName == null");
+            row[getColumnIndexOrThrow(columnName)] = columnValue;
+            return this;
         }
     }
     private void checkOpen() { if (closed) throw new IllegalStateException("cursor closed"); }

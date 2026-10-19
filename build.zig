@@ -194,6 +194,7 @@ pub fn build(b: *std.Build) void {
     fw.addFileArg(b.path("framework/android/accounts/AccountsException.java"));
     fw.addFileArg(b.path("framework/android/accounts/NetworkErrorException.java"));
     fw.addFileArg(b.path("framework/android/animation/Animator.java"));
+    fw.addFileArg(b.path("framework/android/animation/AnimatorInflater.java"));
     fw.addFileArg(b.path("framework/android/animation/AnimatorListenerAdapter.java"));
     fw.addFileArg(b.path("framework/android/animation/AnimatorSet.java"));
     fw.addFileArg(b.path("framework/android/animation/ArgbEvaluator.java"));
@@ -214,6 +215,7 @@ pub fn build(b: *std.Build) void {
     fw.addFileArg(b.path("framework/android/app/AppOpsManager.java"));
     fw.addFileArg(b.path("framework/android/app/Application.java"));
     fw.addFileArg(b.path("framework/android/app/Dialog.java"));
+    fw.addFileArg(b.path("framework/android/app/DialogOverlayGroup.java"));
     fw.addFileArg(b.path("framework/android/app/DownloadManager.java"));
     fw.addFileArg(b.path("framework/android/app/Fragment.java"));
     fw.addFileArg(b.path("framework/android/app/FragmentManager.java"));
@@ -235,6 +237,7 @@ pub fn build(b: *std.Build) void {
     fw.addFileArg(b.path("framework/android/app/role/RoleManager.java"));
     fw.addFileArg(b.path("framework/android/app/usage/UsageStatsManager.java"));
     fw.addFileArg(b.path("framework/android/appwidget/AppWidgetManager.java"));
+    fw.addFileArg(b.path("framework/android/appwidget/AppWidgetProvider.java"));
     fw.addFileArg(b.path("framework/android/bluetooth/BluetoothManager.java"));
     fw.addFileArg(b.path("framework/android/content/ActivityNotFoundException.java"));
     fw.addFileArg(b.path("framework/android/content/BroadcastReceiver.java"));
@@ -285,8 +288,11 @@ pub fn build(b: *std.Build) void {
     fw.addFileArg(b.path("framework/android/content/res/SystemColors.java"));
     fw.addFileArg(b.path("framework/android/content/res/TypedArray.java"));
     fw.addFileArg(b.path("framework/android/content/res/XmlResourceParser.java"));
+    fw.addFileArg(b.path("framework/android/database/AbstractCursor.java"));
+    fw.addFileArg(b.path("framework/android/database/AbstractWindowedCursor.java"));
     fw.addFileArg(b.path("framework/android/database/ContentObserver.java"));
     fw.addFileArg(b.path("framework/android/database/Cursor.java"));
+    fw.addFileArg(b.path("framework/android/database/CursorWindow.java"));
     fw.addFileArg(b.path("framework/android/database/CursorIndexOutOfBoundsException.java"));
     fw.addFileArg(b.path("framework/android/database/DataSetObservable.java"));
     fw.addFileArg(b.path("framework/android/database/DataSetObserver.java"));
@@ -318,14 +324,18 @@ pub fn build(b: *std.Build) void {
     fw.addFileArg(b.path("framework/android/graphics/ColorFilter.java"));
     fw.addFileArg(b.path("framework/android/graphics/ColorSpace.java"));
     fw.addFileArg(b.path("framework/android/graphics/ComposeShader.java"));
+    fw.addFileArg(b.path("framework/android/graphics/DisplayList.java"));
+    fw.addFileArg(b.path("framework/android/graphics/DrawFilter.java"));
     fw.addFileArg(b.path("framework/android/graphics/HostText.java"));
     fw.addFileArg(b.path("framework/android/graphics/ImageDecoder.java"));
     fw.addFileArg(b.path("framework/android/graphics/Insets.java"));
     fw.addFileArg(b.path("framework/android/graphics/LinearGradient.java"));
     fw.addFileArg(b.path("framework/android/graphics/Matrix.java"));
+    fw.addFileArg(b.path("framework/android/graphics/NinePatch.java"));
     fw.addFileArg(b.path("framework/android/graphics/Outline.java"));
     fw.addFileArg(b.path("framework/android/graphics/Paint.java"));
     fw.addFileArg(b.path("framework/android/graphics/Path.java"));
+    fw.addFileArg(b.path("framework/android/graphics/PathEffect.java"));
     fw.addFileArg(b.path("framework/android/graphics/PathMeasure.java"));
     fw.addFileArg(b.path("framework/android/graphics/Picture.java"));
     fw.addFileArg(b.path("framework/android/graphics/PixelFormat.java"));
@@ -442,12 +452,14 @@ pub fn build(b: *std.Build) void {
     fw.addFileArg(b.path("framework/android/os/ext/SdkExtensions.java"));
     fw.addFileArg(b.path("framework/android/os/storage/StorageManager.java"));
     fw.addFileArg(b.path("framework/android/print/PrintManager.java"));
+    fw.addFileArg(b.path("framework/android/provider/DocumentsContract.java"));
     fw.addFileArg(b.path("framework/android/provider/Settings.java"));
     fw.addFileArg(b.path("framework/android/security/identity/IdentityCredential.java"));
     fw.addFileArg(b.path("framework/android/security/identity/PresentationSession.java"));
     fw.addFileArg(b.path("framework/android/security/keystore/KeyGenParameterSpec.java"));
     fw.addFileArg(b.path("framework/android/service/quicksettings/TileService.java"));
     fw.addFileArg(b.path("framework/android/telecom/TelecomManager.java"));
+    fw.addFileArg(b.path("framework/android/telephony/PhoneNumberUtils.java"));
     fw.addFileArg(b.path("framework/android/telephony/SubscriptionManager.java"));
     fw.addFileArg(b.path("framework/android/telephony/TelephonyManager.java"));
     fw.addFileArg(b.path("framework/android/text/Annotation.java"));
@@ -489,6 +501,7 @@ pub fn build(b: *std.Build) void {
     fw.addFileArg(b.path("framework/android/text/style/ForegroundColorSpan.java"));
     fw.addFileArg(b.path("framework/android/text/style/ImageSpan.java"));
     fw.addFileArg(b.path("framework/android/text/style/LeadingMarginSpan.java"));
+    fw.addFileArg(b.path("framework/android/text/style/LineHeightSpan.java"));
     fw.addFileArg(b.path("framework/android/text/style/LocaleSpan.java"));
     fw.addFileArg(b.path("framework/android/text/style/MetricAffectingSpan.java"));
     fw.addFileArg(b.path("framework/android/text/style/RelativeSizeSpan.java"));
@@ -500,6 +513,7 @@ pub fn build(b: *std.Build) void {
     fw.addFileArg(b.path("framework/android/text/style/TtsSpan.java"));
     fw.addFileArg(b.path("framework/android/text/style/URLSpan.java"));
     fw.addFileArg(b.path("framework/android/text/style/UnderlineSpan.java"));
+    fw.addFileArg(b.path("framework/android/text/style/UpdateAppearance.java"));
     fw.addFileArg(b.path("framework/android/transition/Transition.java"));
     fw.addFileArg(b.path("framework/android/transition/TransitionSet.java"));
     fw.addFileArg(b.path("framework/android/util/AndroidException.java"));
@@ -569,6 +583,7 @@ pub fn build(b: *std.Build) void {
     fw.addFileArg(b.path("framework/android/view/WindowInsets.java"));
     fw.addFileArg(b.path("framework/android/view/WindowInsetsAnimation.java"));
     fw.addFileArg(b.path("framework/android/view/WindowInsetsController.java"));
+    fw.addFileArg(b.path("framework/android/view/WindowInsetsControllerImpl.java"));
     fw.addFileArg(b.path("framework/android/view/WindowManager.java"));
     fw.addFileArg(b.path("framework/android/view/accessibility/AccessibilityEvent.java"));
     fw.addFileArg(b.path("framework/android/view/accessibility/AccessibilityManager.java"));
@@ -602,6 +617,8 @@ pub fn build(b: *std.Build) void {
     fw.addFileArg(b.path("framework/android/view/textclassifier/TextClassificationManager.java"));
     fw.addFileArg(b.path("framework/android/view/textclassifier/TextClassifier.java"));
     fw.addFileArg(b.path("framework/android/view/textservice/TextServicesManager.java"));
+    fw.addFileArg(b.path("framework/android/view/translation/TranslationRequestValue.java"));
+    fw.addFileArg(b.path("framework/android/view/translation/TranslationResponseValue.java"));
     fw.addFileArg(b.path("framework/android/view/translation/ViewTranslationCallback.java"));
     fw.addFileArg(b.path("framework/android/view/translation/ViewTranslationRequest.java"));
     fw.addFileArg(b.path("framework/android/view/translation/ViewTranslationResponse.java"));
@@ -621,6 +638,9 @@ pub fn build(b: *std.Build) void {
     fw.addFileArg(b.path("framework/android/widget/ArrayAdapter.java"));
     fw.addFileArg(b.path("framework/android/widget/AutoCompleteTextView.java"));
     fw.addFileArg(b.path("framework/android/widget/BaseAdapter.java"));
+    fw.addFileArg(b.path("framework/android/widget/CursorAdapter.java"));
+    fw.addFileArg(b.path("framework/android/widget/ResourceCursorAdapter.java"));
+    fw.addFileArg(b.path("framework/android/widget/SimpleCursorAdapter.java"));
     fw.addFileArg(b.path("framework/android/widget/Button.java"));
     fw.addFileArg(b.path("framework/android/widget/CheckBox.java"));
     fw.addFileArg(b.path("framework/android/widget/Checkable.java"));
@@ -679,6 +699,7 @@ pub fn build(b: *std.Build) void {
     fw.addFileArg(b.path("framework/org/isakai/runtime/Capabilities.java"));
     fw.addFileArg(b.path("framework/org/isakai/runtime/InterfaceDefaults.java"));
     fw.addFileArg(b.path("framework/org/isakai/runtime/IsakaiMain.java"));
+    fw.addFileArg(b.path("framework/org/isakai/runtime/ObjectSupport.java"));
     fw.addFileArg(b.path("framework/org/xmlpull/v1/XmlPullParser.java"));
     fw.addFileArg(b.path("framework/org/xmlpull/v1/XmlPullParserException.java"));
     fw.addFileArg(b.path("framework/org/xmlpull/v1/XmlSerializer.java"));

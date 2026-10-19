@@ -22,6 +22,18 @@ public class WindowInsets {
         return android.graphics.Insets.NONE;
     }
 
+    public android.graphics.Insets getInsetsIgnoringVisibility(int typeMask) {
+        return android.graphics.Insets.NONE;
+    }
+
+    /**
+     * System bars, IME and cutout do not exist on the host, so no inset type
+     * is ever visible.
+     */
+    public boolean isVisible(int typeMask) {
+        return false;
+    }
+
     public android.graphics.Insets getSystemGestureInsets() {
         return android.graphics.Insets.NONE;
     }

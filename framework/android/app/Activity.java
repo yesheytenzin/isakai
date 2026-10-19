@@ -408,8 +408,14 @@ public class Activity extends android.content.Context implements android.view.Wi
                             // Stable per-owner registry: rememberSaveable
                             // consumes and registers on the same instance.
                             if (savedStateRef[0] == null) {
-                                savedStateRef[0] = Class.forName("l4.e", false, loader)
+                                Object registry = Class.forName("l4.e", false, loader)
                                         .getConstructor().newInstance();
+                                // SavedStateRegistry.isRestored: a fabricated
+                                // registry must look restored or Compose's
+                                // consumeRestoredStateForKey throws "only
+                                // after super.onCreate".
+                                registry.getClass().getField("d").setBoolean(registry, true);
+                                savedStateRef[0] = registry;
                             }
                             return savedStateRef[0];
                         }
@@ -417,12 +423,17 @@ public class Activity extends android.content.Context implements android.view.Wi
                     });
             lifecycleRef[0] = lifecycle.getConstructor(lifecycleOwner).newInstance(owner);
                     view.setTag(0x7f09034f, owner);
-            view.setTag(0x7f090351, owner);
-            Class<?> composeOwner = Class.forName("j0.g2", false, loader);
-            Class<?> coroutineContext = Class.forName("a9.i", false, loader);
-            Object context = Class.forName("a9.j", false, loader).getField("k").get(null);
-            view.setTag(0x7f090052, composeOwner.getConstructor(coroutineContext)
-                    .newInstance(context));
+            // Compose consumes view-tree restored state during its first
+            // composition, which is only legal after performRestore. When the
+            // activity is itself a SavedStateRegistryOwner (ComponentActivity
+            // is), tag it: its registry is the restored one and rememberSaveable
+            // state round-trips through the same instance.
+            view.setTag(0x7f090351, savedOwner.isInstance(this) ? this : owner);
+            // Composition-context tag intentionally NOT installed: a bare
+            // recomposer here would hijack findViewTreeCompositionContext
+            // into a never-launched parent. Leaving it absent forces the
+            // LifecycleAware window recomposer, which this runtime drives
+            // through the view-tree lifecycle events above.
             propagateViewTreeOwners(view);
             // Retain the translated registry plus its event entry point so
             // the activity lifecycle below can drive it. Discovery is by
@@ -554,6 +565,7 @@ public class Activity extends android.content.Context implements android.view.Wi
         onResume();
         lifecycleState=2;
         sendViewTreeEvent(2);
+        onPostResume();
         dispatchLifecycle(callback -> callback.onActivityResumed(this));
         dispatchLifecycle(callback -> callback.onActivityPostResumed(this));
     }
@@ -598,6 +610,7 @@ public class Activity extends android.content.Context implements android.view.Wi
     protected void onStart() {}
 
     protected void onResume() {}
+    protected void onPostResume() {}
     protected void onRestart() {}
 
     protected void onPause() {

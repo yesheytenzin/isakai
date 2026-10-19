@@ -23,6 +23,10 @@ public class Dialog implements android.content.DialogInterface {
     private android.content.DialogInterface.OnKeyListener keyListener;
     private android.app.Activity ownerActivity;
 
+    // Overlay state: null when headless or not currently showing.
+    private android.app.Activity overlayOwner;
+    private android.view.View overlayPrevContent;
+
     public Dialog(Context context) {
         this.context = context;
     }
@@ -31,9 +35,20 @@ public class Dialog implements android.content.DialogInterface {
         // AOSP parity: the dialog holds a themed context so that
         // defStyleAttr lookups (e.g. alertDialogStyle) resolve against
         // the passed theme layered over the base context theme.
-        // Previously the id was discarded and AlertController layouts
-        // resolved to 0.
         this.context = themeResId == 0 ? context : new ContextThemeWrapper(context, themeResId);
+    }
+
+    /** Walk the context chain to find the host Activity, or null. */
+    private static android.app.Activity findOwningActivity(android.content.Context ctx) {
+        while (ctx != null) {
+            if (ctx instanceof android.app.Activity) return (android.app.Activity) ctx;
+            if (ctx instanceof android.content.ContextWrapper) {
+                ctx = ((android.content.ContextWrapper) ctx).getBaseContext();
+            } else {
+                break;
+            }
+        }
+        return null;
     }
 
     public Context getContext() {
@@ -43,8 +58,7 @@ public class Dialog implements android.content.DialogInterface {
     /**
      * Headless decor/callback storage (no compositor link), mirroring the
      * activity window: AppCompat installs its delegate callback and content
-     * view here. Previously null, which crashed delegate construction
-     * ("We have not been given a Window") for any dialog.
+     * view here.
      */
     private final HeadlessWindow window = new HeadlessWindow();
 
@@ -180,6 +194,10 @@ public class Dialog implements android.content.DialogInterface {
         this.canceledOnTouchOutside = cancel;
     }
 
+    boolean isCanceledOnTouchOutside() {
+        return canceledOnTouchOutside;
+    }
+
     public void setOnCancelListener(android.content.DialogInterface.OnCancelListener listener) {
         this.cancelListener = listener;
     }
@@ -199,27 +217,65 @@ public class Dialog implements android.content.DialogInterface {
     public void onRestoreInstanceState(Bundle savedInstanceState) {}
 
     private boolean created;
+    private final android.os.Handler handler = new android.os.Handler();
 
     public void show() {
-        // AOSP parity: content (including AlertController buttons) is
-        // installed in onCreate, which runs once before the first show.
         if (!created) {
             created = true;
             onCreate(null);
+        }
+        if (overlayOwner == null) {
+            android.app.Activity owner = findOwningActivity(context);
+            if (owner != null) {
+                // Detach the panel from any previous overlay (re-show after hide).
+                android.view.View panel = window.getDecorView();
+                android.view.ViewParent pp = panel.getParent();
+                if (pp instanceof android.view.ViewGroup) {
+                    ((android.view.ViewGroup) pp).removeView(panel);
+                }
+                android.view.View prev = owner.getContentView();
+                DialogOverlayGroup overlay = new DialogOverlayGroup(context, prev, panel, this);
+                overlayOwner = owner;
+                overlayPrevContent = prev;
+                // Bypass the virtual setContentView dispatch: AppCompatActivity
+                // routes it through HeadlessWindow which calls decorContent.addView,
+                // creating a parent cycle (overlay child of savedContent).
+                owner.setContentViewFromWindow(overlay);
+            }
         }
         showing = true;
         onStart();
     }
 
     public void hide() {
+        if (!showing) return;
         showing = false;
+        // Remove the overlay so the dialog disappears visually; show() will
+        // reinstall it (overlayOwner cleared here so the guard triggers again).
+        if (overlayOwner != null) {
+            overlayOwner.setContentViewFromWindow(overlayPrevContent);
+            overlayOwner = null;
+            overlayPrevContent = null;
+        }
     }
 
     @Override
     public void dismiss() {
+        if (handler.getLooper().isCurrentThread()) dismissDialog();
+        else handler.post(this::dismissDialog);
+    }
+
+    private void dismissDialog() {
         if (!showing) return;
         showing = false;
         onStop();
+        if (overlayOwner != null) {
+            // Run loop detects the content-view swap on the next iteration and
+            // re-attaches the saved content tree via dispatchHostAttached.
+            overlayOwner.setContentViewFromWindow(overlayPrevContent);
+            overlayOwner = null;
+            overlayPrevContent = null;
+        }
         if (dismissListener != null) dismissListener.onDismiss(this);
     }
 

@@ -26,8 +26,43 @@ public class BoringLayout extends Layout {
         super(text, paint, width, alignment, spacingMult, spacingAdd, includePad);
     }
 
+    private boolean fallbackLineSpacing;
+
+    /**
+     * AOSP 11-arg constructor: builds a single-line layout, optionally
+     * ellipsized, and remembers the fallback-line-spacing choice so
+     * {@link #isFallbackLineSpacingEnabled} round-trips it.
+     */
+    public BoringLayout(CharSequence text, TextPaint paint, int width, Alignment align,
+            float spacingMult, float spacingAdd, Metrics metrics, boolean includePad,
+            TextUtils.TruncateAt ellipsize, int ellipsizedWidth, boolean useFallbackLineSpacing) {
+        this(ellipsize != null && paint != null
+                        ? TextUtils.ellipsize(text == null ? "" : text, paint, ellipsizedWidth, ellipsize)
+                        : (text == null ? "" : text),
+                paint == null ? new TextPaint() : paint,
+                width, align == null ? Alignment.ALIGN_NORMAL : align,
+                spacingMult, spacingAdd, includePad);
+        this.fallbackLineSpacing = useFallbackLineSpacing;
+    }
+
+    /** AOSP carries the flag from construction; the host never applies fallback spacing. */
+    public boolean isFallbackLineSpacingEnabled() {
+        return fallbackLineSpacing;
+    }
+
     public static Metrics isBoring(CharSequence text, TextPaint paint) {
         return isBoring(text, paint, TextDirectionHeuristics.FIRSTSTRONG_LTR, null);
+    }
+
+    /**
+     * 5-arg variant: {@code trust} promises the caller already checked the
+     * text is single-line-compatible, so the scan is skipped the same way
+     * AOSP does.
+     */
+    public static Metrics isBoring(CharSequence text, TextPaint paint,
+            TextDirectionHeuristic textDir, boolean trust, Metrics metrics) {
+        if (trust && metrics != null) return metrics;
+        return isBoring(text, paint, textDir, metrics);
     }
 
     public static Metrics isBoring(CharSequence text, TextPaint paint,

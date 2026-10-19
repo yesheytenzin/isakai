@@ -73,6 +73,7 @@ public class AccessibilityNodeInfo {
     private boolean scrollable;
     private boolean password;
     private boolean showingHintText;
+    private CharSequence hintText;
     private int actions;
 
     public static AccessibilityNodeInfo obtain() {
@@ -124,7 +125,22 @@ public class AccessibilityNodeInfo {
     public void setPassword(boolean password) { this.password = password; }
     public boolean isShowingHintText() { return showingHintText; }
     public void setShowingHintText(boolean showing) { this.showingHintText = showing; }
+    public CharSequence getHintText() { return hintText; }
+    public void setHintText(CharSequence hintText) { this.hintText = hintText; }
     public void setAccessibilityFocused(boolean focused) {}
+
+    private boolean heading;
+    private CharSequence paneTitle;
+    private boolean screenReaderFocusable;
+
+    public boolean isHeading() { return heading; }
+    public void setHeading(boolean heading) { this.heading = heading; }
+    public CharSequence getPaneTitle() { return paneTitle; }
+    public void setPaneTitle(CharSequence paneTitle) { this.paneTitle = paneTitle; }
+    public boolean isScreenReaderFocusable() { return screenReaderFocusable; }
+    public void setScreenReaderFocusable(boolean screenReaderFocusable) {
+        this.screenReaderFocusable = screenReaderFocusable;
+    }
 
     public int getActions() { return actions; }
     public void addAction(int action) { actions |= action; }
@@ -137,4 +153,14 @@ public class AccessibilityNodeInfo {
     public void setSource(View source) {}
     public void setParent(View parent) {}
     public void recycle() {}
+
+    private android.os.Bundle extras;
+
+    /** Lazily-created extras bag, AOSP contract: never null. */
+    public android.os.Bundle getExtras() {
+        if (extras == null) extras = new android.os.Bundle();
+        return extras;
+    }
+
+    public void setExtras(android.os.Bundle extras) { this.extras = extras; }
 }

@@ -65,6 +65,23 @@ public final class BitmapFactory {
         return decodeByteArray(data, offset, length, null);
     }
 
+    /**
+     * AOSP: decode a bitmap from a resource id. The staged resource table
+     * maps file-backed drawables to bytes; missing/undecodable ids give null.
+     */
+    public static Bitmap decodeResource(android.content.res.Resources res, int id) {
+        return decodeResource(res, id, null);
+    }
+
+    public static Bitmap decodeResource(android.content.res.Resources res, int id, Options opts) {
+        if (res == null) return null;
+        try (InputStream in = res.openRawResource(id)) {
+            return decodeStream(in, opts);
+        } catch (RuntimeException | IOException e) {
+            return null;
+        }
+    }
+
     public static Bitmap decodeByteArray(byte[] data, int offset, int length, Options opts) {
         if (data == null || offset < 0 || length < 0 || offset + length > data.length) return null;
         return decodeStream(new ByteArrayInputStream(data, offset, length), opts);

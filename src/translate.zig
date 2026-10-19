@@ -216,7 +216,8 @@ const Op = enum(u8) {
     div_double_2addr = 0xce,
     rem_double_2addr = 0xcf,
     add_int_lit16 = 0xd0,
-    sub_int_lit16 = 0xd1,
+    /// 22s rsub-int: vA = literal - vB (DEX has no sub-int/lit form).
+    rsub_int = 0xd1,
     mul_int_lit16 = 0xd2,
     div_int_lit16 = 0xd3,
     rem_int_lit16 = 0xd4,
@@ -224,7 +225,8 @@ const Op = enum(u8) {
     or_int_lit16 = 0xd6,
     xor_int_lit16 = 0xd7,
     add_int_lit8 = 0xd8,
-    sub_int_lit8 = 0xd9,
+    /// 22b rsub-int/lit8: vA = literal - vB (DEX has no sub-int/lit form).
+    rsub_int_lit8 = 0xd9,
     mul_int_lit8 = 0xda,
     div_int_lit8 = 0xdb,
     rem_int_lit8 = 0xdc,
@@ -294,7 +296,7 @@ fn superInterfaceHelper(d: dex.Dex, method_idx: u16) ?SuperHelper {
 fn insnSize(op: u8) TranslateError!usize {
     return switch (@as(Op, @fromBackingInt(@intCast(op)))) {
         .nop, .move, .move_wide, .move_object, .move_result, .move_result_wide, .move_result_object, .move_exception, .return_void, .return_, .return_wide, .return_object, .const4, .monitor_enter, .monitor_exit, .throw_, .goto_, .array_length, .neg_int, .not_int, .neg_long, .not_long, .neg_float, .neg_double, .int_to_long, .int_to_float, .int_to_double, .long_to_int, .long_to_float, .long_to_double, .float_to_int, .float_to_long, .float_to_double, .double_to_int, .double_to_long, .double_to_float, .int_to_byte, .int_to_char, .int_to_short, .add_int_2addr, .sub_int_2addr, .mul_int_2addr, .div_int_2addr, .rem_int_2addr, .and_int_2addr, .or_int_2addr, .xor_int_2addr, .shl_int_2addr, .shr_int_2addr, .ushr_int_2addr, .add_long_2addr, .sub_long_2addr, .mul_long_2addr, .div_long_2addr, .rem_long_2addr, .and_long_2addr, .or_long_2addr, .xor_long_2addr, .shl_long_2addr, .shr_long_2addr, .ushr_long_2addr, .add_float_2addr, .sub_float_2addr, .mul_float_2addr, .div_float_2addr, .rem_float_2addr, .add_double_2addr, .sub_double_2addr, .mul_double_2addr, .div_double_2addr, .rem_double_2addr => 1,
-        .if_eq, .if_ne, .if_lt, .if_ge, .if_gt, .if_le, .if_eqz, .if_nez, .if_ltz, .if_gez, .if_gtz, .if_lez, .add_int_lit16, .sub_int_lit16, .mul_int_lit16, .div_int_lit16, .rem_int_lit16, .and_int_lit16, .or_int_lit16, .xor_int_lit16, .add_int_lit8, .sub_int_lit8, .mul_int_lit8, .div_int_lit8, .rem_int_lit8, .and_int_lit8, .or_int_lit8, .xor_int_lit8, .shl_int_lit8, .shr_int_lit8, .ushr_int_lit8 => 2,
+        .if_eq, .if_ne, .if_lt, .if_ge, .if_gt, .if_le, .if_eqz, .if_nez, .if_ltz, .if_gez, .if_gtz, .if_lez, .add_int_lit16, .rsub_int, .mul_int_lit16, .div_int_lit16, .rem_int_lit16, .and_int_lit16, .or_int_lit16, .xor_int_lit16, .add_int_lit8, .rsub_int_lit8, .mul_int_lit8, .div_int_lit8, .rem_int_lit8, .and_int_lit8, .or_int_lit8, .xor_int_lit8, .shl_int_lit8, .shr_int_lit8, .ushr_int_lit8 => 2,
         .cmpl_float, .cmpg_float, .cmpl_double, .cmpg_double, .cmp_long, .aget, .aget_wide, .aget_object, .aget_boolean, .aget_byte, .aget_char, .aget_short, .aput, .aput_wide, .aput_object, .aput_boolean, .aput_byte, .aput_char, .aput_short, .move_from16, .move_wide_from16, .move_object_from16, .add_int, .sub_int, .mul_int, .div_int, .rem_int, .and_int, .or_int, .xor_int, .shl_int, .shr_int, .ushr_int, .add_long, .sub_long, .mul_long, .div_long, .rem_long, .and_long, .or_long, .xor_long, .shl_long, .shr_long, .ushr_long, .add_float, .sub_float, .mul_float, .div_float, .rem_float, .add_double, .sub_double, .mul_double, .div_double, .rem_double => 2,
         .const16, .const_high16, .const_wide16, .const_wide_high16, .goto16, .const_string, .const_class, .check_cast, .instance_of, .new_instance, .new_array, .iget, .iget_wide, .iget_object, .iget_boolean, .iget_byte, .iget_char, .iget_short, .iput, .iput_wide, .iput_object, .iput_boolean, .iput_byte, .iput_char, .iput_short, .sget, .sget_wide, .sget_object, .sget_boolean, .sget_byte, .sget_char, .sget_short, .sput, .sput_wide, .sput_object, .sput_boolean, .sput_byte, .sput_char, .sput_short => 2,
         .packed_switch, .sparse_switch, .fill_array_data, .invoke_virtual, .invoke_super, .invoke_direct, .invoke_static, .invoke_interface, .invoke_virtual_range, .invoke_super_range, .invoke_direct_range, .invoke_static_range, .invoke_interface_range, .const_, .const_wide32, .goto32, .filled_new_array, .filled_new_array_range, .const_string_jumbo, .move16, .move_wide16, .move_object16 => 3,
@@ -660,7 +662,7 @@ fn storeDestKind(opcode: Op, unit0: u16, unit1: u16, unit2: u16) ?struct { dst: 
         .shr_int_2addr,
         .ushr_int_2addr,
         .add_int_lit16,
-        .sub_int_lit16,
+        .rsub_int,
         .mul_int_lit16,
         .div_int_lit16,
         .rem_int_lit16,
@@ -668,7 +670,7 @@ fn storeDestKind(opcode: Op, unit0: u16, unit1: u16, unit2: u16) ?struct { dst: 
         .or_int_lit16,
         .xor_int_lit16,
         .add_int_lit8,
-        .sub_int_lit8,
+        .rsub_int_lit8,
         .mul_int_lit8,
         .div_int_lit8,
         .rem_int_lit8,
@@ -1214,7 +1216,7 @@ fn emitFieldOp(
 fn arithJop(opcode: Op) u8 {
     return switch (opcode) {
         .add_int, .add_int_2addr, .add_int_lit8, .add_int_lit16 => 0x60, // iadd
-        .sub_int, .sub_int_2addr, .sub_int_lit8, .sub_int_lit16 => 0x64, // isub
+        .sub_int, .sub_int_2addr => 0x64, // isub
         .mul_int, .mul_int_2addr, .mul_int_lit8, .mul_int_lit16 => 0x68, // imul
         .div_int, .div_int_2addr, .div_int_lit8, .div_int_lit16 => 0x6c, // idiv
         .rem_int, .rem_int_2addr, .rem_int_lit8, .rem_int_lit16 => 0x70, // irem
@@ -1872,6 +1874,19 @@ fn emitInvokeCall(
     }
     if (init_ref) |r| {
         try emitPoolRef(e, gpa, uses, jop, -@as(i32, @intCast(regs.len)), r);
+    } else if (!is_static and jop == 0xb6 and regs.len > 0 and
+        std.mem.eql(u8, try d.getString(gpa, cmid0.name_idx), "clone")) {
+        const owner_desc = try d.getTypeDescriptor(gpa, cmid0.class_idx);
+        defer gpa.free(owner_desc);
+        if (std.mem.eql(u8, owner_desc, "Ljava/lang/Object;")) {
+            try emitPoolRef(e, gpa, uses, 0xb8, -@as(i32, @intCast(regs.len)), .{ .raw_method = .{
+                .cls = "org/isakai/runtime/ObjectSupport",
+                .name = "cloneObject",
+                .desc = "(Ljava/lang/Object;)Ljava/lang/Object;",
+            } });
+        } else {
+            try emitPoolRef(e, gpa, uses, jop, -@as(i32, @intCast(regs.len)), .{ .method = .{ .idx = method_idx, .iface = is_interface } });
+        }
     } else if (jop == 0xb7) {
         if (superInterfaceHelper(d, method_idx)) |helper| {
             // invoke-super to a JDK interface default: V49 cannot express
@@ -2370,7 +2385,7 @@ pub fn translateMethod(
                 .shr_int_2addr,
                 .ushr_int_2addr,
                 .add_int_lit16,
-                .sub_int_lit16,
+                .rsub_int,
                 .mul_int_lit16,
                 .div_int_lit16,
                 .rem_int_lit16,
@@ -2378,7 +2393,7 @@ pub fn translateMethod(
                 .or_int_lit16,
                 .xor_int_lit16,
                 .add_int_lit8,
-                .sub_int_lit8,
+                .rsub_int_lit8,
                 .mul_int_lit8,
                 .div_int_lit8,
                 .rem_int_lit8,
@@ -2902,7 +2917,7 @@ pub fn translateMethod(
                 e.push(-2);
                 try emitStoreDoubleBits(&e, gpa, rm, &uses, types, wide_comp, alloc_owner, a);
             },
-            .add_int_lit8, .sub_int_lit8, .mul_int_lit8, .div_int_lit8, .rem_int_lit8, .and_int_lit8, .or_int_lit8, .xor_int_lit8, .shl_int_lit8, .shr_int_lit8, .ushr_int_lit8 => {
+            .add_int_lit8, .mul_int_lit8, .div_int_lit8, .rem_int_lit8, .and_int_lit8, .or_int_lit8, .xor_int_lit8, .shl_int_lit8, .shr_int_lit8, .ushr_int_lit8 => {
                 // 22b per ART: A = unit0 bits 8-15 (8-bit), B = unit1 low
                 // byte, literal = unit1 high byte (signed).
                 const a: u8 = @intCast((unit0 >> 8) & 0xFF);
@@ -2914,12 +2929,33 @@ pub fn translateMethod(
                 e.push(-1);
                 try storeTracked(&e, gpa, rm, types, wide_comp, alloc_owner, a, .int);
             },
-            .add_int_lit16, .sub_int_lit16, .mul_int_lit16, .div_int_lit16, .rem_int_lit16, .and_int_lit16, .or_int_lit16, .xor_int_lit16 => {
+            .rsub_int_lit8 => {
+                // DEX is literal - B, not B - literal; isub pops
+                // value1 - value2, so the literal goes first.
+                const a: u8 = @intCast((unit0 >> 8) & 0xFF);
+                const b: u8 = @intCast(insns[pc + 1] & 0xFF);
+                const lit: i32 = @as(i8, @bitCast(@as(u8, @intCast((insns[pc + 1] >> 8) & 0xFF))));
+                try emitConstInt(&e, gpa, lit);
+                try emitLoadInt(&e, gpa, rm, b);
+                try e.emit(gpa, 0x64); // isub
+                e.push(-1);
+                try storeTracked(&e, gpa, rm, types, wide_comp, alloc_owner, a, .int);
+            },
+            .add_int_lit16, .mul_int_lit16, .div_int_lit16, .rem_int_lit16, .and_int_lit16, .or_int_lit16, .xor_int_lit16 => {
                 // 22s: literal = next unit (sign-extended 16-bit).
                 const lit: i32 = @as(i16, @bitCast(insns[pc + 1]));
                 try emitLoadInt(&e, gpa, rm, regB(unit0));
                 try emitConstInt(&e, gpa, lit);
                 try e.emit(gpa, arithJop(opcode));
+                e.push(-1);
+                try storeTracked(&e, gpa, rm, types, wide_comp, alloc_owner, regA(unit0), .int);
+            },
+            .rsub_int => {
+                // 22s rsub-int: vA = literal - vB.
+                const lit: i32 = @as(i16, @bitCast(insns[pc + 1]));
+                try emitConstInt(&e, gpa, lit);
+                try emitLoadInt(&e, gpa, rm, regB(unit0));
+                try e.emit(gpa, 0x64); // isub
                 e.push(-1);
                 try storeTracked(&e, gpa, rm, types, wide_comp, alloc_owner, regA(unit0), .int);
             },
@@ -3765,13 +3801,13 @@ pub fn translateMethod(
                         .div_double_2addr,
                         .rem_double_2addr,
                         .add_int_lit16,
-                        .sub_int_lit16,
+                        .rsub_int,
                         .mul_int_lit16,
                         .and_int_lit16,
                         .or_int_lit16,
                         .xor_int_lit16,
                         .add_int_lit8,
-                        .sub_int_lit8,
+                        .rsub_int_lit8,
                         .mul_int_lit8,
                         .and_int_lit8,
                         .or_int_lit8,
@@ -4253,6 +4289,10 @@ fn readStaticIntValues(gpa: std.mem.Allocator, d: dex.Dex, off: u32) TranslateEr
             slot.* = if (arg == 0) 0 else 1;
             continue;
         }
+        if (kind == 0x1e) { // null has no payload
+            if (arg != 0) return error.BadDescriptor;
+            continue;
+        }
         const width: usize = @as(usize, arg) + 1;
         if (pos + width > d.data.len) return error.BadDescriptor;
         var bits: u32 = 0;
@@ -4261,9 +4301,21 @@ fn readStaticIntValues(gpa: std.mem.Allocator, d: dex.Dex, off: u32) TranslateEr
         }
         pos += width;
         switch (kind) {
-            0x00 => slot.* = @as(i8, @bitCast(@as(u8, @intCast(bits & 0xff)))), // byte
-            0x02 => slot.* = @as(i16, @bitCast(@as(u16, @intCast(bits & 0xffff)))), // short
-            0x03, 0x04 => slot.* = @bitCast(bits), // char/int
+            0x00, 0x02, 0x04 => {
+                const max_width: usize = switch (kind) {
+                    0x00 => 1,
+                    0x02 => 2,
+                    else => 4,
+                };
+                if (width > max_width) return error.BadDescriptor;
+                const shift: u5 = @intCast(32 - width * 8);
+                const signed: i32 = @bitCast(bits << shift);
+                slot.* = signed >> shift;
+            },
+            0x03 => {
+                if (width > 2) return error.BadDescriptor;
+                slot.* = @intCast(bits); // char is unsigned
+            },
             else => {}, // long/float/double/string/object: no int ConstantValue
         }
     }

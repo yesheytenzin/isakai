@@ -20,6 +20,11 @@ public class StaticLayout extends Layout {
                 alignment, spacingMult, spacingAdd, includePad);
     }
 
+    private boolean fallbackLineSpacing;
+
+    /** AOSP carries the theme flag; the host text engine has no fallback spacing pass. */
+    public boolean isFallbackLineSpacingEnabled() { return fallbackLineSpacing; }
+
     public StaticLayout(CharSequence text, TextPaint paint, int width, Alignment alignment,
             float spacingMult, float spacingAdd, boolean includePad) {
         super(text, paint, width, alignment, spacingMult, spacingAdd, includePad);
@@ -62,6 +67,8 @@ public class StaticLayout extends Layout {
         private int maxLines = Integer.MAX_VALUE;
         private int breakStrategy = BREAK_STRATEGY_SIMPLE;
         private int hyphenationFrequency = HYPHENATION_FREQUENCY_NONE;
+        private android.graphics.text.LineBreakConfig lineBreakConfig;
+        private boolean useLineSpacingFromFallbacks = true;
 
         private Builder() {}
 
@@ -115,6 +122,21 @@ public class StaticLayout extends Layout {
 
         public Builder setHyphenationFrequency(int frequency) {
             this.hyphenationFrequency = frequency;
+            return this;
+        }
+
+        /** Line-break configuration is carried, not applied: host breaks lines simply. */
+        public Builder setLineBreakConfig(android.graphics.text.LineBreakConfig lineBreakConfig) {
+            this.lineBreakConfig = lineBreakConfig;
+            return this;
+        }
+
+        /**
+         * AOSP: whether fallback fonts participate in line-spacing metrics.
+         * Carried for API parity; host text layout uses one font per run.
+         */
+        public Builder setUseLineSpacingFromFallbacks(boolean useLineSpacingFromFallbacks) {
+            this.useLineSpacingFromFallbacks = useLineSpacingFromFallbacks;
             return this;
         }
 

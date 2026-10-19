@@ -36,6 +36,7 @@ public final class Log {
     public static int e(String tag, String msg) { return emit('E', tag, msg, null); }
     public static int e(String tag, String msg, Throwable tr) { return emit('E', tag, msg, tr); }
     public static int wtf(String tag, String msg) { return emit('F', tag, msg, null); }
+    public static int wtf(String tag, Throwable tr) { return emit('F', tag, "", tr); }
     public static int wtf(String tag, String msg, Throwable tr) { return emit('F', tag, msg, tr); }
 
     public static boolean isLoggable(String tag, int level) { return true; }

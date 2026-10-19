@@ -1,0 +1,7 @@
+{
+    "java.errors.unusedImport": "ignore",
+    "java.errors.unusedPrivateMember": "ignore",
+    "java.errors.rawType": "ignore",
+    "java.errors.deprecation": "ignore",
+    "java.errors.unnecessarySuppressWarnings": "ignore"
+}

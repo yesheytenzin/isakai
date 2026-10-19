@@ -8,6 +8,12 @@ public class ObjectAnimator extends ValueAnimator {
     private Object target;
     private String propertyName;
 
+    @Override
+    public ObjectAnimator setDuration(long duration) {
+        super.setDuration(duration);
+        return this;
+    }
+
     public static ObjectAnimator ofFloat(Object target, String propertyName, float... values) {
         ObjectAnimator a = new ObjectAnimator();
         a.target = target;
@@ -15,11 +21,25 @@ public class ObjectAnimator extends ValueAnimator {
         return a;
     }
 
+    public static ObjectAnimator ofFloat(Object target,
+            android.util.Property property, float... values) {
+        ObjectAnimator animator = ofFloat(target, property == null ? null : property.getName(), values);
+        animator.setFloatValues(values);
+        return animator;
+    }
+
     public static ObjectAnimator ofInt(Object target, String propertyName, int... values) {
         ObjectAnimator a = new ObjectAnimator();
         a.target = target;
         a.propertyName = propertyName;
         return a;
+    }
+
+    public static ObjectAnimator ofInt(Object target,
+            android.util.Property property, int... values) {
+        ObjectAnimator animator = ofInt(target, property == null ? null : property.getName(), values);
+        animator.setIntValues(values);
+        return animator;
     }
 
     public Object getTarget() {

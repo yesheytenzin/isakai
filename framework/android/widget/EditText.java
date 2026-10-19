@@ -90,6 +90,8 @@ public class EditText extends TextView {
     public void notifyEditableChanged() { anchor=boundary(anchor);cursor=boundary(cursor);refresh(); }
     public android.view.inputmethod.InputConnection onCreateInputConnection(android.view.inputmethod.EditorInfo info) {
         info.initialSelStart=anchor;info.initialSelEnd=cursor;
+        info.imeOptions=getImeOptions();
+        info.hintText=getHint();
         return new android.view.inputmethod.BaseInputConnection(this,true);
     }
     public boolean onCheckIsTextEditor() { return true; }
@@ -211,11 +213,14 @@ public class EditText extends TextView {
         String text=editable.toString();
         int x=originX+4-scrollX,y=originY+4;
         int lineHeight=BitmapFont.lineStep(getTextPixelSize());
+        if(text.isEmpty()) {
+            drawTextAtOffset(canvas,getHint().toString(),4,4,getTextPixelSize(),getCurrentHintTextColor(),originX,originY);
+        }
         int selectionStart=Math.min(anchor,cursor),selectionEnd=Math.max(anchor,cursor),offset=0;
         for(String line:text.split("\n",-1)) {
             int start=Math.max(0,selectionStart-offset),end=Math.min(line.length(),selectionEnd-offset);
             if(end>start)canvas.fillRect(x+Canvas.measureText(line.substring(0,start),getTextPixelSize()),y,
-                    x+Canvas.measureText(line.substring(0,end),getTextPixelSize()),y+lineHeight,0xffbbd7ff);
+                    x+Canvas.measureText(line.substring(0,end),getTextPixelSize()),y+lineHeight,getHighlightColor());
             canvas.drawText(line,x,y,getTextPixelSize(),getTextColor());
             if(isFocused() && isCursorVisible() && cursor>=offset && cursor<=offset+line.length()) {
                 int cx=x+Canvas.measureText(line.substring(0,cursor-offset),getTextPixelSize());

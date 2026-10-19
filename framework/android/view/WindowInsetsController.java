@@ -13,8 +13,15 @@ public interface WindowInsetsController {
     int APPEARANCE_LIGHT_STATUS_BARS = 8;
     int APPEARANCE_LIGHT_NAVIGATION_BARS = 16;
 
+    interface OnControllableInsetsChangedListener {
+        void onControllableInsetsChanged(WindowInsetsController controller, int typeMask);
+    }
+
     void show(int types);
     void hide(int types);
+    int getSystemBarsAppearance();
     void setSystemBarsAppearance(int appearance, int mask);
     void setSystemBarsBehavior(int behavior);
+    void addOnControllableInsetsChangedListener(OnControllableInsetsChangedListener listener);
+    void removeOnControllableInsetsChangedListener(OnControllableInsetsChangedListener listener);
 }

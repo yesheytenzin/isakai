@@ -27,6 +27,8 @@ public class ViewConfiguration {
     public static int getScrollBarSize() { return 10; }
     public static int getScrollBarFadeDuration() { return 250; }
     public static int getScrollDefaultDelay() { return 300; }
+    /** AOSP constant friction the platform scroller applies. */
+    public static float getScrollFriction() { return 0.015f; }
     public static int getTapTimeout() { return 100; }
     public static int getLongPressTimeout() { return 500; }
     public static int getDoubleTapTimeout() { return 300; }

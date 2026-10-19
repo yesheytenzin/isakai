@@ -50,6 +50,9 @@ public abstract class Window {
     public View getCurrentFocus() { return null; }
     public void setSoftInputMode(int mode) {}
     public void setDecorFitsSystemWindows(boolean decorFitsSystemWindows) {}
+    public void setNavigationBarContrastEnforced(boolean enforceContrast) {}
+    private final WindowInsetsController insetsController = new WindowInsetsControllerImpl();
+    public WindowInsetsController getInsetsController() { return insetsController; }
     public <T extends View> T findViewById(int id) { return null; }
     public abstract void setBackgroundDrawable(android.graphics.drawable.Drawable drawable);
     public void setStatusBarColor(int color) {}

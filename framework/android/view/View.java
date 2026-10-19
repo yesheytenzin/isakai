@@ -17,6 +17,19 @@ import android.graphics.Rect;
  * no-ops on the software canvas.
  */
 public class View {
+    public static final android.util.Property<View, Float> TRANSLATION_Z =
+            new android.util.Property<View, Float>(Float.class, "translationZ") {
+                @Override
+                public void set(View view, Float value) {
+                    view.setTranslationZ(value == null ? 0.0f : value.floatValue());
+                }
+
+                @Override
+                public Float get(View view) {
+                    return view.getTranslationZ();
+                }
+            };
+
     public interface OnDragListener { boolean onDrag(View view,DragEvent event); }
     private OnDragListener dragListener;
     public void setOnDragListener(OnDragListener listener) {
@@ -82,6 +95,15 @@ public class View {
     public static final int IMPORTANT_FOR_AUTOFILL_YES = 1;
     public static final int IMPORTANT_FOR_AUTOFILL_NO = 2;
     public static final int IMPORTANT_FOR_AUTOFILL_YES_EXCLUDE_DESCENDANTS = 4;
+
+    public static final int SCROLL_INDICATORS_NONE = 0;
+    public static final int SCROLL_INDICATORS_TOP = 2;
+    public static final int SCROLL_INDICATORS_BOTTOM = 8;
+    public static final int SCROLL_INDICATORS_LEFT = 1;
+    public static final int SCROLL_INDICATORS_RIGHT = 4;
+    public static final int SCROLL_INDICATORS_START = 1;
+    public static final int SCROLL_INDICATORS_END = 4;
+    public static final int SCROLL_INDICATORS_ALL = 15;
 
     /** Click callback. */
     public interface OnClickListener {
@@ -167,6 +189,11 @@ public class View {
     private boolean pivotSet;
     private int layoutDirection = LAYOUT_DIRECTION_INHERIT;
     private CharSequence contentDescription;
+    private CharSequence stateDescription;
+    private String transitionName;
+    private int scrollIndicators;
+    private android.content.res.ColorStateList backgroundTintList;
+    private android.graphics.PorterDuff.Mode backgroundTintMode;
     private ViewGroup.LayoutParams layoutParams;
     private android.os.IBinder windowToken;
 
@@ -269,6 +296,25 @@ public class View {
         return visibility;
     }
 
+    /**
+     * Isakai renders into a single host window; its visibility follows the
+     * host compositor, which is visible whenever the app window is, so report
+     * the honest constant rather than inventing a hidden state.
+     */
+    public int getWindowVisibility() {
+        return VISIBLE;
+    }
+
+    /**
+     * Isakai composites every app through the software renderer, so there is
+     * no hardware acceleration to report. Returning the honest false steers
+     * draw paths (notably Compose) onto their software fallbacks instead of
+     * RenderNode-based ones this runtime does not implement.
+     */
+    public boolean isHardwareAccelerated() {
+        return false;
+    }
+
     public void setPadding(int left, int top, int right, int bottom) {
         this.paddingLeft = left;
         this.paddingTop = top;
@@ -297,6 +343,23 @@ public class View {
     }
 
     public float getElevation() { return elevation; }
+
+    private int outlineAmbientShadowColor = 0xFF000000;
+    private int outlineSpotShadowColor = 0xFF000000;
+    private android.graphics.RenderEffect renderEffect;
+
+    /** Outline shadow colors are carried; the software renderer draws no shadows. */
+    public void setOutlineAmbientShadowColor(int color) { this.outlineAmbientShadowColor = color; }
+    public int getOutlineAmbientShadowColor() { return outlineAmbientShadowColor; }
+    public void setOutlineSpotShadowColor(int color) { this.outlineSpotShadowColor = color; }
+    public int getOutlineSpotShadowColor() { return outlineSpotShadowColor; }
+
+    /** Render effects are carried, not applied: the software canvas has no filters. */
+    public void setRenderEffect(android.graphics.RenderEffect renderEffect) {
+        this.renderEffect = renderEffect;
+    }
+
+    public android.graphics.RenderEffect getRenderEffect() { return renderEffect; }
     private boolean clipToOutline;
     private ViewOutlineProvider outlineProvider = ViewOutlineProvider.BACKGROUND;
 
@@ -344,6 +407,12 @@ public class View {
     public void setTransitionAlpha(float alpha) { this.transitionAlpha = alpha; }
     public float getTransitionAlpha() { return transitionAlpha; }
 
+    /** AOSP: X/Y are the view's origin in its parent, translation included. */
+    public void setX(float x) { this.translationX = x - left; }
+    public float getX() { return left + translationX; }
+    public void setY(float y) { this.translationY = y - top; }
+    public float getY() { return top + translationY; }
+
     public void setLayoutDirection(int direction) {
         this.layoutDirection = direction;
     }
@@ -362,6 +431,36 @@ public class View {
 
     public CharSequence getContentDescription() {
         return contentDescription;
+    }
+
+    /** Tooltip/accessibility state text; stored for introspection, not announced. */
+    public void setStateDescription(CharSequence stateDescription) {
+        this.stateDescription = stateDescription;
+    }
+
+    public CharSequence getStateDescription() {
+        return stateDescription;
+    }
+
+    /** Transition identity is plain data on this platform: stored, never animated. */
+    public void setTransitionName(String transitionName) {
+        this.transitionName = transitionName;
+    }
+
+    public String getTransitionName() {
+        return transitionName;
+    }
+
+    public void setScrollIndicators(int indicators) {
+        this.scrollIndicators = indicators;
+    }
+
+    public void setScrollIndicators(int indicators, int mask) {
+        this.scrollIndicators = (this.scrollIndicators & ~mask) | (indicators & mask);
+    }
+
+    public int getScrollIndicators() {
+        return scrollIndicators;
     }
 
     public void setLayoutParams(ViewGroup.LayoutParams params) {
@@ -409,8 +508,21 @@ public class View {
         setBackground(new android.graphics.drawable.ColorDrawable(0));
     }
 
-    public void setBackgroundTintList(android.content.res.ColorStateList tint) {}
-    public void setBackgroundTintMode(android.graphics.PorterDuff.Mode mode) {}
+    public void setBackgroundTintList(android.content.res.ColorStateList tint) {
+        this.backgroundTintList = tint;
+    }
+
+    public android.content.res.ColorStateList getBackgroundTintList() {
+        return backgroundTintList;
+    }
+
+    public void setBackgroundTintMode(android.graphics.PorterDuff.Mode mode) {
+        this.backgroundTintMode = mode;
+    }
+
+    public android.graphics.PorterDuff.Mode getBackgroundTintMode() {
+        return backgroundTintMode;
+    }
 
     private final class BackgroundCallback implements android.graphics.drawable.Drawable.Callback {
         @Override
@@ -540,6 +652,27 @@ public class View {
 
     public final int getBottom() {
         return bottom;
+    }
+
+    /** Direct geometry setters (hidden API in AOSP; apps use them for custom layout). */
+    public void setLeft(int left) { this.left = left; }
+    public void setTop(int top) { this.top = top; }
+
+    public void setRight(int right) { this.right = right; }
+
+    public void setBottom(int bottom) { this.bottom = bottom; }
+
+    /** Cancel a scheduled drawable callback; nothing is scheduled by the software host. */
+    public void unscheduleDrawable(android.graphics.drawable.Drawable who) {
+        unscheduleDrawable(who, null);
+    }
+
+    public void unscheduleDrawable(android.graphics.drawable.Drawable who, Runnable what) {
+        if (who != null && what != null) who.unscheduleSelf(what);
+    }
+
+    public void scheduleDrawable(android.graphics.drawable.Drawable who, Runnable what, long when) {
+        if (who != null && what != null) who.scheduleSelf(what, when);
     }
 
     public final int getWidth() {
@@ -756,6 +889,31 @@ public class View {
         return insetsListener==null?onApplyWindowInsets(insets):insetsListener.onApplyWindowInsets(this,insets);
     }
 
+    /**
+     * AOSP contract: consume whatever the view wants from {@code insets} and
+     * write the remainder into {@code outLocalInsets}. Isakai has no system
+     * bars, so nothing is consumed and the local insets stay empty.
+     */
+    public WindowInsets computeSystemWindowInsets(WindowInsets insets,
+            android.graphics.Rect outLocalInsets) {
+        if (outLocalInsets != null) outLocalInsets.setEmpty();
+        return insets == null ? new WindowInsets() : insets;
+    }
+
+    /**
+     * Insets animations never run on this platform (there is no IME or
+     * system-bar animation backend), so the callback is accepted and never
+     * invoked, matching a device whose insets stay still.
+     */
+    public void setWindowInsetsAnimationCallback(WindowInsetsAnimation.Callback callback) {}
+
+    private WindowInsetsController windowInsetsController;
+    public WindowInsetsController getWindowInsetsController() {
+        if(windowInsetsController==null)windowInsetsController=new WindowInsetsControllerImpl();
+        return windowInsetsController;
+    }
+    public WindowInsets getRootWindowInsets() { return new WindowInsets(); }
+
     public void setOnUnhandledKeyEventListener(OnUnhandledKeyEventListener l) {}
 
     public void setOnHoverListener(OnHoverListener l) {}
@@ -826,6 +984,17 @@ public class View {
 
     public boolean isEnabled() {
         return enabled;
+    }
+
+    private static final int[] EMPTY_STATE = new int[0];
+
+    /**
+     * AOSP merges {@code R.attr.state_*} flags from this view and its parents.
+     * Isakai tracks no drawable-state sets, so the honest answer is the empty
+     * set; state-list drawables fall back to their default item.
+     */
+    public int[] getDrawableState() {
+        return EMPTY_STATE;
     }
 
 
@@ -904,8 +1073,13 @@ public class View {
     public void setSelected(boolean selected) {}
 
     /** Take focus when focusable and enabled; fires onFocusChanged. */
+    public boolean requestFocus(int direction) {
+        return requestFocus();
+    }
+
     public boolean requestFocus() {
         if (!focusable || !enabled) return false;
+        if (parent instanceof ViewGroup) ((ViewGroup) parent).requestChildFocus(this, this);
         if (focused) return true;
         focused = true;
         onFocusChanged(true);
@@ -1146,7 +1320,15 @@ public class View {
         int absLeft = offsetX + left;
         int absTop = offsetY + top;
         canvas.save();
-        canvas.clipRect(absLeft, absTop, absLeft + (right - left), absTop + (bottom - top));
+        if (right > left && bottom > top) {
+            // AOSP never clips a view to its own bounds; empty-bounds containers
+            // (compose's DrawChildContainer is 0x0 by design) must stay unclipped
+            // or they degenerate the shared clip and drop all their children.
+            // Float variant: compose positions layer views with canvas.translate,
+            // so the bounds clip must map through the current matrix.
+            canvas.clipRect((float) absLeft, (float) absTop,
+                    (float) (absLeft + (right - left)), (float) (absTop + (bottom - top)));
+        }
         if (background != null) {
             background.setBounds(absLeft, absTop, absLeft + (right - left), absTop + (bottom - top));
             background.draw(canvas);
@@ -1163,16 +1345,19 @@ public class View {
     }
 
     /** Group child dispatch with this view's root offset. Default draws nothing extra. */
-    protected void dispatchDrawAt(Canvas canvas, int offsetX, int offsetY) {
-        dispatchDraw(canvas);
-    }
+    protected void dispatchDrawAt(Canvas canvas, int offsetX, int offsetY) {}
 
     protected void onDraw(Canvas canvas) {
-        if (background == null) canvas.drawColor(backgroundColor);
+        // The fill stands in for a setBackgroundColor and doubles as the
+        // intra-frame erase between repeated passes. Only bounded views may
+        // fill: a zero-size view gets no clip of its own (drawAt skips the
+        // empty-bounds clip), so its fill would paint whole-canvas clips
+        // white and wipe content drawn before it (re-added compose hosts
+        // draw last with 0x0 bounds).
+        if (background == null && right > left && bottom > top) {
+            canvas.drawColor(backgroundColor);
+        }
     }
-
-    /** Hook for groups to draw children; plain views draw nothing extra. */
-    protected void dispatchDraw(Canvas canvas) {}
 
     public void drawableStateChanged() {}
 
@@ -1425,6 +1610,15 @@ public class View {
         return importantForContentCapture;
     }
 
+    /**
+     * No content-capture service exists on this host, so there is nothing
+     * that could consume this view's content: report not-important rather
+     * than inviting callers to record content nobody will read.
+     */
+    public boolean isImportantForContentCapture() {
+        return false;
+    }
+
     public void setAccessibilityLiveRegion(int mode) {
         this.accessibilityLiveRegion = mode;
     }
@@ -1549,6 +1743,7 @@ public class View {
         return sNextViewId.getAndIncrement();
     }
     public void onInitializeAccessibilityNodeInfo(android.view.accessibility.AccessibilityNodeInfo info) {}
+    public void onInitializeAccessibilityEvent(android.view.accessibility.AccessibilityEvent event) {}
     public void onPopulateAccessibilityEvent(android.view.accessibility.AccessibilityEvent event) {}
 
     public void drawableHotspotChanged(float x, float y) {}

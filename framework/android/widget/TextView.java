@@ -39,6 +39,10 @@ public class TextView extends View {
     }
     private CharSequence text = "";
     private int textColor = Color.BLACK;
+    private int highlightColor = 0xffbbd7ff;
+    private int imeOptions;
+    private CharSequence hint = "";
+    private android.content.res.ColorStateList hintTextColors = android.content.res.ColorStateList.valueOf(Color.GRAY);
     private float textSize = 14;
     private int minWidth, minHeight, minLines;
     private int maxWidth = Integer.MAX_VALUE, maxHeight = Integer.MAX_VALUE, maxLines = Integer.MAX_VALUE;
@@ -160,6 +164,13 @@ public class TextView extends View {
         if (cursorVisible != visible) { cursorVisible = visible; invalidate(); }
     }
     public boolean isCursorVisible() { return cursorVisible; }
+    public void setHighlightColor(int color) {
+        highlightColor = color;
+        invalidate();
+    }
+    public int getHighlightColor() { return highlightColor; }
+    public void setImeOptions(int options) { imeOptions = options; }
+    public int getImeOptions() { return imeOptions; }
     public void setInputType(int type) {}
     public int getInputType() { return 0; }
     public void setRawInputType(int type) {}
@@ -173,14 +184,30 @@ public class TextView extends View {
     public android.text.method.MovementMethod getMovementMethod() {
         return movementMethod;
     }
-    public void setHint(CharSequence hint) {}
-    public CharSequence getHint() { return ""; }
-    public void setHint(int resId) {}
+    public void setHint(CharSequence hint) {
+        this.hint = hint == null ? "" : hint;
+        requestLayout();
+        invalidate();
+    }
+    public CharSequence getHint() { return hint; }
+    public void setHint(int resId) { setHint(getResources().getText(resId)); }
+    public void setHintTextColor(int color) {
+        setHintTextColor(android.content.res.ColorStateList.valueOf(color));
+    }
+    public void setHintTextColor(android.content.res.ColorStateList colors) {
+        if (colors == null) throw new NullPointerException("colors");
+        hintTextColors = colors;
+        invalidate();
+    }
+    public android.content.res.ColorStateList getHintTextColors() { return hintTextColors; }
+    public int getCurrentHintTextColor() {
+        return hintTextColors.getColorForState(getDrawableState(), hintTextColors.getDefaultColor());
+    }
     public void setText(int resId) { setText(getResources().getText(resId)); }
     public final void append(CharSequence text) {
-        setText(textString() + (text == null ? "" : text.toString()));
+        setText(getText().toString() + (text == null ? "" : text.toString()));
     }
-    public int length() { return textString().length(); }
+    public int length() { return getText().length(); }
     public boolean isTextSelectable() { return false; }
     public void setTextSelectable(boolean selectable) {}
     private int selectionStart;
@@ -188,10 +215,10 @@ public class TextView extends View {
 
     public int getSelectionStart() { return selectionStart; }
     public int getSelectionEnd() { return selectionEnd; }
-    public boolean hasSelection() { return selectionStart != selectionEnd; }
+    public boolean hasSelection() { return getSelectionStart() != getSelectionEnd(); }
 
     public void setSelection(int start, int stop) {
-        int len = textString().length();
+        int len = length();
         selectionStart = Math.max(0, Math.min(start, len));
         selectionEnd = Math.max(0, Math.min(stop, len));
     }
@@ -303,6 +330,7 @@ public class TextView extends View {
     protected int getTextPixelSize() { return Math.max(1,Math.round(textSize)); }
 
     private String textString() {
+        if (text.length() == 0) return hint.toString();
         CharSequence display=text;
         if(transformationMethod!=null)display=transformationMethod.getTransformation(text,this);
         return display != null ? display.toString() : "";
@@ -358,14 +386,14 @@ public class TextView extends View {
     protected void onDraw(Canvas canvas) {
         super.onDraw(canvas);
         drawCompounds(canvas, getLeft(), getTop());
-        drawTextAt(canvas, textString(), 4, 4, getTextPixelSize(), textColor);
+        drawTextAt(canvas, textString(), 4, 4, getTextPixelSize(), text.length() == 0 ? getCurrentHintTextColor() : textColor);
     }
 
     @Override
     protected void onDrawAt(Canvas canvas, int offsetX, int offsetY) {
         super.onDraw(canvas);
         drawCompounds(canvas, offsetX, offsetY);
-        drawTextAtOffset(canvas, textString(), 4, 4, getTextPixelSize(), textColor, offsetX, offsetY);
+        drawTextAtOffset(canvas, textString(), 4, 4, getTextPixelSize(), text.length() == 0 ? getCurrentHintTextColor() : textColor, offsetX, offsetY);
     }
 
     /** Left compound icon at the view origin; others stacked by bounds. */

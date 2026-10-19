@@ -139,6 +139,14 @@ public abstract class ContentProvider {
         return null;
     }
 
+    /**
+     * AOSP default: providers that host no calls refuse them. Documents-provider
+     * emulation routes {@code createDocument} through here.
+     */
+    public android.os.Bundle call(String method, String arg, android.os.Bundle extras) {
+        throw new UnsupportedOperationException("call(" + method + ") not supported");
+    }
+
     public ParcelFileDescriptor openFile(android.net.Uri uri, String mode) throws FileNotFoundException {
         throw new FileNotFoundException("no file for " + uri);
     }

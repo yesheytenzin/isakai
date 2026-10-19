@@ -9,6 +9,8 @@ import java.util.Map;
 public class Intent {
     /** Action: view data in the desktop handler. */
     public static final String ACTION_VIEW = "android.intent.action.VIEW";
+    /** Action: the home entry point; {@link #makeMainActivity} builds one. */
+    public static final String ACTION_MAIN = "android.intent.action.MAIN";
     /** Action: pick a file, result via onActivityResult. */
     public static final String ACTION_GET_CONTENT = "android.intent.action.GET_CONTENT";
     /** Action: open a document, result via onActivityResult. */
@@ -68,6 +70,11 @@ public class Intent {
 
     public ComponentName getComponent() {
         return component;
+    }
+
+    /** AOSP: the intent that launches {@code mainActivity} as the home entry. */
+    public static Intent makeMainActivity(ComponentName mainActivity) {
+        return new Intent(ACTION_MAIN).setComponent(mainActivity);
     }
 
     public Intent setComponent(ComponentName component) {
@@ -220,6 +227,16 @@ public class Intent {
     public java.io.Serializable getSerializableExtra(String name) {
         Object v = extras.get(name);
         return v instanceof java.io.Serializable ? (java.io.Serializable) v : null;
+    }
+
+    /**
+     * AOSP: typed accessor for an integer-array-list extra. The stored value
+     * is returned when it is an {@link java.util.ArrayList}, else null.
+     */
+    @SuppressWarnings("unchecked")
+    public java.util.ArrayList<Integer> getIntegerArrayListExtra(String name) {
+        Object v = extras.get(name);
+        return v instanceof java.util.ArrayList ? (java.util.ArrayList<Integer>) v : null;
     }
 
     public Intent putExtras(android.os.Bundle bundle) {

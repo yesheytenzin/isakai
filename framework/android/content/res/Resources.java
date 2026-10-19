@@ -132,6 +132,30 @@ public class Resources {
         return arr;
     }
 
+    public int[] getIntArray(int id) {
+        if (table == null) throw missing(id);
+        int[] arr = table.lookupIntArray(id);
+        if (arr == null) throw missing(id);
+        return arr;
+    }
+
+    /**
+     * Raw staged bytes for a file-backed resource. AOSP throws for a missing
+     * raw resource; Isakai fails closed with {@link NotFoundException}.
+     */
+    public InputStream openRawResource(int id) {
+        if (table == null) throw missing(id);
+        Table.Entry e = resolve(id);
+        if (e.dataType != TypedValue.TYPE_STRING || e.string == null) throw missing(id);
+        File f = table.stagedFile(e.string);
+        if (f == null) throw missing(id);
+        try {
+            return new FileInputStream(f);
+        } catch (IOException ex) {
+            throw missing(id);
+        }
+    }
+
     public CharSequence[] getTextArray(int id) {
         String[] arr = getStringArray(id);
         CharSequence[] out = new CharSequence[arr.length];
@@ -1544,9 +1568,84 @@ public class Resources {
             return null;
         }
 
+        /** Int array resource: bag of integer items (AOSP {@code <integer-array>}). */
+        int[] lookupIntArray(int id) {
+            int pkgId = (id >>> 24) & 0xFF;
+            int typeId = (id >>> 16) & 0xFF;
+            int entryIdx = id & 0xFFFF;
+            for (Pkg pkg : packages) {
+                if (pkg.id != pkgId) continue;
+                for (TypeChunk tc : pkg.types) {
+                    if (tc.id != typeId || entryIdx >= tc.entryCount) continue;
+                    int rel = s32(bytes, tc.off + tc.header + entryIdx * 4);
+                    if (rel == -1) continue;
+                    int at = tc.off + tc.entriesStart + rel;
+                    int flags = u16(bytes, at + 2);
+                    if ((flags & 1) == 0) return null;
+                    int count = s32(bytes, at + 12);
+                    if (count < 0 || count > 10000) return null;
+                    int[] out = new int[count];
+                    int mp = at + 16;
+                    for (int i = 0; i < count; i++) {
+                        int dtype = bytes[mp + 7] & 0xFF;
+                        int data = s32(bytes, mp + 8);
+                        Entry item;
+                        if (dtype == TypedValue.TYPE_REFERENCE) {
+                            item = lookupDepth(data, 1);
+                        } else {
+                            item = new Entry();
+                            item.dataType = dtype;
+                            item.data = data;
+                        }
+                        if (item == null || item.dataType < TypedValue.TYPE_FIRST_INT
+                                || item.dataType > TypedValue.TYPE_LAST_INT) {
+                            return null;
+                        }
+                        out[i] = item.data;
+                        mp += 12;
+                    }
+                    if (!tc.defaultConfig) {
+                        // Prefer a default-config bag when one exists.
+                        int[] def = lookupDefaultIntBag(pkg, typeId, entryIdx);
+                        if (def != null) return def;
+                    }
+                    return out;
+                }
+            }
+            return null;
+        }
+
+        private int[] lookupDefaultIntBag(Pkg pkg, int typeId, int entryIdx) {
+            for (TypeChunk tc : pkg.types) {
+                if (tc.id != typeId || !tc.defaultConfig || entryIdx >= tc.entryCount) continue;
+                int rel = s32(bytes, tc.off + tc.header + entryIdx * 4);
+                if (rel == -1) return null;
+                int at = tc.off + tc.entriesStart + rel;
+                int flags = u16(bytes, at + 2);
+                if ((flags & 1) == 0) return null;
+                int count = s32(bytes, at + 12);
+                if (count < 0 || count > 10000) return null;
+                int[] out = new int[count];
+                int mp = at + 16;
+                for (int i = 0; i < count; i++) {
+                    int dtype = bytes[mp + 7] & 0xFF;
+                    int data = s32(bytes, mp + 8);
+                    Entry item = dtype == TypedValue.TYPE_REFERENCE
+                            ? lookupDepth(data, 1) : simple(dtype, data);
+                    if (item == null || item.dataType < TypedValue.TYPE_FIRST_INT
+                            || item.dataType > TypedValue.TYPE_LAST_INT) {
+                        return null;
+                    }
+                    out[i] = item.data;
+                    mp += 12;
+                }
+                return out;
+            }
+            return null;
+        }
+
         /** Style bag: parent style id + ordered attr entries. Null when not a bag. */
-        static final class Bag {
-            int parent;
+        static final class Bag {            int parent;
             final java.util.LinkedHashMap<Integer, Entry> items = new java.util.LinkedHashMap<>();
         }
 

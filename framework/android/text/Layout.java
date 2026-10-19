@@ -94,6 +94,62 @@ public class Layout {
         return (int) (paint.descent() + 0.5f);
     }
 
+    public int getLineAscent(int line) {
+        return (int) paint.ascent();
+    }
+
+    /** Bottom edge of the line box: the next line's top (AOSP contract). */
+    public int getLineBottom(int line) {
+        return getLineTop(line + 1);
+    }
+
+    /** Line containing the character at {@code offset} (EOF lands on the last line). */
+    public int getLineForOffset(int offset) {
+        int clamped = Math.max(0, Math.min(offset, text.length()));
+        int line = 0;
+        for (int i = 1; i < lineStarts.length; i++) {
+            if (lineStarts[i] > clamped) break;
+            line = i;
+        }
+        return line;
+    }
+
+    private int alignmentX(int line) {
+        int lineWidth = (int) getLineWidth(line);
+        if (alignment == Alignment.ALIGN_CENTER) return Math.max(0, (width - lineWidth) / 2);
+        if (alignment == Alignment.ALIGN_OPPOSITE) return Math.max(0, width - lineWidth);
+        return 0;
+    }
+
+    public float getLineLeft(int line) {
+        return alignmentX(line);
+    }
+
+    public float getLineRight(int line) {
+        return alignmentX(line) + getLineWidth(line);
+    }
+
+    private int cellWidth() {
+        return Math.max(1, BitmapFont.cellWidth(Math.max(1, (int) paint.getTextSize())));
+    }
+
+    /** Horizontal position of the character at {@code offset} (LTR direction). */
+    public float getPrimaryHorizontal(int offset) {
+        int line = getLineForOffset(offset);
+        int clamped = Math.max(getLineStart(line), Math.min(offset, getLineEnd(line)));
+        return alignmentX(line) + (clamped - getLineStart(line)) * cellWidth();
+    }
+
+    /** The engine lays text out left-to-right only. */
+    public boolean isRtlCharAt(int offset) {
+        return false;
+    }
+
+    /** Font padding is folded into the line boxes here, so there is none extra. */
+    public int getTopPadding() { return 0; }
+
+    public int getBottomPadding() { return 0; }
+
     public float getLineWidth(int line) {
         return paint.measureText(text.toString(), getLineStart(line), getLineEnd(line));
     }
@@ -112,7 +168,6 @@ public class Layout {
 
     public void draw(Canvas canvas) {
         if (canvas == null) return;
-        int color = paint.getColor();
         int size = Math.max(1, (int) paint.getTextSize());
         int cell = BitmapFont.cellWidth(size);
         for (int line = 0; line < lineStarts.length; line++) {
@@ -126,7 +181,7 @@ public class Layout {
             } else if (alignment == Alignment.ALIGN_OPPOSITE) {
                 x = Math.max(0, width - lineWidth);
             }
-            canvas.drawText(s, x, getLineTop(line), size, color);
+            canvas.drawTextRun(s, 0, s.length(), 0, s.length(), x, getLineTop(line), false, paint);
         }
     }
 

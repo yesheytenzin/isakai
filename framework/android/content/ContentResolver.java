@@ -175,6 +175,36 @@ public abstract class ContentResolver {
 
     // --- file access ---
 
+    /**
+     * AOSP: an output stream on {@code uri}; mode defaults to {@code "w"}.
+     * Routed through {@link #openFileDescriptor} so providers and local files
+     * share one path.
+     */
+    public java.io.OutputStream openOutputStream(Uri uri, String mode) throws FileNotFoundException {
+        ParcelFileDescriptor pfd = openFileDescriptor(uri, mode == null || mode.isEmpty() ? "w" : mode);
+        return new java.io.FileOutputStream(pfd.getFileDescriptor());
+    }
+
+    /**
+     * AOSP: an input stream on {@code uri}; mode defaults to {@code "r"}.
+     * Routed through {@link #openFileDescriptor} so providers and local files
+     * share one path.
+     */
+    public java.io.InputStream openInputStream(Uri uri) throws FileNotFoundException {
+        ParcelFileDescriptor pfd = openFileDescriptor(uri, "r");
+        return new java.io.FileInputStream(pfd.getFileDescriptor());
+    }
+
+    /**
+     * AOSP: dispatch a provider call by authority. Providers that do not
+     * implement calls refuse them (default {@link ContentProvider#call}).
+     */
+    public Bundle call(Uri uri, String method, String arg, Bundle extras) {
+        ContentProvider p = resolveProvider(uri);
+        if (p == null) throw new IllegalArgumentException("no provider for " + uri);
+        return p.call(method, arg, extras);
+    }
+
     public ParcelFileDescriptor openFileDescriptor(Uri uri, String mode) throws FileNotFoundException {
         return openFileDescriptor(uri, mode, null);
     }

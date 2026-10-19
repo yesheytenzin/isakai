@@ -44,6 +44,7 @@ public abstract class Context {
 
     public static final String ACCESSIBILITY_SERVICE = "accessibility";
     public static final String AUTOFILL_MANAGER_SERVICE = "autofill";
+    public static final String ACTIVITY_SERVICE = "activity";
     private String dataDir;
     private String packageName = "";
     private final Map<String, SharedPreferences> prefsCache = new ConcurrentHashMap<>();
@@ -247,6 +248,22 @@ public abstract class Context {
     /** Framework hook: drain queued disk writes (prefs apply()). No-op unless overridden. */
     public void drainQueuedWork() {}
 
+    private final java.util.concurrent.CopyOnWriteArrayList<ComponentCallbacks> componentCallbacks =
+            new java.util.concurrent.CopyOnWriteArrayList<>();
+
+    /**
+     * Component-callback registration (Compose's recomposer hooks
+     * configuration changes). The desktop runtime raises no configuration
+     * changes, so registered callbacks are retained but never invoked.
+     */
+    public void registerComponentCallbacks(ComponentCallbacks callback) {
+        if (callback != null && !componentCallbacks.contains(callback)) componentCallbacks.add(callback);
+    }
+
+    public void unregisterComponentCallbacks(ComponentCallbacks callback) {
+        componentCallbacks.remove(callback);
+    }
+
     public abstract android.content.res.Resources getResources();
 
     private int baseTheme;
@@ -290,6 +307,7 @@ public abstract class Context {
      * return null (overrides add their services then fall through here).
      */
     public <T> T getSystemService(Class<T> type) {
+        if(type == android.app.ActivityManager.class) return type.cast(new android.app.ActivityManager());
         if(type == android.content.pm.ShortcutManager.class) return type.cast(new android.content.pm.ShortcutManager());
         if(type == android.view.inputmethod.InputMethodManager.class) return type.cast(new android.view.inputmethod.InputMethodManager());
         if(type == android.view.accessibility.AccessibilityManager.class) return type.cast(new android.view.accessibility.AccessibilityManager());
@@ -298,6 +316,7 @@ public abstract class Context {
     }
 
     public Object getSystemService(String name) {
+        if (ACTIVITY_SERVICE.equals(name)) return new android.app.ActivityManager();
         if ("shortcut".equals(name)) return new android.content.pm.ShortcutManager();
         if ("window".equals(name)) return new WindowManagerImpl();
         if (LAYOUT_INFLATER_SERVICE.equals(name)) {

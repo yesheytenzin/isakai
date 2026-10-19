@@ -190,12 +190,18 @@ public class ViewGroup extends View implements ViewParent {
             Class<?> lifecycle = Class.forName("androidx.lifecycle.x", false, loader);
             Class<?> savedOwner = Class.forName("l4.g", false, loader);
             final Object[] lifecycleRef = new Object[1];
+            final Object[] savedStateRef = new Object[1];
             Object owner = java.lang.reflect.Proxy.newProxyInstance(loader,
                     new Class<?>[]{lifecycleOwner, savedOwner}, (proxy, method, args) -> {
                         if ("k".equals(method.getName())) return lifecycleRef[0];
                         if ("d".equals(method.getName())) {
-                            return Class.forName("l4.e", false, loader)
-                                    .getConstructor().newInstance();
+                            if (savedStateRef[0] == null) {
+                                Object registry = Class.forName("l4.e", false, loader)
+                                        .getConstructor().newInstance();
+                                registry.getClass().getField("d").setBoolean(registry, true);
+                                savedStateRef[0] = registry;
+                            }
+                            return savedStateRef[0];
                         }
                         return null;
                     });
@@ -271,7 +277,7 @@ public class ViewGroup extends View implements ViewParent {
     }
 
     public void removeViewInLayout(View child) {
-        removeView(child);
+        removeChild(child);
     }
 
     public void cleanupLayoutState(View child) {}
@@ -289,6 +295,10 @@ public class ViewGroup extends View implements ViewParent {
     }
 
     public void removeViewAt(int index) {
+        removeChildAt(index);
+    }
+
+    private void removeChildAt(int index) {
         if (index < 0 || index >= children.size()) return;
         View child = children.remove(index);
         child.dispatchHostDetached();
@@ -300,6 +310,14 @@ public class ViewGroup extends View implements ViewParent {
 
     public int indexOfChild(View child) {
         return children.indexOf(child);
+    }
+
+    public void bringChildToFront(View child) {
+        if (children.remove(child)) {
+            children.add(child);
+            requestLayout();
+            invalidate();
+        }
     }
 
     public boolean checkLayoutParams(LayoutParams params) {
@@ -338,13 +356,11 @@ public class ViewGroup extends View implements ViewParent {
     public void setOnHierarchyChangeListener(OnHierarchyChangeListener listener) {}
 
     public void removeView(View child) {
-        if (children.remove(child)) {
-            child.dispatchHostDetached();
-            child.setParent(null);
-            onViewRemoved(child);
-            if (touchTarget == child) touchTarget = null;
-            invalidate();
-        }
+        removeChild(child);
+    }
+
+    private void removeChild(View child) {
+        removeChildAt(children.indexOf(child));
     }
     /**
      * Temporary attach/detach used by RecyclerView's scrap cache: detaching
@@ -407,7 +423,21 @@ public class ViewGroup extends View implements ViewParent {
         return false;
     }
 
-    public void requestChildFocus(View child, View focused) {}
+    public void requestChildFocus(View child, View focused) {
+        super.clearFocus();
+        for (View sibling : children) {
+            if (sibling != child) sibling.clearFocus();
+        }
+        if (getParent() instanceof ViewGroup) {
+            ((ViewGroup) getParent()).requestChildFocus(this, focused);
+        }
+    }
+
+    @Override
+    public void clearFocus() {
+        super.clearFocus();
+        for (View child : children) child.clearFocus();
+    }
 
     public void offsetDescendantRectToMyCoords(View descendant, android.graphics.Rect rect) {
         if (descendant == null || rect == null) return;
@@ -623,6 +653,20 @@ public class ViewGroup extends View implements ViewParent {
 
     @Override
     public void onWindowFocusChanged(boolean hasWindowFocus) {}
+
+    /** Groups track a focused child; the rect hint shapes the focus highlight. */
+    protected void onFocusChanged(boolean gainFocus, int direction,
+            android.graphics.Rect previouslyFocusedRect) {}
+
+    /**
+     * AOSP returns true so groups can shield children from a press that began
+     * outside them; host input dispatches presses to the deepest target, so
+     * the default stays true to preserve that filtering expectation.
+     */
+    public boolean shouldDelayChildPressedState() {
+        return true;
+    }
+
     @Override
     public boolean hasFocus() {
         if (super.hasFocus()) return true;

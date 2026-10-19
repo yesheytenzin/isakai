@@ -109,6 +109,29 @@ public abstract class Drawable {
         if (callback != null) callback.unscheduleDrawable(this, what);
     }
 
+    /** Press hotspot for ripples: recorded state, rendering is bounds-based. */
+    private float hotspotX;
+    private float hotspotY;
+    private final Rect hotspotBounds = new Rect();
+
+    public void setHotspot(float x, float y) {
+        hotspotX = x;
+        hotspotY = y;
+    }
+
+    public float getHotspotX() { return hotspotX; }
+
+    public float getHotspotY() { return hotspotY; }
+
+    public void setHotspotBounds(int left, int top, int right, int bottom) {
+        hotspotBounds.set(left, top, right, bottom);
+    }
+
+    public void getHotspotBounds(Rect outRect) {
+        if (outRect == null) return;
+        outRect.set(hotspotBounds);
+    }
+
     public boolean setState(int[] stateSet) {
         this.state = stateSet == null ? new int[0] : stateSet.clone();
         boolean changed = onStateChange(this.state);

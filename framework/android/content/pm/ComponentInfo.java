@@ -5,6 +5,7 @@ import android.os.Bundle;
 
 /** Shared component fields: name, package, metadata. */
 public class ComponentInfo {
+    public ApplicationInfo applicationInfo;
     public String name;
     public String packageName;
     public Bundle metaData;

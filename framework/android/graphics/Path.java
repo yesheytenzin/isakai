@@ -123,6 +123,68 @@ public class Path {
         close();
     }
 
+    public void addRect(float left, float top, float right, float bottom, Direction dir) {
+        moveTo(left, top);
+        lineTo(right, top);
+        lineTo(right, bottom);
+        lineTo(left, bottom);
+        close();
+    }
+
+    /**
+     * Rounded rect with per-corner radii ({@code [tlX,tlY,trX,trY,brX,brY,blX,blY]}).
+     * Corners are sampled as line segments; the direction flag is recorded but
+     * the contour always winds clockwise.
+     */
+    public void addRoundRect(RectF rect, float[] radii, Direction dir) {
+        if (rect == null) return;
+        float l = rect.left;
+        float t = rect.top;
+        float r = rect.right;
+        float b = rect.bottom;
+        if (r <= l || b <= t) return;
+        float rx0 = 0, ry0 = 0, rx1 = 0, ry1 = 0, rx2 = 0, ry2 = 0, rx3 = 0, ry3 = 0;
+        if (radii != null && radii.length >= 8) {
+            rx0 = radii[0];
+            ry0 = radii[1];
+            rx1 = radii[2];
+            ry1 = radii[3];
+            rx2 = radii[4];
+            ry2 = radii[5];
+            rx3 = radii[6];
+            ry3 = radii[7];
+        }
+        float maxRx = (r - l) / 2;
+        float maxRy = (b - t) / 2;
+        rx0 = Math.min(Math.max(0, rx0), maxRx);
+        ry0 = Math.min(Math.max(0, ry0), maxRy);
+        rx1 = Math.min(Math.max(0, rx1), maxRx);
+        ry1 = Math.min(Math.max(0, ry1), maxRy);
+        rx2 = Math.min(Math.max(0, rx2), maxRx);
+        ry2 = Math.min(Math.max(0, ry2), maxRy);
+        rx3 = Math.min(Math.max(0, rx3), maxRx);
+        ry3 = Math.min(Math.max(0, ry3), maxRy);
+        moveTo(l + rx0, t);
+        lineTo(r - rx1, t);
+        if (rx1 > 0 || ry1 > 0) arcTo(new RectF(r - 2 * rx1, t, r, t + 2 * ry1), -90, 90, false);
+        lineTo(r, b - ry2);
+        if (rx2 > 0 || ry2 > 0) arcTo(new RectF(r - 2 * rx2, b - 2 * ry2, r, b), 0, 90, false);
+        lineTo(l + rx3, b);
+        if (rx3 > 0 || ry3 > 0) arcTo(new RectF(l, b - 2 * ry3, l + 2 * rx3, b), 90, 90, false);
+        lineTo(l, t + ry0);
+        if (rx0 > 0 || ry0 > 0) arcTo(new RectF(l, t, l + 2 * rx0, t + 2 * ry0), 180, 90, false);
+        close();
+    }
+
+    public void addRoundRect(RectF rect, float rx, float ry, Direction dir) {
+        addRoundRect(rect, new float[]{rx, ry, rx, ry, rx, ry, rx, ry}, dir);
+    }
+
+    public void addRoundRect(float left, float top, float right, float bottom,
+            float rx, float ry, Direction dir) {
+        addRoundRect(new RectF(left, top, right, bottom), rx, ry, dir);
+    }
+
     public void addPath(Path src) {
         if (src == null) return;
         verbs.addAll(src.verbs);

@@ -53,6 +53,25 @@ public class Paint {
     }
     public Xfermode getXfermode() { return xfermode; }
     private Shader shader;
+    private PathEffect pathEffect;
+    /**
+     * AOSP contract returns the previous effect. Text rendering on the host
+     * has no dash/outline backend, so the value is state for getPathEffect
+     * round-trips and the capability is reported when an effect is actually
+     * set (drawing continues without it).
+     */
+    public PathEffect setPathEffect(PathEffect effect) {
+        PathEffect previous=pathEffect;pathEffect=effect;
+        if(effect!=null)org.isakai.runtime.Capabilities.unavailable("android.graphics.Paint.pathEffectRendering");
+        return previous;
+    }
+    public PathEffect getPathEffect() { return pathEffect; }
+    private int hinting = HINTING_ON;
+    public static final int HINTING_OFF = 0;
+    public static final int HINTING_ON = 1;
+    /** Font hinting is a rasterizer knob; the host rasterizer keeps its own policy. */
+    public void setHinting(int mode) { this.hinting = mode; }
+    public int getHinting() { return hinting; }
     private ColorFilter colorFilter;
     private String fontFeatureSettings;
     private java.util.Locale textLocale = java.util.Locale.getDefault();
@@ -87,6 +106,9 @@ public class Paint {
             this.colorFilter = src.colorFilter;
             this.fontFeatureSettings = src.fontFeatureSettings;
             this.textLocale = src.textLocale;
+            this.textAlign = src.textAlign;
+            this.dither = src.dither;
+            this.blendMode = src.blendMode;
         }
     }
 
@@ -112,12 +134,29 @@ public class Paint {
         shader = null;
         colorFilter = null;
         fontFeatureSettings = null;
+        textAlign = Align.LEFT;
+        dither = false;
+        blendMode = null;
     }
 
     public int getFlags() { return flags; }
     public void setFlags(int flags) {
         this.flags = flags;
         this.antiAlias = (flags & 1) != 0;
+    }
+
+    public static final int UNDERLINE_TEXT_FLAG = 8;
+    public static final int STRIKE_THRU_TEXT_FLAG = 16;
+
+    /** Text decorations are paint flags, AOSP-shaped, so getFlags round-trips. */
+    public void setUnderlineText(boolean underlineText) {
+        if (underlineText) flags |= UNDERLINE_TEXT_FLAG;
+        else flags &= ~UNDERLINE_TEXT_FLAG;
+    }
+
+    public void setStrikeThruText(boolean strikeThruText) {
+        if (strikeThruText) flags |= STRIKE_THRU_TEXT_FLAG;
+        else flags &= ~STRIKE_THRU_TEXT_FLAG;
     }
 
     public int getColor() { return color; }
@@ -197,10 +236,58 @@ public class Paint {
         if (locale != null) this.textLocale = locale;
     }
 
+    /**
+     * Shadow layers have no host rendering backend; the call is accepted so
+     * text stays drawable, and {@link #clearShadowLayer} restores the state
+     * callers expect (nothing to clear).
+     */
     public void setShadowLayer(float radius, float dx, float dy, int color) {}
 
-    public Align getTextAlign() { return Align.LEFT; }
-    public void setTextAlign(Align align) {}
+    public void clearShadowLayer() {}
+
+    private Align textAlign = Align.LEFT;
+    public Align getTextAlign() { return textAlign; }
+    public void setTextAlign(Align align) { if (align != null) this.textAlign = align; }
+
+    private boolean dither;
+    public boolean isDither() { return dither; }
+    public void setDither(boolean dither) { this.dither = dither; }
+
+    private BlendMode blendMode;
+    public BlendMode getBlendMode() { return blendMode; }
+    public void setBlendMode(BlendMode mode) { this.blendMode = mode; }
+
+    /** Host fonts cover the Unicode ranges the apps use; only the empty string is unsupported. */
+    public boolean hasGlyph(String string) { return string != null && !string.isEmpty(); }
+
+    /** Copy every recorded setting from {@code src}, AOSP contract. */
+    public void set(Paint src) {
+        if (src == null) return;
+        this.color = src.color;
+        this.style = src.style;
+        this.cap = src.cap;
+        this.join = src.join;
+        this.strokeWidth = src.strokeWidth;
+        this.strokeMiter = src.strokeMiter;
+        this.textSize = src.textSize;
+        this.textScaleX = src.textScaleX;
+        this.textSkewX = src.textSkewX;
+        this.letterSpacing = src.letterSpacing;
+        this.flags = src.flags;
+        this.alpha = src.alpha;
+        this.antiAlias = src.antiAlias;
+        this.fakeBoldText = src.fakeBoldText;
+        this.linearText = src.linearText;
+        this.filterBitmap = src.filterBitmap;
+        this.elegantTextHeight = src.elegantTextHeight;
+        this.typeface = src.typeface;
+        this.shader = src.shader;
+        this.colorFilter = src.colorFilter;
+        this.fontFeatureSettings = src.fontFeatureSettings;
+        this.textLocale = src.textLocale;
+        this.textAlign = src.textAlign;
+        this.hinting = src.hinting;
+    }
 
     private FontMetrics metrics() {
         FontMetrics fm = new FontMetrics();
