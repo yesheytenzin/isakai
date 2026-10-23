@@ -6,7 +6,7 @@ The `progress/` folder is the single planning and progress source. Each task fil
 
 **Delivering:** Milestone 1 — run the three pinned x86_64 utility apps as ordinary confined Linux windows. This milestone is essentially complete.
 
-**Open in M1:** [C6](C6.md) (one deferred rendering defect; the named context-hierarchy blocker is fixed) and [R4](R4.md) (its only blocker was resolved by [N1](N1.md) — ready to re-verify and close).
+**Open in M1:** [R4](R4.md) (its only blocker was resolved by [N1](N1.md) — ready to re-verify and close). [C6](C6.md) is `done`: its measured failures are fixed and proven, with the Calculator history-list render and the xkb stress kept as explicit tracked defects (the history list does not visibly render).
 
 **Next:** Milestone 2 — reuse decisions and the same-ISA native foundation ([N4](N4.md), [N2](N2.md), [N3](N3.md), then [N5](N5.md)/[N6](N6.md)). Not started.
 
@@ -45,7 +45,7 @@ App compatibility:
 - [C3: Implement the main-thread message queue](C3.md)
 - [C4: Support in-app activity navigation](C4.md)
 - [C5: Make target layouts and text usable](C5.md)
-- [C6: Close measured translator and framework failures](C6.md) — open: deferred RecyclerView history-render defect + xkb stress gap
+- [C6: Close measured translator and framework failures](C6.md) — done; history-list render and xkb stress tracked as explicit deferred defects
 - [C7: Pass the three-app acceptance gate](C7.md)
 
 Verification, release evidence and project hygiene:
