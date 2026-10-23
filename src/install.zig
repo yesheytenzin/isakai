@@ -802,7 +802,14 @@ fn wantEntry(name: []const u8) bool {
     // validateEntry for every zip entry).
     if (std.mem.startsWith(u8, name, "META-INF/services/") and
         std.mem.indexOfScalar(u8, name["META-INF/services/".len..], '/') == null) return true;
-    if (std.mem.startsWith(u8, name, "lib/x86_64/")) return true;
+    // Keep every native ABI slice, not only the selected one. The launcher's
+    // java.library.path includes just lib/x86_64, so other ABIs stay inert on
+    // an x86_64 host, but preserving them lets the native ARM64 host (N7) and
+    // the foreign-ISA backends (N8/N9) find the arm64-v8a/armeabi-v7a/x86
+    // payload without re-fetching the APK (which install does not retain).
+    // The install still requires an x86_64 slice to run today, and the slice
+    // selected for execution is recorded as the registry's native_abi.
+    if (std.mem.startsWith(u8, name, "lib/") and std.mem.endsWith(u8, name, ".so")) return true;
     if (std.mem.startsWith(u8, name, "classes") and std.mem.endsWith(u8, name, ".dex") and
         std.mem.indexOfScalar(u8, name, '/') == null) return true;
     return false;
