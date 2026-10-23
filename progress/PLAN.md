@@ -10,6 +10,17 @@ Run three pinned Android utility apps as ordinary, persistent Linux windows: com
 
 Run supported Android APKs for x86_64, x86, arm64-v8a and armeabi-v7a as ordinary processes on x86_64 and ARM64 Linux, using a verified native or translated backend per ABI. No Android OS image, Android system container or kernel Binder dependency. Architecture coverage does not imply every Android application is compatible.
 
+## Delivery milestones
+
+Four milestones carry the immediate goal to the long-term goal, one per release decision below. The [progress index](README.md#roadmap) groups every task under its milestone; this section defines them and their order. Each milestone gates the next: do not open a later milestone's native or foreign-ISA work before the earlier contract is real and verified.
+
+- **M1 — x86_64 bytecode compatibility.** The three pinned apps complete useful flows, persist data, navigate, and run under default per-app isolation on x86_64. Delivering now; the acceptance gate is [C7](C7.md#acceptance). This is release decision one.
+- **M2 — Reuse and same-ISA native foundation.** Decide and pin upstream reuse, expose a trusted runtime/execution interface, and take ownership of ABI selection, resource resolution and Bionic/JNI loading for the host ISA. This is the base every native backend builds on; nothing in M3/M4 is sound without it.
+- **M3 — Native host architectures and release.** Both native host architectures reproduce the pinned flows and the same-ISA corpus, with signed split-set installs, CPU rendering, graphics adapters and a published per-backend evidence matrix. This is release decision two.
+- **M4 — Foreign-ISA execution and backend experiments.** A foreign-ISA backend passes a separately named corpus and publishes its overhead and limits; the strategic backend bakeoffs (ART vs JVM, Robolectric vs dex2jar, mixed-ISA) are decided on measured fidelity, not demos. This is release decision three. A mixed-ISA optimization must beat the whole-guest baseline on useful work.
+
+Capability families (media, WebView, sensors, broader native/hardware/signature coverage) are release decision four: they enter only with motivating apps and named maintenance owners, and otherwise stay deferred.
+
 ## Working rules
 
 - Work from real app failures; class count, compilation and headless exit zero do not establish application compatibility.
