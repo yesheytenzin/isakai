@@ -302,6 +302,21 @@ public abstract class Context {
     }
 
     /**
+     * Config-override context. AppCompat's {@code attachBaseContext} wraps the
+     * base context through here to carry its night-mode configuration. The
+     * desktop runtime raises no configuration changes and ships a single
+     * resource set, so the override selects nothing; the wrapper exists so
+     * AppCompat's attach path resolves instead of hitting NoSuchMethodError,
+     * and it delegates every lookup back to this context.
+     */
+    public android.content.Context createConfigurationContext(android.content.res.Configuration overrideConfiguration) {
+        if (overrideConfiguration == null) {
+            throw new IllegalArgumentException("overrideConfiguration must not be null");
+        }
+        return new ContextWrapper(this);
+    }
+
+    /**
      * Service lookup: {@code LAYOUT_INFLATER_SERVICE} returns a
      * {@link android.view.LayoutInflater} bound to this context; other names
      * return null (overrides add their services then fall through here).

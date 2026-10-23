@@ -1131,6 +1131,14 @@ public class Resources {
             if (other != null) overlay.putAll(other.overlay);
         }
 
+        /**
+         * Re-apply the theme's style stack for the current configuration
+         * (AppCompat calls this from its attach/night-mode path). This
+         * runtime raises no configuration changes and the overlay already
+         * holds every applied style, so there is nothing to recompute.
+         */
+        public void rebase() {}
+
         /** Theme-first attribute lookup for styled arrays. */
         TypedValue themeValue(int attrId) {
             Table.Entry e = overlay.get(attrId);

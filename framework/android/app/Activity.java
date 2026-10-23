@@ -19,7 +19,7 @@ import org.isakai.bridge.IsakaiWindow;
  * onStop/onDestroy in order; runWindowed additionally posts the content
  * view to a Wayland toplevel.
  */
-public class Activity extends android.content.Context implements android.view.Window.Callback {
+public class Activity extends android.view.ContextThemeWrapper implements android.view.Window.Callback {
     private Application application;
     private boolean created;
     private View contentView;
@@ -55,6 +55,14 @@ public class Activity extends android.content.Context implements android.view.Wi
         this.application = application;
         super.attach(application.getDataDirString());
         super.attachPackage(application.getPackageName());
+        // Real Android attaches a base context before onCreate; the app's
+        // override (AppCompat's attachBaseContext) runs here and wraps the
+        // base through createConfigurationContext for its night-mode config.
+        // Wiring this is what makes getBaseContext() resolve on activities,
+        // which the app's history-row holder (ContextWrapper.getBaseContext)
+        // depends on. The Application is the base: a Context with this app's
+        // storage, resources, package and theme.
+        attachBaseContext(application);
     }
 
     public Application getApplication() {
@@ -87,6 +95,17 @@ public class Activity extends android.content.Context implements android.view.Wi
         return application == null
                 ? android.content.res.Resources.getSystem()
                 : application.getResources();
+    }
+
+    /**
+     * Package identity from the attached Application. Activity now extends
+     * ContextWrapper, whose getPackageName delegates to the base context, but
+     * the base is set only after attach; resolve from the Application so the
+     * answer is stable from attach onward and never NPEs on a null base.
+     */
+    @Override
+    public String getPackageName() {
+        return application != null ? application.getPackageName() : "";
     }
 
     @Override
@@ -806,7 +825,14 @@ public class Activity extends android.content.Context implements android.view.Wi
 
     @Override
     public android.content.res.Resources.Theme getTheme() {
-        android.content.res.Resources.Theme theme = super.getTheme();
+        // Build a fresh theme from this activity's own layers (manifest app
+        // theme, manifest activity theme, setTheme override) rather than the
+        // ContextThemeWrapper cache. This preserves the pre-hierarchy
+        // behaviour exactly: every call returns an independent theme, so
+        // repeated applyStyle layering never accumulates on a shared instance.
+        android.content.res.Resources.Theme theme = getResources().newTheme();
+        int appTheme = baseThemeForNav();
+        if (appTheme != 0) theme.applyStyle(appTheme, true);
         if (manifestActTheme != 0) theme.applyStyle(manifestActTheme, true);
         if (themeRes != 0) theme.applyStyle(themeRes, true);
         return theme;

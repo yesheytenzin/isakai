@@ -86,6 +86,16 @@ public class IsakaiPackageManager extends PackageManager {
         ServiceInfo si = new ServiceInfo();
         si.packageName = pkg();
         si.name = component.getClassName();
+        // Real Android populates metaData only under GET_META_DATA, and a
+        // component with no <meta-data> gets an empty (non-null) Bundle. This
+        // runtime does not model per-component manifest metadata, so report
+        // an empty one. AppCompat's AppLocalesMetadataHolderService probe
+        // only sets its cached opt-in flag when metaData is non-null (or on
+        // NameNotFoundException); a null here left it unset and NPE'd on
+        // unbox during attachBaseContext.
+        if ((flags & android.content.pm.PackageManager.GET_META_DATA) != 0) {
+            si.metaData = new android.os.Bundle();
+        }
         return si;
     }
 
