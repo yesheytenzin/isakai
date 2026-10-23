@@ -6,7 +6,7 @@ The `progress/` folder is the single planning and progress source. Each task fil
 
 **Milestone 1 is complete.** Every M1 task is `done`: the three pinned x86_64 apps run as ordinary confined Linux windows with persistence, navigation and a reproducible privileged gate. Two defects stay explicitly tracked in [C6](C6.md) (the Calculator history-list render does not visibly work; the xkb reorder/delay stress is unverified); neither is an open M1 task.
 
-**In progress:** Milestone 2 — reuse decisions and the same-ISA native foundation. [N4](N4.md) (pin upstream reuse) is `done` — the [dependency ledger](DEPENDENCIES.md) is delivered. [N2](N2.md) (explicit ABI + ELF inventory) is `in_progress`: its input gate is resolved by pinning a real 4-ABI native app (F-Droid Basic), and the ABI inventory diagnostics are proven on it; the remaining work is install-time slice selection + recording (needs the privileged install path). [N3](N3.md) depends on N2; the deep native work is [N5](N5.md)/[N6](N6.md) (resource adapter, Bionic/JNI loading).
+**In progress:** Milestone 2 — reuse decisions and the same-ISA native foundation. [N4](N4.md) (reuse ledger) and [N2](N2.md) (explicit ABI + ELF inventory, with install-time slice selection + recording proven on a real 4-ABI app) are `done`. Next is [N3](N3.md) (trusted runtime prep/exec interface; its N2 dependency is now met), then the deep native work [N5](N5.md)/[N6](N6.md) (resource adapter, Bionic/JNI loading).
 
 - [Shared delivery plan and design rationale](PLAN.md)
 - [Pinned app manifest](APPS.md)

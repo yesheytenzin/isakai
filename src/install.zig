@@ -961,6 +961,22 @@ fn installInner(
         };
     }
 
+    // Record the selected native ABI slice. stage() keeps only lib/x86_64/
+    // (wantEntry drops the other ABIs), so a populated staged lib/x86_64
+    // directory means that slice was selected; a bytecode-only app records "".
+    const native_abi: []const u8 = native_abi: {
+        const lib_dir = try std.fmt.allocPrint(gpa, "{s}/lib/x86_64", .{code_dir});
+        defer gpa.free(lib_dir);
+        if (std.Io.Dir.cwd().openDir(io, lib_dir, .{ .iterate = true })) |*dir| {
+            defer dir.close(io);
+            var it = dir.iterate();
+            while (it.next(io) catch null) |entry| {
+                if (std.mem.endsWith(u8, entry.name, ".so")) break :native_abi "x86_64";
+            }
+            break :native_abi "";
+        } else |_| break :native_abi "";
+    };
+
     try reg.add(.{
         .name = m.package,
         .uid = uid,
@@ -969,6 +985,7 @@ fn installInner(
         .installed_at = nowSeconds(io),
         .signer_sha256 = if (fingerprints.len > 0) fingerprints[0] else null, // reg.add dupes into its arena
         .signer_sha256_set = fingerprints, // ditto (dupes every element)
+        .native_abi = native_abi,
     });
     try reg.save(io, gpa, work);
 

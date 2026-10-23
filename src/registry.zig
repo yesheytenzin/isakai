@@ -90,6 +90,11 @@ pub const Package = struct {
     /// Defaults to "" for entries written before arch capture landed;
     /// install always fills it, so empty means pre-arch registry.
     arch: []const u8 = "",
+    /// The native ABI slice selected and staged at install ("x86_64"), or ""
+    /// for a bytecode-only app with no native libraries. The installer stages
+    /// only the selected slice (other ABIs are dropped); this records which
+    /// one, so a reviewer can see the selection without re-reading the APK.
+    native_abi: []const u8 = "",
 };
 
 pub const Registry = struct {
@@ -316,6 +321,7 @@ pub const Registry = struct {
         }
         if (pkg.prev_apk) |p| pkg.prev_apk = try alloc.dupe(u8, p);
         pkg.arch = try alloc.dupe(u8, package.arch);
+        pkg.native_abi = try alloc.dupe(u8, package.native_abi);
         try self.packages.put(alloc, name, pkg);
     }
 
