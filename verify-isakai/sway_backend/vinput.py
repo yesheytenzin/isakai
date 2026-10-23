@@ -11,7 +11,9 @@ import time
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 COMPOSITOR = os.path.join(ROOT, '.cache/isakai/compositor')
-RUNTIME = '/tmp/isakai-wayland-iy7f4069'
+# Per-uid runtime dir, overridable, created per run. Not a fixed shared /tmp
+# instance (Q1 stop gate). The fixture launcher must use the same directory.
+RUNTIME = os.environ.get('ISAKAI_WAYLAND_DIR', '/tmp/isakai-wayland-%d' % os.getuid())
 
 
 def sway_socket():
