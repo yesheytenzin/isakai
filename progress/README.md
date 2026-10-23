@@ -4,11 +4,9 @@ The `progress/` folder is the single planning and progress source. Each task fil
 
 ## Start here
 
-**Delivering:** Milestone 1 — run the three pinned x86_64 utility apps as ordinary confined Linux windows. This milestone is essentially complete.
+**Milestone 1 is complete.** Every M1 task is `done`: the three pinned x86_64 apps run as ordinary confined Linux windows with persistence, navigation and a reproducible privileged gate. Two defects stay explicitly tracked in [C6](C6.md) (the Calculator history-list render does not visibly work; the xkb reorder/delay stress is unverified); neither is an open M1 task.
 
-**Open in M1:** [R4](R4.md) (its only blocker was resolved by [N1](N1.md) — ready to re-verify and close). [C6](C6.md) is `done`: its measured failures are fixed and proven, with the Calculator history-list render and the xkb stress kept as explicit tracked defects (the history list does not visibly render).
-
-**Next:** Milestone 2 — reuse decisions and the same-ISA native foundation ([N4](N4.md), [N2](N2.md), [N3](N3.md), then [N5](N5.md)/[N6](N6.md)). Not started.
+**Next:** Milestone 2 — reuse decisions and the same-ISA native foundation. Start at the no-dependency entry points [N4](N4.md) (pin upstream reuse) and [N2](N2.md) (explicit ABI + ELF inventory), then [N3](N3.md), then [N5](N5.md)/[N6](N6.md). Not started.
 
 - [Shared delivery plan and design rationale](PLAN.md)
 - [Pinned app manifest](APPS.md)
@@ -21,7 +19,7 @@ Milestones map to PLAN.md's four release decisions. A task's fine-grained `phase
 
 | Milestone | Outcome (PLAN.md release decision) | State |
 |---|---|---|
-| **M1 — x86_64 bytecode compatibility** | Three pinned apps complete useful flows, persist data, and run under default isolation. | Delivering; essentially complete |
+| **M1 — x86_64 bytecode compatibility** | Three pinned apps complete useful flows, persist data, and run under default isolation. | Complete |
 | **M2 — Reuse & same-ISA native foundation** | A trusted runtime/exec interface, pinned reuse, resource and Bionic/JNI ownership — the base every native backend builds on. | Not started |
 | **M3 — Native host architectures & release** | Both native host arches reproduce the pinned flows; signed split installs, CPU rendering, graphics, and a published per-backend evidence matrix. | Not started |
 | **M4 — Foreign-ISA execution & backend experiments** | A foreign-ISA backend passes a named corpus; strategic backend bakeoffs decided on measured fidelity. | Not started |
@@ -37,7 +35,7 @@ Runtime hardening and isolation:
 - [R1: Remove the production window timeout](R1.md)
 - [R2: Repair and prove confinement](R2.md)
 - [R3: Verify policy packaging and clean installation](R3.md)
-- [R4: Make privileged E2E failures authoritative](R4.md) — blocker resolved by N1; ready to re-verify
+- [R4: Make privileged E2E failures authoritative](R4.md)
 
 App compatibility:
 - [C1: Pin three target apps and useful flows](C1.md)
@@ -99,9 +97,7 @@ Verification, release evidence and project hygiene:
 
 ## Current blocker owners
 
-- [Compatibility and retained-state blockers](C6.md#blockers)
-
-[N1](N1.md)'s in-sandbox denial-observability item stays explicitly blocked pending a provisioned runner; it is a recorded residual, not an open acceptance gate. [R4](R4.md)'s `B-current-privileged-harness` blocker is resolved by N1 and only awaits a re-verify.
+No task is blocked. Two recorded residuals remain, neither an open acceptance gate: [C6](C6.md#blockers)'s Calculator history-list render (androidx RecyclerView defect, not framework-patchable) and xkb stress gap, and [N1](N1.md)'s in-sandbox denial-observability item (blocked pending a provisioned runner).
 
 ## Maintenance
 
