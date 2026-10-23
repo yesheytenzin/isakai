@@ -15,7 +15,7 @@ import time
 from pathlib import Path
 
 from .compositor import SwayError
-from .helpers import read_pref_bool
+from .helpers import ensure_read, read_pref_bool
 
 # Keypad geometry at 640x800 (measured from rendered keys): all layers sit
 # at the window origin, columns x centers 80/240/400/560, rows y:
@@ -42,16 +42,34 @@ PREFS_FILE = 'Prefs.xml'
 def _db_snapshot(work, package):
     """Local copies of the live Room DB (db + wal + shm) for reading."""
     src = Path(work) / 'data' / package / 'databases'
-    if not (src / 'calculator.db').exists():
-        return None
     tmp = Path('/tmp/isakai-%d-calc-db' % os.getpid())
     if tmp.exists():
         shutil.rmtree(tmp)
     tmp.mkdir(parents=True)
     for suffix in ('calculator.db', 'calculator.db-wal', 'calculator.db-shm'):
         path = src / suffix
-        if path.exists():
-            shutil.copy2(path, tmp / suffix)
+        for attempt in (0, 1):
+            try:
+                path.stat()
+            except FileNotFoundError:
+                break
+            except PermissionError:
+                if attempt:
+                    raise
+                # Created after the last ACL grant under default
+                # confinement; regrant once and retry. Path.exists()
+                # swallows this error, so probe with stat.
+                ensure_read(path)
+                continue
+            try:
+                shutil.copy2(path, tmp / suffix)
+                break
+            except PermissionError:
+                if attempt:
+                    raise
+                ensure_read(path)
+    if not (tmp / 'calculator.db').exists():
+        return None
     return tmp / 'calculator.db'
 
 
@@ -132,6 +150,9 @@ def run(run_app, comp):
     prior = newest_history_row(run_app.work, package)
     prior_id = prior[0] if prior else 0
     steps['baseline_row'] = prior
+    # A retained expression would prefix the fresh 2+2 input; clear first.
+    comp.click_window(*KEY_CLEAR)
+    time.sleep(0.4)
     for point in (KEY_2, KEY_PLUS, KEY_2, KEY_EQUALS):
         comp.click_window(*point)
         time.sleep(0.4)

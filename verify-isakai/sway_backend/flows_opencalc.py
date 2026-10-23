@@ -30,15 +30,20 @@ def run(run_app, comp):
     _clipboard_sentinel('ISAKAI-BASELINE')
     time.sleep(0.3)
     steps['baseline_history_count'] = baseline_count
+    # The app restores its last expression/result; clear it so a retained
+    # Syntax line cannot shift the keypad or pre-satisfy anything.
+    comp.click_window(80, 310)
+    time.sleep(0.5)
     comp.type_text('12+34')
     time.sleep(1.0)
     equation = last_equation(run_app.read_log(), since=log_base)
     if equation != '12+34':
         raise SwayError('typed expression was not recorded as 12+34 (got %r)' % equation)
     steps['expression_logged'] = True
-    # Commit with '=': the display row shows the live intermediate until
-    # equals commits MainActivity.H and the app records history.
-    comp.click_window(560, 700)
+    # Commit with '=' at the bottom-right key. The result line can change
+    # height (a retained Syntax result pushes the pad down), so target the
+    # key glyph at the bottom row rather than a row-relative estimate.
+    comp.click_window(560, 750)
     time.sleep(2.0)
     expected = wait_for_result(run_app.work, package, '12+34', baseline_count=baseline_count)
     if expected is None:

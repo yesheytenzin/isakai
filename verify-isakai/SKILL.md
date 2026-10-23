@@ -81,8 +81,8 @@ compiler; host system libraries are listed in
 | Isolated pinned-app flow | `python3 verify-isakai/sway-flow.py {opencalc\|calculator\|notes} --work <dir>` | OpenCalc calculates/copies/resizes and stays alive; Calculator reaches settings, persists the preference and returns via back; Notes edits a Unicode note, saves it and returns to the list. Retains screenshots and app logs under `--evidence`. |
 | Live-compositor drive | `python3 verify-isakai/flow-drive.py <opencalc\|calculator\|notes> [--work DIR]` | Same flows under the live compositor with per-action focus guards. Needs a workspace not shared with interactive work. |
 | App observer | `python3 verify-isakai/observe-app.py <0\|1\|2> --work <dir>` | Startup screenshots and failures; does not establish useful interaction. |
-| Live window | `python3 verify-isakai/window-flow.py --unprivileged --required` | Real fixture stays open >30 seconds, accepts text, closes through compositor and back, records exit zero and removes data. |
-| Full privileged flow | `tools/e2e-privileged.sh --required` | Fresh fixture and peer app install; app-side UID/GID, empty groups, NNP, seccomp, distinct mount namespace and filesystem assertions pass; real surface/input/lifetime/close/back pass; users/data removed. |
+| Live window | `python3 verify-isakai/window-flow.py --unprivileged --required` | Real fixture stays open >30 seconds, closes through the compositor and Escape/back, records exit zero and removes data. Does not assert typed text: the host keyboard text path does not reach the fixture EditText (see [N1](../progress/N1.md)); the pinned app flows prove text input. |
+| Full privileged flow | `tools/e2e-privileged.sh --required` | Fresh fixture and peer app install; app-side UID/GID, empty groups, NNP, seccomp, distinct mount namespace and filesystem assertions pass; real surface/lifetime/close/back pass; users/data removed. Typed text is covered by the pinned app flows, not this fixture gate. |
 
 Without prerequisites, the privileged script returns 77 with SKIP; `--required`
 or `ISAKAI_E2E_REQUIRED=1` turns that into exit 1. Build failures, missing
@@ -94,11 +94,16 @@ The isolated target-app flow requires the private Sway fixture and
 fixture before invoking `sway-flow.py`; a missing compositor is an environment
 failure, not an app-flow pass or skip.
 
-Inspect `opened-*.png` and `typed-*.png` for the fixture text and typed RUNTIME
-suffix, and `isolation.log` for app-side results. Record paths and outcomes in
-the owning [task file](../progress/README.md). A same-UID pass must not be reported as a
-privileged pass. A window screenshot alone is insufficient: evidence must tie
-screenshots to asserted actions and saved results.
+Inspect `opened-*.png` for the mapped fixture window and `isolation.log` for
+app-side results. The fixture gate does not assert typed text or a RUNTIME
+suffix: the host keyboard text path does not reach the fixture EditText, and
+the old byte-diff "input" check compared captures at different geometries.
+Typed-text proof comes from the pinned app flows (their screenshots, app
+databases/preferences and clipboard assertions), not from this gate. Record
+paths and outcomes in the owning [task file](../progress/README.md). A same-UID
+pass must not be reported as a privileged pass. A window screenshot alone is
+insufficient: evidence must tie screenshots to asserted actions and saved
+results.
 
 ## Platform references
 

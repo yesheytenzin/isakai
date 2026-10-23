@@ -6,9 +6,9 @@ The `progress/` folder is the single planning and progress source. Each task fil
 
 **Current phase:** `COMPATIBILITY`
 
-**Next task:** [C7](C7.md)
+**Next task:** [C6](C6.md) (the three-app acceptance gate [C7](C7.md) is `done` as of 2026-10-23)
 
-**Immediate objective:** Three pinned utility apps complete useful visible flows, preserve data and run under default isolation.
+**Immediate objective:** The three pinned utility apps complete useful visible flows, preserve data and run under default isolation — met by [C7](C7.md). Remaining COMPATIBILITY work is the tracked defects owned by [C6](C6.md) and the in-sandbox denial observability owned by [N1](N1.md).
 
 - [Shared delivery plan and reuse decisions](PLAN.md)
 - [Pinned app manifest](APPS.md)

@@ -10,6 +10,7 @@ import time
 from pathlib import Path
 
 from .compositor import SwayError
+from .helpers import ensure_read
 from .vinput import isolated_env
 
 EDITOR = (40, 110)
@@ -23,14 +24,33 @@ def _clipboard(text):
 
 
 def _notes(work, package):
-    path = Path(work) / "data" / package / "databases" / "notes.db"
-    if not path.exists():
-        return []
-    connection = sqlite3.connect(path.resolve().as_uri() + "?mode=ro", uri=True)
-    try:
-        return list(connection.execute("select id, title, value from notes order by id"))
-    finally:
-        connection.close()
+    path = (Path(work) / "data" / package / "databases" / "notes.db").resolve()
+    for attempt in (0, 1):
+        try:
+            path.stat()
+        except FileNotFoundError:
+            return []
+        except PermissionError:
+            if attempt:
+                raise
+            # Created after the last ACL grant under default confinement;
+            # regrant once and retry. Path.exists() swallows this error, so
+            # probe with stat.
+            ensure_read(path)
+            continue
+        try:
+            connection = sqlite3.connect(path.as_uri() + "?mode=ro", uri=True)
+        except sqlite3.OperationalError:
+            if attempt:
+                raise
+            # A -wal/-shm appeared after the stat; regrant and retry.
+            ensure_read(path)
+            continue
+        try:
+            return list(connection.execute("select id, title, value from notes order by id"))
+        finally:
+            connection.close()
+    return []
 
 
 def _saved_marker(work, package):
@@ -39,6 +59,19 @@ def _saved_marker(work, package):
 
 def _fragment_count(run_app):
     return run_app.read_log().count("Added fragment to active set")
+
+
+def _wait_for_editor(run_app, base, timeout=15):
+    """The fragment add lands after the dialog dismiss animation; under
+    default confinement it can take longer than two seconds."""
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        if _fragment_count(run_app) > base:
+            return True
+        if not run_app.alive():
+            break
+        time.sleep(0.2)
+    return False
 
 
 def _wait_for_root(run_app, log_start, dialog):
@@ -76,12 +109,11 @@ def run(run_app, comp):
     comp.type_text(title)
     comp.shot("02-titled-dialog")
     comp.click_window(282, 461)
-    time.sleep(2.0)
-    if not run_app.alive():
-        raise SwayError("Notes exited when confirming the new-note dialog")
-    if _fragment_count(run_app) <= base:
+    if not _wait_for_editor(run_app, base):
         comp.shot("02-create-failed")
         raise SwayError("confirming the new-note dialog did not open an editor fragment")
+    if not run_app.alive():
+        raise SwayError("Notes exited when confirming the new-note dialog")
     steps["editor_opened"] = True
     comp.shot("02-editor")
     comp.click_window(*EDITOR)

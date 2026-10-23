@@ -202,7 +202,12 @@ export fn Java_org_isakai_bridge_IsakaiWindow_nOpen(
     defer gpa.free(app_id);
     const display_path = resolveDisplayPath();
     defer if (display_path) |d| gpa.free(d);
-    const win = window_mod.Window.open(gpa, display_path, title, app_id, width, height) catch return 0;
+    const win = window_mod.Window.open(gpa, display_path, title, app_id, width, height) catch |err| {
+        // The Java side discards the error; the confined-app window path
+        // needs the actual failure observed from the app's own stderr.
+        std.debug.print("isakai-window: nOpen failed: {s}\n", .{@errorName(err)});
+        return 0;
+    };
     return @intCast(@intFromPtr(win));
 }
 

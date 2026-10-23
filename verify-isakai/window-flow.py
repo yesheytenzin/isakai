@@ -17,8 +17,43 @@ import sys
 import tempfile
 import time
 import threading
+import uuid
 
 ROOT = Path(__file__).resolve().parents[1]
+
+
+def reserve_global_uids(work):
+    """Uids are global, but nextUid only scans one work tree's registry.
+
+    The C7 pinned apps already own 200000+. Seed this isolated gate
+    registry with those uids so the fixture install picks a free one
+    instead of failing UidTaken in the root helper. The reservations are
+    inert records in a throwaway work tree and are never uninstalled.
+    """
+    pinned = ROOT / '.cache/isakai/priv/registry.json'
+    if not pinned.is_file():
+        return
+    try:
+        packages = json.loads(pinned.read_text())
+    except (OSError, json.JSONDecodeError):
+        return
+    reserved = {}
+    for name, rec in packages.items():
+        uid = rec.get('uid')
+        if not isinstance(uid, int):
+            continue
+        key = 'reserved.uid.%d' % uid
+        reserved[key] = {
+            'name': key,
+            'uid': uid,
+            'data_dir': str(work / 'reserved' / key),
+            'apk': str(work / 'reserved' / key),
+            'installed_at': 0,
+            'state': {'status': 'installed'},
+        }
+    if reserved:
+        (work / 'registry.json').write_text(json.dumps(reserved))
+        print('RESERVE: uids held globally:', sorted(r['uid'] for r in reserved.values()), flush=True)
 
 
 def check(ok, message):
@@ -69,12 +104,25 @@ def app_java_pids(uid):
     return found
 
 
-def check_sandbox(uid):
+def check_sandbox(uid, elevate=None):
     """Host-observable confinement proof for the running app JVM.
 
     Uses only existing kernel diagnostics (/proc); no probe class or
-    fixture file. Fails loudly when isolation is not in effect.
+    fixture file. Fails loudly when isolation is not in effect. `elevate`
+    supplies the privileged runner for /proc reads that another uid can
+    never see (mount namespace), without granting the rest of the check.
     """
+    def ns_path(pid):
+        try:
+            return os.readlink('/proc/%d/ns/mnt' % pid)
+        except OSError as error:
+            if elevate is None:
+                raise AssertionError('could not read mount namespace of app JVM %d (needs %r)' % (pid, error.errno))
+            result = subprocess.run(elevate + ['readlink', '/proc/%d/ns/mnt' % pid],
+                                    capture_output=True, text=True, timeout=10)
+            check(result.returncode == 0, 'elevated ns/mnt read failed for app JVM %d: %s'
+                  % (pid, result.stderr.strip()[:120]))
+            return result.stdout.strip()
     pids = app_java_pids(uid)
     check(pids, 'no app JVM runs as the confined uid %d' % uid)
     own_ns = os.readlink('/proc/self/ns/mnt')
@@ -95,15 +143,10 @@ def check_sandbox(uid):
         check(not groups, 'app JVM has supplementary groups: %r' % fields.get('Groups'))
         check(fields.get('NoNewPrivs') == '1', 'NO_NEW_PRIVS is not set on the app JVM')
         check(fields.get('Seccomp') == '2', 'seccomp filter is not enforced on the app JVM: %s' % fields.get('Seccomp'))
-        try:
-            pid_ns = os.readlink('/proc/%d/ns/mnt' % pid)
-        except OSError:
-            raise AssertionError('could not read mount namespace of app JVM %d' % pid)
+        pid_ns = ns_path(pid)
         check(pid_ns != own_ns, 'app JVM shares the harness mount namespace')
         report.append('pid=%d uid=%s nnp=%s seccomp=%s mnt=%s' % (pid, fields.get('Uid'), fields.get('NoNewPrivs'), fields.get('Seccomp'), pid_ns))
     return report
-    items = json.loads(subprocess.check_output(['hyprctl', '-j', 'clients'], text=True, timeout=5))
-    return [c for c in items if c.get('class') == package and c.get('mapped')]
 
 
 def clients(package):
@@ -127,6 +170,29 @@ def screenshot(client, path):
     run(['grim', '-g', f'{x},{y} {w}x{h}', path])
 
 
+def settled_client(package, address, timeout=10):
+    """Wait until the mapped window's position and size stop changing.
+
+    The fixture maps a taller transient surface and then settles; the gate
+    captures one opened screenshot per iteration at this stable geometry.
+    """
+    deadline = time.monotonic() + timeout
+    last = None
+    stable_since = 0.0
+    while time.monotonic() < deadline:
+        matches = [c for c in clients(package) if c.get('address') == address]
+        if matches:
+            here = (tuple(matches[0]['at']), tuple(matches[0]['size']))
+            if here == last:
+                if time.monotonic() - stable_since >= 0.5:
+                    return matches[0]
+            else:
+                last = here
+                stable_since = time.monotonic()
+        time.sleep(.1)
+    raise AssertionError('window geometry did not settle: ' + package)
+
+
 def find_jdk():
     candidates = list(Path('/usr/lib/jvm').glob('*/bin/javac'))
     if shutil.which('javac'):
@@ -146,16 +212,33 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--required', action='store_true', default=os.getenv('ISAKAI_E2E_REQUIRED') == '1')
     parser.add_argument('--unprivileged', action='store_true')
+    parser.add_argument('--elevate', choices=('sudo', 'pkexec'), default='sudo',
+                        help='privileged elevation mechanism; sudo -n stays the default')
+    parser.add_argument('--artifacts', type=Path,
+                        help='durable evidence directory (must not exist)')
     opts = parser.parse_args()
+    # pkexec mode drops ISAKAI_NONINTERACTIVE so isakai itself elevates its
+    # uid-helper through the same polkit pathway instead of sudo -n.
+    noninteractive_launch = opts.elevate == 'sudo'
     required = ['hyprctl', 'grim', 'wtype', 'javac', 'java']
     if not opts.unprivileged:
-        required.extend(['sudo', 'getfacl', 'setfacl'])
+        required.extend(['getfacl', 'setfacl', opts.elevate])
     missing = [c for c in required if not shutil.which(c)]
     if not os.getenv('WAYLAND_DISPLAY') or not os.getenv('XDG_RUNTIME_DIR'):
         missing.append('Wayland environment')
-    if not opts.unprivileged and 'sudo' not in missing:
-        if subprocess.run(['sudo', '-n', 'true'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode:
-            missing.append('noninteractive sudo authorization')
+    if not opts.unprivileged:
+        try:
+            print('AUTHORIZE: approve the %s prompt for the privileged gate' % opts.elevate,
+                  flush=True)
+            probe = subprocess.run(
+                ([opts.elevate, '-n', 'true'] if opts.elevate == 'sudo'
+                 else [opts.elevate, shutil.which('true') or '/usr/bin/true']),
+                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=600)
+            authority_ok = probe.returncode == 0
+        except subprocess.TimeoutExpired:
+            authority_ok = False
+        if not authority_ok:
+            missing.append('%s authorization' % opts.elevate)
     if missing:
         print(('FAIL' if opts.required else 'SKIP') + ': ' + ', '.join(missing))
         return 1 if opts.required else 77
@@ -164,20 +247,27 @@ def main():
     binary = Path(os.environ.get('ISAKAI', ROOT / 'zig-out/bin/isakai')).resolve()
     fixture = ROOT / 'zig-out/bin/fixture-apk'
     check(binary.is_file() and fixture.is_file(), 'build isakai and fixture-apk first')
-    artifacts = Path(tempfile.mkdtemp(prefix='isakai-e2e-'))
+    artifacts = opts.artifacts.resolve() if opts.artifacts else Path(tempfile.mkdtemp(prefix='isakai-e2e-'))
+    artifacts.mkdir(parents=True, exist_ok=not opts.artifacts)
     artifacts.chmod(0o755)
     print('ARTIFACTS:', artifacts, flush=True)
     work = artifacts / 'work'
     work.mkdir(mode=0o755)
+    reserve_global_uids(work)
     framework = artifacts / 'framework'
     shutil.copytree(ROOT / 'zig-out/framework', framework)
-    package = 'org.isakai.e' + artifacts.name.rsplit('-', 1)[-1].replace('_', 'a')
+    package = 'org.isakai.e' + uuid.uuid4().hex[:12]
     peer = package + '.peer'
     env = dict(os.environ)
     for key in ('ISAKAI_CONFINEMENT', 'ISAKAI_BRIDGE_DIR', 'ISAKAI_STAGE_DIR', 'JAVA_TOOL_OPTIONS', 'JDK_JAVA_OPTIONS', '_JAVA_OPTIONS', 'LD_PRELOAD'):
         env.pop(key, None)
-    env.update(ISAKAI_NO_PRIVILEGE='1' if opts.unprivileged else '0', ISAKAI_NONINTERACTIVE='1',
+    env.update(ISAKAI_NO_PRIVILEGE='1' if opts.unprivileged else '0',
+               ISAKAI_NONINTERACTIVE='1' if noninteractive_launch else '0',
                ISAKAI_ALLOW_UNSIGNED='1', ISAKAI_FRAMEWORK=str(framework), ISAKAI_WINDOW='1')
+    elevate_prefix = [opts.elevate, '-n'] if opts.elevate == 'sudo' else [opts.elevate]
+
+    def elevate(argv, **kw):
+        return run(elevate_prefix + list(map(str, argv)), **kw)
     installed = []
     process = None
     socket_acl = None
@@ -188,7 +278,7 @@ def main():
             run([fixture, apk, name, '1'])
             # Track attempted installs as well: a failed install must not leave accounts.
             installed.append(name)
-            run([binary, '--work', work, 'install', apk], env=env)
+            run([binary, '--work', work, 'install', apk], env=env, timeout=300)
         registry = json.loads((work / 'registry.json').read_text())
         record = registry[package]
         code = Path(record['apk'])
@@ -200,7 +290,7 @@ def main():
                 socket_path = Path(env['XDG_RUNTIME_DIR']) / socket_path
             socket_acl = subprocess.check_output(['getfacl', '-p', str(socket_path)], text=True)
             # Grant only the temporary app UID access, then restore the ACL.
-            run(['sudo', '-n', 'setfacl', '-m', f'u:{uid}:rw', socket_path])
+            elevate(['setfacl', '-m', f'u:{uid}:rw', socket_path])
             # Filesystem tripwires (mode 666: DAC would allow the app uid,
             # so only sandbox denial keeps them intact). No in-sandbox
             # writer exists without the deleted probe class, so these
@@ -213,7 +303,7 @@ def main():
             outside.write_text('outside')
             outside.chmod(0o666)
             other = Path(registry[peer]['data_dir']) / 'secret'
-            run(['sudo', '-n', 'touch', other])
+            elevate(['touch', other])
             check(canary.read_text() == 'readonly' and outside.read_text() == 'outside', 'canaries changed')
         for iteration, close_mode in enumerate(('compositor', 'back')):
             log_path = artifacts / f'launch-{iteration}.log'
@@ -232,34 +322,50 @@ def main():
                     matches = clients(package)
                     return matches[0] if matches else None
                 client = wait_for(window_ready, 15, 'no real mapped surface')
+                client = settled_client(package, client['address'])
                 run(dispatch('focus', client['address']))
-                screenshot(client, artifacts / f'opened-{iteration}.png')
                 if not opts.unprivileged:
                     # Confinement proof on the live windowed app: fail the
                     # gate when the sandbox is not in effect.
-                    sandbox_report = check_sandbox(uid)
+                    sandbox_report = check_sandbox(uid, elevate_prefix)
                     print('\n'.join(sandbox_report), flush=True)
+                    # The desktop bridge must have accepted the confined
+                    # client; the socket round-trip is exercised by the real
+                    # windowed launch, not a headless probe. Assert it, do not
+                    # merely note it.
+                    bridge_needle = 'bridge: client uid %d connected' % uid
+                    wait_for(lambda: bridge_needle in log_path.read_text(), 10,
+                             'desktop bridge did not accept confined uid %d' % uid)
                     with (artifacts / 'isolation.log').open('a') as iso:
                         iso.write('iteration %d (%s close):\n' % (iteration, close_mode))
                         iso.write('\n'.join(sandbox_report) + '\n')
-                        # The desktop bridge must have accepted the confined
-                        # client; the socket round-trip is exercised by the
-                        # real windowed launch, not a headless probe.
-                        iso.write('bridge-connected-at-open: %s\n'
-                                  % ('bridge: client uid %d connected' % uid in log_path.read_text()))
+                        iso.write('bridge-connected-at-open: True\n')
                 # R1: assert liveness continuously, not merely once at the end.
                 deadline = time.monotonic() + (31 if iteration == 0 else 1)
                 while time.monotonic() < deadline:
                     check(process.poll() is None, 'window runtime exited early: ' + log_path.read_text())
                     check(clients(package), 'surface disappeared early')
                     time.sleep(.2)
-                # Fixture gives its EditText focus. Target only our window.
+                # One settled-geometry capture proves the mapped window. The
+                # host keyboard text path does not reach the fixture EditText
+                # (unlike the isolated compositor's vinput path used by the
+                # pinned app flows), so this gate does NOT assert typed text:
+                # the old byte-diff "input" pass compared two differently
+                # sized captures and was not supported. See N1 for the
+                # limitation and the pinned flows for real text input.
+                client = settled_client(package, client['address'])
+                geometry = (tuple(client['at']), tuple(client['size']))
                 run(dispatch('focus', client['address']))
-                run(['wtype', ' RUNTIME'])
                 time.sleep(.3)
-                client = clients(package)[0]
-                screenshot(client, artifacts / f'typed-{iteration}.png')
-                check((artifacts / f'opened-{iteration}.png').read_bytes() != (artifacts / f'typed-{iteration}.png').read_bytes(), 'input did not change rendered pixels')
+                screenshot(client, artifacts / f'opened-{iteration}.png')
+                if not opts.unprivileged:
+                    with (artifacts / 'isolation.log').open('a') as iso:
+                        iso.write('text-input: not asserted (host keyboard path); '
+                                  'see N1 limitation\n')
+                        iso.write('window-geometry: %s\n' % (geometry,))
+                client = settled_client(package, client['address'])
+                check((tuple(client['at']), tuple(client['size'])) == geometry,
+                      'window moved/resized during the settled capture')
                 if close_mode == 'compositor':
                     run(dispatch('close', client['address']))
                 else:
@@ -284,7 +390,7 @@ def main():
                     pass
             check(not live, 'app processes survived close: ' + ','.join(live))
         for name in reversed(installed.copy()):
-            run([binary, '--work', work, 'uninstall', name], env=env)
+            run([binary, '--work', work, 'uninstall', name], env=env, timeout=120)
             installed.remove(name)
             check(name not in json.loads((work / 'registry.json').read_text()), 'registry entry survived uninstall')
             check(not (work / 'data' / name).exists(), 'app data survived uninstall')
@@ -296,11 +402,11 @@ def main():
                     pass
                 else:
                     raise AssertionError('app user survived uninstall')
-        print('PASS: ' + ('unprivileged window lifetime/input/close/back' if opts.unprivileged else 'privileged install/isolation/window/input/close/back/uninstall'))
+        print('PASS: ' + ('unprivileged window lifetime/close/back' if opts.unprivileged else 'privileged install/isolation/window/lifetime/close/back/uninstall'))
         return 0
     finally:
         if socket_acl is not None:
-            run(['sudo', '-n', 'setfacl', '-P', '--restore=-'], input=socket_acl)
+            elevate(['setfacl', '-P', '--restore=-'], input=socket_acl)
         if process and process.poll() is None:
             # Close the exact test window, then reap; never kill unrelated windows.
             for client in clients(package):
