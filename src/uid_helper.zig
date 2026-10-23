@@ -239,7 +239,6 @@ pub const AllocateArgs = struct {
     uid: u32,
     data_dir: []const u8,
     work: []const u8,
-    code_dir: []const u8,
 };
 
 pub fn allocate(gpa: std.mem.Allocator, io: std.Io, args: AllocateArgs) HelperError!void {
@@ -487,6 +486,7 @@ pub const JvmRequest = struct {
     uid: u32,
     data_dir: []const u8,
     work: []const u8,
+    code_dir: []const u8,
     java: [:0]const u8,
     framework: []const u8,
     windowed: bool,
@@ -526,9 +526,9 @@ pub fn runJvm(gpa: std.mem.Allocator, request: JvmRequest, confinement_disabled:
         try err_writer.writeAll("uid-helper run-jvm: framework is outside the trusted runtime profile\n");
         return 2;
     }
-    var prefix_buf: [4096]u8 = undefined;
-    const prefix = std.fmt.bufPrint(&prefix_buf, "{s}/code/{s}/", .{ request.work, request.package }) catch return 2;
-    if (!std.mem.startsWith(u8, request.code_dir, prefix) or !validWaylandSockPath(request.code_dir)) {
+    var expected_buf: [4096]u8 = undefined;
+    const expected = std.fmt.bufPrint(&expected_buf, "{s}/code/{s}", .{ request.work, request.package }) catch return 2;
+    if (!std.mem.eql(u8, request.code_dir, expected) or !validWaylandSockPath(request.code_dir)) {
         try err_writer.writeAll("uid-helper run-jvm: code directory is not anchored to the installed package\n");
         return 2;
     }

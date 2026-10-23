@@ -295,8 +295,6 @@ fn cmdUidHelper(
     }
 }
 
-/// Parse the exact JVM runtime request. Executable, JVM flags, classpath,
-/// native paths, preload and main class are reconstructed by the helper.
 fn cmdUidHelperRun(
     init: std.process.Init,
     err_writer: *std.Io.Writer,

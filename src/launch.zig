@@ -66,6 +66,11 @@ pub fn translateAppWithRuntime(
     });
     defer gpa.free(runtime_header);
     try marker.appendSlice(gpa, runtime_header);
+    const java_digest = try install.sha256File(io, gpa, java);
+    defer gpa.free(java_digest);
+    try marker.appendSlice(gpa, "java-digest:");
+    try marker.appendSlice(gpa, java_digest);
+    try marker.append(gpa, '\n');
     try marker.appendSlice(gpa, "translator:");
     try marker.appendSlice(gpa, &compiler);
     try marker.append(gpa, '\n');
@@ -608,15 +613,18 @@ pub fn resolveWaylandSocket(gpa: std.mem.Allocator, env: *const std.process.Envi
     return path;
 }
 
-/// Build the complete semantic `uid-helper run-jvm` request. The helper
-/// reconstructs the executable arguments from these bounded app fields.
-/// The wayland flag appears only when `wayland_sock` is non-null
-/// (privileged windowed with a resolved compositor socket); the bridge
-/// flag only when `bridge_dir` is non-null (the helper must pass the very
-/// same endpoint to the sandbox env and its Landlock rules); the framework
-/// flag only when `framework_dir` is non-null (privileged Landlock
-/// confinement needs the read-only tree). Unprivileged and headless runs
-/// keep the historical argv byte-identical. All borrowed.
+const HelperJvmFields = struct {
+    java: []const u8,
+    windowed: bool,
+    app_class: []const u8,
+    activity_class: []const u8,
+    title: []const u8,
+    app_theme: []const u8,
+    activity_theme: []const u8,
+    target_sdk: []const u8,
+    min_sdk: []const u8,
+};
+
 pub fn helperRunHead(
     gpa: std.mem.Allocator,
     exe: []const u8,
@@ -627,12 +635,11 @@ pub fn helperRunHead(
     work: []const u8,
     wayland_sock: ?[]const u8,
     bridge_dir: ?[]const u8,
-    framework_dir: ?[]const u8,
-    jvm_argv: []const []const u8,
+    framework_dir: []const u8,
+    fields: HelperJvmFields,
 ) !std.ArrayListUnmanaged([]const u8) {
     var argv: std.ArrayListUnmanaged([]const u8) = .empty;
     errdefer argv.deinit(gpa);
-    if (jvm_argv.len != 18 or framework_dir == null) return error.BadRuntimeSelection;
     try argv.appendSlice(gpa, &.{ exe, "uid-helper", "run-jvm", pkg_name, uid_s, data_dir, work });
     if (wayland_sock) |s| {
         try argv.appendSlice(gpa, &.{ "--wayland-sock", s });
@@ -642,16 +649,16 @@ pub fn helperRunHead(
     }
     try argv.appendSlice(gpa, &.{
         "--code-dir",       code_dir,
-        "--java",           jvm_argv[0],
-        "--framework",      framework_dir.?,
-        "--windowed",       if (std.mem.eql(u8, jvm_argv[3], "-Disakai.windowed=true")) "1" else "0",
-        "--app-class",      jvm_argv[10],
-        "--activity-class", jvm_argv[11],
-        "--title",          jvm_argv[13],
-        "--app-theme",      jvm_argv[14],
-        "--activity-theme", jvm_argv[15],
-        "--target-sdk",     jvm_argv[16],
-        "--min-sdk",        jvm_argv[17],
+        "--java",           fields.java,
+        "--framework",      framework_dir,
+        "--windowed",       if (fields.windowed) "1" else "0",
+        "--app-class",      fields.app_class,
+        "--activity-class", fields.activity_class,
+        "--title",          fields.title,
+        "--app-theme",      fields.app_theme,
+        "--activity-theme", fields.activity_theme,
+        "--target-sdk",     fields.target_sdk,
+        "--min-sdk",        fields.min_sdk,
     });
     return argv;
 }
@@ -728,16 +735,6 @@ fn hasRunWrapper(io: std.Io) bool {
     return true;
 }
 
-/// Spawn the JVM as the app user through the semantic `run-jvm` request.
-/// via pkexec (or sudo -n when noninteractive). Stdio inherits so app
-/// output streams to the caller's terminal. `wayland_sock` is the resolved
-/// compositor socket (privileged windowed only); it becomes a discrete
-/// `--wayland-sock <abs>` flag before `--` so the helper can bind-mount it
-/// into the app runtime dir. `bridge_dir` becomes `--bridge-dir <abs>` so
-/// the helper exports and permits the same endpoint the launcher created.
-/// `framework_dir` is the read-only framework tree (privileged runs only):
-/// it becomes `--framework <abs>` so the helper can Landlock-confine the
-/// child. Null keeps the historical argv byte-identical.
 fn spawnViaHelper(
     io: std.Io,
     gpa: std.mem.Allocator,
@@ -746,9 +743,9 @@ fn spawnViaHelper(
     pkg: *const registry.Package,
     work: []const u8,
     bridge_dir: []const u8,
-    jvm_argv: []const []const u8,
+    fields: HelperJvmFields,
     wayland_sock: ?[]const u8,
-    framework_dir: ?[]const u8,
+    framework_dir: []const u8,
 ) !std.process.Child {
     const uid_s = try std.fmt.allocPrint(gpa, "{d}", .{pkg.uid});
     defer gpa.free(uid_s);
@@ -758,7 +755,7 @@ fn spawnViaHelper(
     if (!noninteractive) {
         // pkexec if present, else fall back to sudo -n on spawn failure.
         try argv.append(gpa, "/usr/bin/pkexec");
-        var head = try helperRunHead(gpa, exe, pkg.name, uid_s, pkg.data_dir, pkg.apk, work, wayland_sock, bridge_dir, framework_dir, jvm_argv);
+        var head = try helperRunHead(gpa, exe, pkg.name, uid_s, pkg.data_dir, pkg.apk, work, wayland_sock, bridge_dir, framework_dir, fields);
         defer head.deinit(gpa);
         // M6f: prefer the per-operation run wrapper (matches the
         // id.isakai.run-app policy action's exec.path → its own dialog
@@ -774,7 +771,7 @@ fn spawnViaHelper(
                 argv.clearRetainingCapacity();
                 try argv.append(gpa, "/usr/bin/sudo");
                 try argv.append(gpa, "-n");
-                var head2 = try helperRunHead(gpa, exe, pkg.name, uid_s, pkg.data_dir, pkg.apk, work, wayland_sock, bridge_dir, framework_dir, jvm_argv);
+                var head2 = try helperRunHead(gpa, exe, pkg.name, uid_s, pkg.data_dir, pkg.apk, work, wayland_sock, bridge_dir, framework_dir, fields);
                 defer head2.deinit(gpa);
                 try argv.appendSlice(gpa, head2.items);
                 return spawnInherit(io, argv.items);
@@ -784,7 +781,7 @@ fn spawnViaHelper(
     }
     try argv.append(gpa, "/usr/bin/sudo");
     try argv.append(gpa, "-n");
-    var head = try helperRunHead(gpa, exe, pkg.name, uid_s, pkg.data_dir, pkg.apk, work, wayland_sock, bridge_dir, framework_dir, jvm_argv);
+    var head = try helperRunHead(gpa, exe, pkg.name, uid_s, pkg.data_dir, pkg.apk, work, wayland_sock, bridge_dir, framework_dir, fields);
     defer head.deinit(gpa);
     try argv.appendSlice(gpa, head.items);
     return spawnInherit(io, argv.items);
@@ -1005,7 +1002,17 @@ pub fn launch(
             return err;
         };
     } else {
-        child = spawnViaHelper(io, gpa, &child_env, exe, &pkg, work, bridge_dir, jvm_argv, wayland_sock, framework_dir) catch |err| {
+        child = spawnViaHelper(io, gpa, &child_env, exe, &pkg, work, bridge_dir, .{
+            .java = java,
+            .windowed = windowed,
+            .app_class = app_arg,
+            .activity_class = act_arg,
+            .title = title_arg,
+            .app_theme = app_theme_arg,
+            .activity_theme = act_theme_arg,
+            .target_sdk = target_sdk_arg,
+            .min_sdk = min_sdk_arg,
+        }, wayland_sock, framework_dir) catch |err| {
             rollbackToInstalled(&reg, io, gpa, work, pkg);
             lock.release();
             return err;

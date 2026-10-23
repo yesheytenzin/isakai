@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-//! Runtime selection policy shared by launch preparation and execution.
+//! Runtime selection policy for launch preparation and execution requests.
 
 const std = @import("std");
 const registry = @import("registry");
