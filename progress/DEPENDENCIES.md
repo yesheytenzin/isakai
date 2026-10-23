@@ -41,9 +41,10 @@ Driven as verification fixtures, pinned by sha256 in [APPS.md](APPS.md); never r
 
 | App | Version | License (identify) | Status |
 |---|---|---|---|
-| OpenCalc (`com.darkempire78.opencalculator`) | v3.2.1 | GPL-3.0 | test-input |
-| Simple Calculator (`com.simplemobiletools.calculator`) | 5.12.0 | GPL-3.0 | test-input |
-| Simple Notes (`com.simplemobiletools.notes.pro`) | 6.17.0 | GPL-3.0 | test-input |
+| OpenCalc (`com.darkempire78.opencalculator`) | v3.2.1 | GPL-3.0 | test-input (pinned in [APPS.md](APPS.md)) |
+| Simple Calculator (`com.simplemobiletools.calculator`) | 5.12.0 | GPL-3.0 | test-input (pinned in [APPS.md](APPS.md)) |
+| Simple Notes (`com.simplemobiletools.notes.pro`) | 6.17.0 | GPL-3.0 | test-input (pinned in [APPS.md](APPS.md)) |
+| F-Droid Basic (`org.fdroid.basic`) | 2.0.2 (versionCode 2000052) | GPL-3.0 | test-input for [N2](N2.md): a real 4-ABI (arm64-v8a/armeabi-v7a/x86/x86_64) native APK. sha256 `bbc4a34a7f65b200f9e40c4c74af4745de5cdbff45752ac0172916deb9f3c97d`, from the official F-Droid repo (`https://f-droid.org/repo/org.fdroid.basic_2000052.apk`). Not a target app; drives the ABI-selection and ELF-inventory paths. |
 
 ## Inspected-only — reuse research candidates
 
