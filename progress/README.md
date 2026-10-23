@@ -6,7 +6,9 @@ The `progress/` folder is the single planning and progress source. Each task fil
 
 **Milestone 1 is complete.** Every M1 task is `done`: the three pinned x86_64 apps run as ordinary confined Linux windows with persistence, navigation and a reproducible privileged gate. Two defects stay explicitly tracked in [C6](C6.md) (the Calculator history-list render does not visibly work; the xkb reorder/delay stress is unverified); neither is an open M1 task.
 
-**In progress:** Milestone 2 — reuse decisions and the same-ISA native foundation. [N4](N4.md) (pin upstream reuse) is `done` — the [dependency ledger](DEPENDENCIES.md) is delivered. Next is [N2](N2.md) (explicit ABI + ELF inventory), then [N3](N3.md), then the deep native work [N5](N5.md)/[N6](N6.md) (resource adapter, Bionic/JNI loading).
+**In progress:** Milestone 2 — reuse decisions and the same-ISA native foundation. [N4](N4.md) (pin upstream reuse) is `done` — the [dependency ledger](DEPENDENCIES.md) is delivered. [N2](N2.md) (explicit ABI + ELF inventory) is `blocked`: its ABI gate, ELF validation and diagnostics exist, but it needs real multi-ABI/malformed/wrong-machine native APK inputs that the repo lacks and the verification policy forbids synthesizing — an operator decision to pin one. [N3](N3.md) depends on N2; the deep native work is [N5](N5.md)/[N6](N6.md) (resource adapter, Bionic/JNI loading).
+
+**Decision needed to advance M2:** pin a real multi-ABI native application as a test-input (unblocks N2), then N3, then take N5/N6 as scoped native-runtime tasks.
 
 - [Shared delivery plan and design rationale](PLAN.md)
 - [Pinned app manifest](APPS.md)
@@ -97,7 +99,9 @@ Verification, release evidence and project hygiene:
 
 ## Current blocker owners
 
-No task is blocked. Two recorded residuals remain, neither an open acceptance gate: [C6](C6.md#blockers)'s Calculator history-list render (androidx RecyclerView defect, not framework-patchable) and xkb stress gap, and [N1](N1.md)'s in-sandbox denial-observability item (blocked pending a provisioned runner).
+- [N2](N2.md#b-missing-native-abi-inputs) — blocked on real multi-ABI/malformed/wrong-machine native APK inputs (the repo has none; the policy forbids synthesizing them). Pinning a real multi-ABI app unblocks it.
+
+Two recorded residuals remain, neither an open acceptance gate: [C6](C6.md#blockers)'s Calculator history-list render (androidx RecyclerView defect, not framework-patchable) and xkb stress gap, and [N1](N1.md)'s in-sandbox denial-observability item (pending a provisioned runner).
 
 ## Maintenance
 
