@@ -9,6 +9,7 @@ const translate = @import("translate");
 const registry = @import("registry");
 const install = @import("install");
 const pathmod = @import("bridge_path");
+const runtime_model = @import("runtime");
 
 /// Translate all classes.dex/classesN.dex in the staged code dir to JVM
 /// classes. Writes into <code_dir>/classes/. Idempotent: skips if the
@@ -18,10 +19,16 @@ const pathmod = @import("bridge_path");
 /// stopping at the first gap. Each dex is validated by magic (not name) and
 /// parsed with its own ID namespace. Duplicate class names across dexes are
 /// a loud error (first-wins would hide split-brain input).
-pub fn translateApp(
+pub fn translateApp(io: std.Io, gpa: std.mem.Allocator, code_dir: []const u8) anyerror!void {
+    return translateAppWithRuntime(io, gpa, code_dir, "unselected", "unselected");
+}
+
+pub fn translateAppWithRuntime(
     io: std.Io,
     gpa: std.mem.Allocator,
     code_dir: []const u8,
+    java: []const u8,
+    framework_dir: []const u8,
 ) anyerror!void {
     const classes_dir = try std.fmt.allocPrint(gpa, "{s}/classes", .{code_dir});
     defer gpa.free(classes_dir);
@@ -52,6 +59,13 @@ pub fn translateApp(
     var marker: std.ArrayListUnmanaged(u8) = .empty;
     defer marker.deinit(gpa);
     const compiler = translatorFingerprint();
+    try marker.appendSlice(gpa, runtime_model.cache_version);
+    try marker.append(gpa, '\n');
+    const runtime_header = try std.fmt.allocPrint(gpa, "backend:{d}:jvm_v1\njava:{d}:{s}\nframework:{d}:{s}\n", .{
+        "jvm_v1".len, java.len, java, framework_dir.len, framework_dir,
+    });
+    defer gpa.free(runtime_header);
+    try marker.appendSlice(gpa, runtime_header);
     try marker.appendSlice(gpa, "translator:");
     try marker.appendSlice(gpa, &compiler);
     try marker.append(gpa, '\n');
@@ -62,6 +76,24 @@ pub fn translateApp(
         defer gpa.free(dg);
         try marker.appendSlice(gpa, dg);
         try marker.append(gpa, '\n');
+    }
+    for ([_][]const u8{
+        "org/isakai/runtime/IsakaiMain.class",
+        "lib/libisakai_jni.so",
+        "lib/libisakai_bionic_shim.so",
+    }) |relative| {
+        const full = try std.fmt.allocPrint(gpa, "{s}/{s}", .{ framework_dir, relative });
+        defer gpa.free(full);
+        if (install.sha256File(io, gpa, full)) |digest| {
+            defer gpa.free(digest);
+            const line = try std.fmt.allocPrint(gpa, "runtime-artifact:{d}:{s}:{s}\n", .{ relative.len, relative, digest });
+            defer gpa.free(line);
+            try marker.appendSlice(gpa, line);
+        } else |_| {
+            const line = try std.fmt.allocPrint(gpa, "runtime-artifact:{d}:{s}:missing\n", .{ relative.len, relative });
+            defer gpa.free(line);
+            try marker.appendSlice(gpa, line);
+        }
     }
     if (std.Io.Dir.cwd().readFileAlloc(io, marker_path, gpa, .limited(65536))) |old| {
         defer gpa.free(old);
@@ -576,9 +608,8 @@ pub fn resolveWaylandSocket(gpa: std.mem.Allocator, env: *const std.process.Envi
     return path;
 }
 
-/// Build the `uid-helper run` argv head (everything through `--`):
-/// `exe uid-helper run <pkg> <uid> <data> <work> [--wayland-sock S]
-/// [--bridge-dir B] [--framework F] --`.
+/// Build the complete semantic `uid-helper run-jvm` request. The helper
+/// reconstructs the executable arguments from these bounded app fields.
 /// The wayland flag appears only when `wayland_sock` is non-null
 /// (privileged windowed with a resolved compositor socket); the bridge
 /// flag only when `bridge_dir` is non-null (the helper must pass the very
@@ -592,24 +623,36 @@ pub fn helperRunHead(
     pkg_name: []const u8,
     uid_s: []const u8,
     data_dir: []const u8,
+    code_dir: []const u8,
     work: []const u8,
     wayland_sock: ?[]const u8,
     bridge_dir: ?[]const u8,
     framework_dir: ?[]const u8,
+    jvm_argv: []const []const u8,
 ) !std.ArrayListUnmanaged([]const u8) {
     var argv: std.ArrayListUnmanaged([]const u8) = .empty;
     errdefer argv.deinit(gpa);
-    try argv.appendSlice(gpa, &.{ exe, "uid-helper", "run", pkg_name, uid_s, data_dir, work });
+    if (jvm_argv.len != 18 or framework_dir == null) return error.BadRuntimeSelection;
+    try argv.appendSlice(gpa, &.{ exe, "uid-helper", "run-jvm", pkg_name, uid_s, data_dir, work });
     if (wayland_sock) |s| {
         try argv.appendSlice(gpa, &.{ "--wayland-sock", s });
     }
     if (bridge_dir) |b| {
         try argv.appendSlice(gpa, &.{ "--bridge-dir", b });
     }
-    if (framework_dir) |f| {
-        try argv.appendSlice(gpa, &.{ "--framework", f });
-    }
-    try argv.append(gpa, "--");
+    try argv.appendSlice(gpa, &.{
+        "--code-dir",       code_dir,
+        "--java",           jvm_argv[0],
+        "--framework",      framework_dir.?,
+        "--windowed",       if (std.mem.eql(u8, jvm_argv[3], "-Disakai.windowed=true")) "1" else "0",
+        "--app-class",      jvm_argv[10],
+        "--activity-class", jvm_argv[11],
+        "--title",          jvm_argv[13],
+        "--app-theme",      jvm_argv[14],
+        "--activity-theme", jvm_argv[15],
+        "--target-sdk",     jvm_argv[16],
+        "--min-sdk",        jvm_argv[17],
+    });
     return argv;
 }
 
@@ -677,7 +720,7 @@ fn linuxKill(pid: std.posix.pid_t, sig: u8) void {
 /// M6f: per-operation pkexec wrapper installed by `make install`; matches
 /// the id.isakai.run-app policy action's exec.path. When absent (dev
 /// relocatable installs with INSTALL_POLICY=0) launch falls back to the
-/// direct `pkexec <exe> uid-helper run ...` argv.
+/// direct `pkexec <exe> uid-helper run-jvm ...` argv.
 const run_wrapper = "/usr/bin/isakai-run-app";
 
 fn hasRunWrapper(io: std.Io) bool {
@@ -685,7 +728,7 @@ fn hasRunWrapper(io: std.Io) bool {
     return true;
 }
 
-/// Spawn the JVM as the app user: elevate `isakai uid-helper run ...`
+/// Spawn the JVM as the app user through the semantic `run-jvm` request.
 /// via pkexec (or sudo -n when noninteractive). Stdio inherits so app
 /// output streams to the caller's terminal. `wayland_sock` is the resolved
 /// compositor socket (privileged windowed only); it becomes a discrete
@@ -715,42 +758,25 @@ fn spawnViaHelper(
     if (!noninteractive) {
         // pkexec if present, else fall back to sudo -n on spawn failure.
         try argv.append(gpa, "/usr/bin/pkexec");
-        var head = try helperRunHead(gpa, exe, pkg.name, uid_s, pkg.data_dir, work, wayland_sock, bridge_dir, framework_dir);
+        var head = try helperRunHead(gpa, exe, pkg.name, uid_s, pkg.data_dir, pkg.apk, work, wayland_sock, bridge_dir, framework_dir, jvm_argv);
         defer head.deinit(gpa);
         // M6f: prefer the per-operation run wrapper (matches the
         // id.isakai.run-app policy action's exec.path → its own dialog
-        // text). Wrapper re-inserts "uid-helper run" after the package.
+        // text). Wrapper re-inserts "uid-helper run-jvm" before the request.
         if (hasRunWrapper(io)) {
             try argv.append(gpa, run_wrapper);
-            try argv.append(gpa, pkg.name);
-            try argv.append(gpa, uid_s);
-            try argv.append(gpa, pkg.data_dir);
-            try argv.append(gpa, work);
-            if (wayland_sock) |s| {
-                try argv.append(gpa, "--wayland-sock");
-                try argv.append(gpa, s);
-            }
-            try argv.append(gpa, "--bridge-dir");
-            try argv.append(gpa, bridge_dir);
-            if (framework_dir) |f| {
-                try argv.append(gpa, "--framework");
-                try argv.append(gpa, f);
-            }
-            try argv.append(gpa, "--");
-            try argv.appendSlice(gpa, jvm_argv);
+            try argv.appendSlice(gpa, head.items[3..]);
             return spawnInherit(io, argv.items);
         }
         try argv.appendSlice(gpa, head.items);
-        try argv.appendSlice(gpa, jvm_argv);
         return spawnInherit(io, argv.items) catch |err| switch (err) {
             error.FileNotFound => {
                 argv.clearRetainingCapacity();
                 try argv.append(gpa, "/usr/bin/sudo");
                 try argv.append(gpa, "-n");
-                var head2 = try helperRunHead(gpa, exe, pkg.name, uid_s, pkg.data_dir, work, wayland_sock, bridge_dir, framework_dir);
+                var head2 = try helperRunHead(gpa, exe, pkg.name, uid_s, pkg.data_dir, pkg.apk, work, wayland_sock, bridge_dir, framework_dir, jvm_argv);
                 defer head2.deinit(gpa);
                 try argv.appendSlice(gpa, head2.items);
-                try argv.appendSlice(gpa, jvm_argv);
                 return spawnInherit(io, argv.items);
             },
             else => return err,
@@ -758,10 +784,9 @@ fn spawnViaHelper(
     }
     try argv.append(gpa, "/usr/bin/sudo");
     try argv.append(gpa, "-n");
-    var head = try helperRunHead(gpa, exe, pkg.name, uid_s, pkg.data_dir, work, wayland_sock, bridge_dir, framework_dir);
+    var head = try helperRunHead(gpa, exe, pkg.name, uid_s, pkg.data_dir, pkg.apk, work, wayland_sock, bridge_dir, framework_dir, jvm_argv);
     defer head.deinit(gpa);
     try argv.appendSlice(gpa, head.items);
-    try argv.appendSlice(gpa, jvm_argv);
     return spawnInherit(io, argv.items);
 }
 
@@ -818,23 +843,25 @@ pub fn launch(
     var m = try install.parseManifest(gpa, mbytes);
     defer install.freeManifest(gpa, &m);
 
-    try translateApp(io, gpa, pkg.apk);
+    const no_priv = registry.envFlag(env, "ISAKAI_NO_PRIVILEGE");
+    var selected = try runtime_model.select(io, gpa, pkg, framework_dir, !no_priv);
+    defer runtime_model.deinit(&selected, gpa);
+    const java = (try findJava(io, gpa, env, !no_priv)) orelse return error.NoJava;
+    defer gpa.free(java);
+
+    try translateAppWithRuntime(io, gpa, pkg.apk, java, framework_dir);
 
     // Mark starting.
     pkg.state = .starting;
     pkg.launch_id += 1;
     try reg.updateState(io, gpa, work, pkg);
 
-    const no_priv = registry.envFlag(env, "ISAKAI_NO_PRIVILEGE");
     if (no_priv) {
         const temp_dir = try std.fmt.allocPrint(gpa, "{s}/cache/tmp", .{pkg.data_dir});
         defer gpa.free(temp_dir);
         try std.Io.Dir.cwd().createDirPath(io, temp_dir);
     }
-    const java = (try findJava(io, gpa, env, !no_priv)) orelse return error.NoJava;
-    defer gpa.free(java);
-    const classes_dir = try std.fmt.allocPrint(gpa, "{s}/classes", .{pkg.apk});
-    defer gpa.free(classes_dir);
+    const classes_dir = selected.jvm_v1.artifacts.classes;
     const cp = try std.fmt.allocPrint(gpa, "{s}:{s}", .{ classes_dir, framework_dir });
     defer gpa.free(cp);
     if (!no_priv) {

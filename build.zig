@@ -50,11 +50,18 @@ pub fn build(b: *std.Build) void {
         .target = target,
         .optimize = optimize,
     });
+    const runtime_mod = b.createModule(.{
+        .root_source_file = b.path("src/runtime.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    runtime_mod.addImport("registry", registry_mod);
     launch_mod.addImport("dex", dex_mod);
     launch_mod.addImport("translate", translate_mod);
     launch_mod.addImport("registry", registry_mod);
     launch_mod.addImport("install", install_mod);
     launch_mod.addImport("bridge_path", path_mod);
+    launch_mod.addImport("runtime", runtime_mod);
     const helper_mod = b.createModule(.{
         .root_source_file = b.path("src/uid_helper.zig"),
         .target = target,

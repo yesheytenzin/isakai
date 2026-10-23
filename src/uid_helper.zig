@@ -239,6 +239,7 @@ pub const AllocateArgs = struct {
     uid: u32,
     data_dir: []const u8,
     work: []const u8,
+    code_dir: []const u8,
 };
 
 pub fn allocate(gpa: std.mem.Allocator, io: std.Io, args: AllocateArgs) HelperError!void {
@@ -481,6 +482,97 @@ fn hasExe(io: std.Io, path: []const u8) bool {
     return true;
 }
 
+pub const JvmRequest = struct {
+    package: []const u8,
+    uid: u32,
+    data_dir: []const u8,
+    work: []const u8,
+    java: [:0]const u8,
+    framework: []const u8,
+    windowed: bool,
+    app_class: [:0]const u8,
+    activity_class: [:0]const u8,
+    title: [:0]const u8,
+    app_theme: [:0]const u8,
+    activity_theme: [:0]const u8,
+    target_sdk: [:0]const u8,
+    min_sdk: [:0]const u8,
+    wayland_sock: ?[]const u8,
+    bridge_dir: ?[]const u8,
+};
+
+pub fn runJvm(gpa: std.mem.Allocator, request: JvmRequest, confinement_disabled: bool, err_writer: *std.Io.Writer) !u8 {
+    for ([_][]const u8{ request.app_class, request.activity_class, request.title }) |value| {
+        if (value.len == 0 or value.len > 4096) {
+            try err_writer.writeAll("uid-helper run-jvm: invalid text field\n");
+            return 2;
+        }
+    }
+    for ([_][]const u8{ request.app_theme, request.activity_theme, request.target_sdk, request.min_sdk }) |value| {
+        _ = std.fmt.parseInt(u32, value, 10) catch {
+            try err_writer.writeAll("uid-helper run-jvm: invalid numeric field\n");
+            return 2;
+        };
+    }
+    if (!std.mem.startsWith(u8, request.java, "/usr/lib/jvm/")) {
+        try err_writer.writeAll("uid-helper run-jvm: java is outside the trusted runtime roots\n");
+        return 2;
+    }
+    if (!validWaylandSockPath(request.framework) or std.mem.eql(u8, request.framework, "/")) {
+        try err_writer.writeAll("uid-helper run-jvm: bad framework path\n");
+        return 2;
+    }
+    if (!trustedFrameworkPath(request.framework)) {
+        try err_writer.writeAll("uid-helper run-jvm: framework is outside the trusted runtime profile\n");
+        return 2;
+    }
+    var prefix_buf: [4096]u8 = undefined;
+    const prefix = std.fmt.bufPrint(&prefix_buf, "{s}/code/{s}/", .{ request.work, request.package }) catch return 2;
+    if (!std.mem.startsWith(u8, request.code_dir, prefix) or !validWaylandSockPath(request.code_dir)) {
+        try err_writer.writeAll("uid-helper run-jvm: code directory is not anchored to the installed package\n");
+        return 2;
+    }
+    const classes = try std.fmt.allocPrintSentinel(gpa, "{s}/classes", .{request.code_dir}, 0);
+    defer gpa.free(classes);
+    const cp = try std.fmt.allocPrintSentinel(gpa, "{s}:{s}", .{ classes, request.framework }, 0);
+    defer gpa.free(cp);
+    const lib_path = try std.fmt.allocPrintSentinel(gpa, "-Djava.library.path={s}/lib:{s}/lib/x86_64:{s}/lib", .{ request.framework, request.code_dir, request.code_dir }, 0);
+    defer gpa.free(lib_path);
+    const code_prop = try std.fmt.allocPrintSentinel(gpa, "-Disakai.codeDir={s}", .{request.code_dir}, 0);
+    defer gpa.free(code_prop);
+    const temp_prop = try std.fmt.allocPrintSentinel(gpa, "-Djava.io.tmpdir={s}/cache/tmp", .{request.data_dir}, 0);
+    defer gpa.free(temp_prop);
+    const data_z = try gpa.dupeSentinel(u8, request.data_dir, 0);
+    defer gpa.free(data_z);
+    const package_z = try gpa.dupeSentinel(u8, request.package, 0);
+    defer gpa.free(package_z);
+    const argv: [18][:0]const u8 = .{
+        request.java,                                                                  "--enable-native-access=ALL-UNNAMED", lib_path,
+        if (request.windowed) "-Disakai.windowed=true" else "-Disakai.windowed=false", code_prop,                            temp_prop,
+        "-cp",                                                                         cp,                                   "org.isakai.runtime.IsakaiMain",
+        data_z,                                                                        request.app_class,                    request.activity_class,
+        package_z,                                                                     request.title,                        request.app_theme,
+        request.activity_theme,                                                        request.target_sdk,                   request.min_sdk,
+    };
+    return runPrepared(request.package, request.uid, request.data_dir, request.work, &argv, request.wayland_sock, request.bridge_dir, request.framework, confinement_disabled, err_writer);
+}
+
+fn trustedFrameworkPath(path: []const u8) bool {
+    if (std.mem.eql(u8, path, "/usr/share/isakai/framework")) return true;
+    const linux = std.os.linux;
+    var exe_buf: [4096]u8 = undefined;
+    const n = linux.readlink("/proc/self/exe", &exe_buf, exe_buf.len);
+    if (linux.errno(n) != .SUCCESS or n == exe_buf.len) return false;
+    const bin = std.fs.path.dirname(exe_buf[0..n]) orelse return false;
+    const prefix = std.fs.path.dirname(bin) orelse return false;
+    var expected_buf: [4096]u8 = undefined;
+    const expected = std.fmt.bufPrint(&expected_buf, "{s}/framework", .{prefix}) catch return false;
+    if (std.mem.eql(u8, path, expected)) return true;
+    var sibling_buf: [4096]u8 = undefined;
+    const sibling = std.fmt.bufPrint(&sibling_buf, "{s}/framework", .{bin}) catch return false;
+    return std.mem.eql(u8, path, sibling);
+}
+
 /// Fork, drop to the app user, set the per-app environment, exec the
 /// command. Parent waits and returns the child's exit code (or 128+signal).
 /// Must be root. `wayland_sock` (from the launcher's --wayland-sock flag)
@@ -490,7 +582,7 @@ fn hasExe(io: std.Io, path: []const u8) bool {
 /// CLONE_NEWNS mount-ns confinement, then setgroups(0) → setresgid →
 /// setresuid, every return checked, _exit(127) on failure. Never returns
 /// the child.
-pub fn runAs(
+fn runPrepared(
     package: []const u8,
     uid: u32,
     data_dir: []const u8,
@@ -521,20 +613,11 @@ pub fn runAs(
             return 2;
         }
     }
-    if (cmd.len == 0) {
-        try err_writer.writeAll("uid-helper run: no command\n");
-        return 2;
-    }
+    if (cmd.len != 18) unreachable;
     // argv[0] must be absolute (no PATH search: PATH is attacker-influenced
     // when invoked oddly) and name the java launcher.
     if (!validJavaCmd(cmd[0])) {
         try err_writer.writeAll("uid-helper run: command not allowlisted (absolute path to java required)\n");
-        return 2;
-    }
-    // The launcher always execs the IsakaiMain entry point; require its
-    // marker so the helper cannot be repurposed as a generic root exec.
-    if (!hasIsakaiMainMarker(cmd)) {
-        try err_writer.writeAll("uid-helper run: missing org.isakai.runtime.IsakaiMain marker\n");
         return 2;
     }
     // data_dir must be exactly work/data/<package> (anchor check without Io;
@@ -617,16 +700,6 @@ pub fn validJavaCmd(exe: [:0]const u8) bool {
     if (s.len == 0 or s[0] != '/') return false;
     if (std.mem.indexOf(u8, s, "..") != null) return false;
     return std.mem.eql(u8, std.fs.path.basename(s), "java");
-}
-
-/// The launcher always execs `org.isakai.runtime.IsakaiMain`; require the
-/// marker anywhere in argv so the helper cannot be repurposed as root exec.
-pub fn hasIsakaiMainMarker(cmd: []const [:0]const u8) bool {
-    for (cmd) |a| {
-        const s: []const u8 = a[0..a.len :0];
-        if (std.mem.eql(u8, s, "org.isakai.runtime.IsakaiMain")) return true;
-    }
-    return false;
 }
 
 /// True when every component of an absolute path grants o+x (dirs) and the

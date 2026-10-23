@@ -1,2 +1,2 @@
 #!/bin/sh
-exec /usr/bin/isakai uid-helper run "$@"
+exec /usr/bin/isakai uid-helper run-jvm "$@"

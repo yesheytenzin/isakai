@@ -295,47 +295,70 @@ fn cmdUidHelper(
     }
 }
 
-/// uid-helper run: fork, drop to the app user, exec the command.
-/// Argv: isakai uid-helper run <package> <uid> <data-dir> <work>
-///       [--wayland-sock <abs-path>] [--framework <abs-dir>] -- <exe> <args...>
-/// Must be root. Never returns on success (child execs, parent waits).
+/// Parse the exact JVM runtime request. Executable, JVM flags, classpath,
+/// native paths, preload and main class are reconstructed by the helper.
 fn cmdUidHelperRun(
     init: std.process.Init,
     err_writer: *std.Io.Writer,
     rest: []const [:0]const u8,
 ) !u8 {
-    const io = init.io;
-    _ = io;
     if (try requireRoot(err_writer)) |code| return code;
-    // rest[0]=run rest[1]=package rest[2]=uid rest[3]=data-dir rest[4]=work
-    // [rest[5]=--wayland-sock rest[6]=path] [rest[7]=--bridge-dir rest[8]=dir]
-    // [--framework <dir>] rest[sep]=-- rest[sep+1..]=cmd
     var wayland_sock: ?[]const u8 = null;
     var bridge_dir: ?[]const u8 = null;
-    var framework_dir: ?[]const u8 = null;
-    var sep: usize = 5;
-    if (rest.len > 6 and std.mem.eql(u8, rest[5], "--wayland-sock")) {
-        wayland_sock = rest[6];
-        sep = 7;
+    var cursor: usize = 5;
+    if (rest.len > cursor + 1 and std.mem.eql(u8, rest[cursor], "--wayland-sock")) {
+        wayland_sock = rest[cursor + 1];
+        cursor += 2;
     }
-    if (rest.len > sep + 1 and std.mem.eql(u8, rest[sep], "--bridge-dir")) {
-        bridge_dir = rest[sep + 1];
-        sep += 2;
+    if (rest.len > cursor + 1 and std.mem.eql(u8, rest[cursor], "--bridge-dir")) {
+        bridge_dir = rest[cursor + 1];
+        cursor += 2;
     }
-    if (rest.len > sep + 2 and std.mem.eql(u8, rest[sep], "--framework")) {
-        framework_dir = rest[sep + 1];
-        sep += 2;
-    }
-    if (rest.len < sep + 2 or !std.mem.eql(u8, rest[sep], "--")) {
-        try err_writer.writeAll("usage: isakai uid-helper run <package> <uid> <data-dir> <work> [--wayland-sock <path>] [--bridge-dir <dir>] [--framework <dir>] -- <exe> [args...]\n");
+    const names = [_][]const u8{
+        "--code-dir", "--java",      "--framework",      "--windowed",   "--app-class", "--activity-class",
+        "--title",    "--app-theme", "--activity-theme", "--target-sdk", "--min-sdk",
+    };
+    if (rest.len != cursor + names.len * 2) {
+        try err_writer.writeAll("usage: isakai uid-helper run-jvm <package> <uid> <data-dir> <work> [socket flags] --code-dir D --java J --framework F --windowed 0|1 --app-class C --activity-class C --title T --app-theme N --activity-theme N --target-sdk N --min-sdk N\n");
         return 2;
     }
+    var values: [names.len][:0]const u8 = undefined;
+    for (names, 0..) |name, i| {
+        if (!std.mem.eql(u8, rest[cursor], name)) {
+            try err_writer.print("uid-helper run-jvm: expected {s}\n", .{name});
+            return 2;
+        }
+        values[i] = rest[cursor + 1];
+        cursor += 2;
+    }
     const uid = std.fmt.parseInt(u32, rest[2], 10) catch {
-        try err_writer.writeAll("uid-helper run: bad uid\n");
+        try err_writer.writeAll("uid-helper run-jvm: bad uid\n");
+        return 2;
+    };
+    const windowed = if (std.mem.eql(u8, values[3], "1")) true else if (std.mem.eql(u8, values[3], "0")) false else {
+        try err_writer.writeAll("uid-helper run-jvm: windowed must be 0 or 1\n");
         return 2;
     };
     const confinement_disabled = std.mem.eql(u8, init.environ_map.get("ISAKAI_CONFINEMENT") orelse "", "0");
-    return uid_helper.runAs(rest[1], uid, rest[3], rest[4], rest[sep + 1 ..], wayland_sock, bridge_dir, framework_dir, confinement_disabled, err_writer);
+    return uid_helper.runJvm(init.gpa, .{
+        .package = rest[1],
+        .uid = uid,
+        .data_dir = rest[3],
+        .work = rest[4],
+        .code_dir = values[0],
+        .java = values[1],
+        .framework = values[2],
+        .windowed = windowed,
+        .app_class = values[4],
+        .activity_class = values[5],
+        .title = values[6],
+        .app_theme = values[7],
+        .activity_theme = values[8],
+        .target_sdk = values[9],
+        .min_sdk = values[10],
+        .wayland_sock = wayland_sock,
+        .bridge_dir = bridge_dir,
+    }, confinement_disabled, err_writer);
 }
 
 pub fn main(init: std.process.Init) !u8 {
@@ -464,7 +487,7 @@ pub fn main(init: std.process.Init) !u8 {
                 try err_writer.writeAll("usage: isakai uid-helper <allocate|remove|run> ...\n");
                 return 2;
             }
-            if (std.mem.eql(u8, rest[0], "run")) {
+            if (std.mem.eql(u8, rest[0], "run-jvm")) {
                 return cmdUidHelperRun(init, err_writer, rest);
             }
             // isakai uid-helper <allocate|remove> <package> <uid> <data-dir> <work>
@@ -476,4 +499,3 @@ pub fn main(init: std.process.Init) !u8 {
         },
     }
 }
-
