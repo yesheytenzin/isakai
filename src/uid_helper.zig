@@ -526,9 +526,7 @@ pub fn runJvm(gpa: std.mem.Allocator, request: JvmRequest, confinement_disabled:
         try err_writer.writeAll("uid-helper run-jvm: framework is outside the trusted runtime profile\n");
         return 2;
     }
-    var expected_buf: [4096]u8 = undefined;
-    const expected = std.fmt.bufPrint(&expected_buf, "{s}/code/{s}", .{ request.work, request.package }) catch return 2;
-    if (!std.mem.eql(u8, request.code_dir, expected) or !validWaylandSockPath(request.code_dir)) {
+    if (!trustedCodeDir(request.work, request.package, request.code_dir)) {
         try err_writer.writeAll("uid-helper run-jvm: code directory is not anchored to the installed package\n");
         return 2;
     }
@@ -555,6 +553,19 @@ pub fn runJvm(gpa: std.mem.Allocator, request: JvmRequest, confinement_disabled:
         request.activity_theme,                                                        request.target_sdk,                   request.min_sdk,
     };
     return runPrepared(request.package, request.uid, request.data_dir, request.work, &argv, request.wayland_sock, request.bridge_dir, request.framework, confinement_disabled, err_writer);
+}
+
+fn trustedCodeDir(work: []const u8, package: []const u8, path: []const u8) bool {
+    if (!validWaylandSockPath(path)) return false;
+    var prefix_buf: [4096]u8 = undefined;
+    const prefix = std.fmt.bufPrint(&prefix_buf, "{s}/code/{s}/", .{ work, package }) catch return false;
+    if (!std.mem.startsWith(u8, path, prefix)) return false;
+    const digest = path[prefix.len..];
+    if (digest.len != 64) return false;
+    for (digest) |byte| {
+        if (!std.ascii.isDigit(byte) and !(byte >= 'a' and byte <= 'f')) return false;
+    }
+    return true;
 }
 
 fn trustedFrameworkPath(path: []const u8) bool {

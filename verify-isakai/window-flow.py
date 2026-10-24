@@ -254,8 +254,10 @@ def main():
     work = artifacts / 'work'
     work.mkdir(mode=0o755)
     reserve_global_uids(work)
-    framework = artifacts / 'framework'
-    shutil.copytree(ROOT / 'zig-out/framework', framework)
+    framework = ROOT / 'zig-out/framework'
+    if opts.unprivileged:
+        framework = artifacts / 'framework'
+        shutil.copytree(ROOT / 'zig-out/framework', framework)
     package = 'org.isakai.e' + uuid.uuid4().hex[:12]
     peer = package + '.peer'
     env = dict(os.environ)

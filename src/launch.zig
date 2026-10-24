@@ -328,19 +328,18 @@ fn worldTraversable(path: []const u8) bool {
 /// /usr/lib/jvm/*/bin/java (highest valid feature wins). Every candidate
 /// is validated by executing `-version`; the first with feature >= 17 wins,
 /// except the /usr/lib/jvm scan which prefers the highest version.
-/// When `privileged` is true, candidates under non-traversable paths
-/// (e.g. a 0700 home) are skipped: the dropped child couldn't exec them.
+/// Privileged candidates must be under /usr/lib/jvm/ to match runJvm's
+/// trusted runtime roots, and world-traversable for the dropped child.
 pub fn findJava(
     io: std.Io,
     gpa: std.mem.Allocator,
     env: *const std.process.Environ.Map,
     privileged: bool,
 ) !?[]u8 {
-    // Privileged runs need world-traversable java binaries (o+x on every
-    // component including the file itself).
     const worldExec = struct {
         fn f(path: []const u8) bool {
             const linux = std.os.linux;
+            if (!std.mem.startsWith(u8, path, "/usr/lib/jvm/")) return false;
             if (!worldTraversable(path)) return false;
             var zbuf: [4096]u8 = undefined;
             if (path.len >= zbuf.len) return false;
