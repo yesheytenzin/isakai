@@ -40,35 +40,8 @@ public class IsakaiPackageManager extends PackageManager {
     @Override
     public ActivityInfo getActivityInfo(ComponentName component, int flags)
             throws android.content.pm.PackageManager.NameNotFoundException {
-        if (!isOwnComponent(component)) {
-            throw new NameNotFoundException(
-                    component == null ? "null" : component.flattenToString());
-        }
         ActivityInfo ai = new ActivityInfo();
-        ai.packageName = pkg();
-        ai.name = qualifiedName(component.getClassName());
-        ai.applicationInfo = getApplicationInfo(pkg(), flags);
-        String codeDir = System.getProperty("isakai.codeDir", "");
-        if (!codeDir.isEmpty()) {
-            boolean found = false;
-            try (android.content.res.XmlResourceParser parser = context.getResources().getAssets()
-                    .openXmlResourceParser("AndroidManifest.xml")) {
-                while (parser.next() != org.xmlpull.v1.XmlPullParser.END_DOCUMENT) {
-                    if (parser.getEventType() != org.xmlpull.v1.XmlPullParser.START_TAG) continue;
-                    if ("application".equals(parser.getName())) {
-                        ai.applicationInfo.theme = parser.getAttributeResourceValue(ANDROID, "theme", 0);
-                    } else if ("activity".equals(parser.getName())
-                            && ai.name.equals(qualifiedName(parser.getAttributeValue(ANDROID, "name")))) {
-                        ai.theme = parser.getAttributeResourceValue(ANDROID, "theme", 0);
-                        ai.parentActivityName = qualifiedName(parser.getAttributeValue(ANDROID, "parentActivityName"));
-                        found = true;
-                    }
-                }
-            } catch (java.io.IOException | org.xmlpull.v1.XmlPullParserException failure) {
-                throw new IllegalStateException("Cannot read installed activity manifest", failure);
-            }
-            if (!found) throw new NameNotFoundException(ai.name);
-        }
+        readComponent(component, flags, "activity", ai);
         return ai;
     }
 
@@ -134,6 +107,12 @@ public class IsakaiPackageManager extends PackageManager {
                         && info.name.equals(qualifiedName(parser.getAttributeValue(ANDROID, "name")))) {
                     found = true;
                     componentDepth = depth;
+                    if (info instanceof ActivityInfo) {
+                        ActivityInfo ai = (ActivityInfo) info;
+                        ai.theme = parser.getAttributeResourceValue(ANDROID, "theme", 0);
+                        ai.parentActivityName =
+                                qualifiedName(parser.getAttributeValue(ANDROID, "parentActivityName"));
+                    }
                 } else if (componentDepth != -1 && depth == componentDepth + 1
                         && "meta-data".equals(parser.getName()) && (flags & GET_META_DATA) != 0) {
                     readMetaData(parser, info);
@@ -163,16 +142,26 @@ public class IsakaiPackageManager extends PackageManager {
             value.type = raw[0];
             value.data = raw[1];
             if (value.type == TypedValue.TYPE_REFERENCE) {
-                context.getResources().getValue(value.data, value, true);
+                try {
+                    context.getResources().getValue(value.data, value, true);
+                } catch (android.content.res.Resources.NotFoundException dangling) {
+                    return;
+                }
             } else if (value.type == TypedValue.TYPE_STRING) {
                 value.string = parser.getAttributeValue(i);
             }
             if (value.type != TypedValue.TYPE_STRING && value.type != TypedValue.TYPE_FLOAT
+                    && value.type != TypedValue.TYPE_DIMENSION && value.type != TypedValue.TYPE_FRACTION
                     && (value.type < TypedValue.TYPE_FIRST_INT || value.type > TypedValue.TYPE_LAST_INT)) {
                 return;
             }
             if (info.metaData == null) info.metaData = new android.os.Bundle();
-            if (value.type == TypedValue.TYPE_STRING) {
+            if (value.type == TypedValue.TYPE_DIMENSION) {
+                info.metaData.putFloat(name, value.getDimension(
+                        context.getResources().getDisplayMetrics()));
+            } else if (value.type == TypedValue.TYPE_FRACTION) {
+                info.metaData.putFloat(name, value.getFraction(1.0f, 1.0f));
+            } else if (value.type == TypedValue.TYPE_STRING) {
                 info.metaData.putString(name, value.string == null ? null : value.string.toString());
             } else if (value.type == TypedValue.TYPE_FLOAT) {
                 info.metaData.putFloat(name, Float.intBitsToFloat(value.data));

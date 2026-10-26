@@ -282,6 +282,10 @@ export fn Java_org_isakai_bridge_IsakaiWindow_nMapBuffer(
     const height = dims.h;
     if (out_slot == null) return null;
     const fns = jniFunctions(env) orelse return null;
+    // Java receives the slot through out_slot[0]; reject a zero-length
+    // array before reserving anything.
+    const out_len = jniArrayLen(env, fns, out_slot) orelse return null;
+    if (out_len < 1) return null;
     const pix_len: usize = @as(usize, width) * @as(usize, height);
     const slot = win.freeBuffer(width, height, width, pix_len) catch return null;
     const bytes = win.tryMap(slot, width, height) orelse return null;
@@ -509,9 +513,10 @@ export fn Java_org_isakai_bridge_IsakaiWindow_nClose(
     win.close();
 }
 
-/// Copy `text` into the Wayland selection (empty clears). Silent
-/// local-only when no data device is bound; the Java side keeps its own
-/// copy either way. 0 on success, -1 on bad handle or JNI failure.
+/// Copy `text` into the Wayland selection (empty clears). Returns -1 on
+/// bad handle, JNI failure, or when no data device is bound (nothing
+/// was published); the Java side keeps its own copy either way.
+/// 0 on success.
 export fn Java_org_isakai_bridge_IsakaiWindow_nClipboardSet(
     env: ?*anyopaque,
     clazz: ?*anyopaque,
@@ -522,13 +527,13 @@ export fn Java_org_isakai_bridge_IsakaiWindow_nClipboardSet(
     const win = asWindow(handle) orelse return -1;
     if (win.isClosed()) return -1;
     if (jtext == null) {
-        win.clipboardCopy("");
+        if (!win.clipboardCopy("")) return -1;
         return 0;
     }
     const fns = jniFunctions(env) orelse return -1;
     const chars = jstrDup(env, fns, jtext) orelse return -1;
     defer gpa.free(chars);
-    win.clipboardCopy(chars);
+    if (!win.clipboardCopy(chars)) return -1;
     return 0;
 }
 

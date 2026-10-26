@@ -90,11 +90,14 @@ pub const Package = struct {
     /// Defaults to "" for entries written before arch capture landed;
     /// install always fills it, so empty means pre-arch registry.
     arch: []const u8 = "",
-    /// The native ABI slice selected and staged at install ("x86_64"), or ""
-    /// for a bytecode-only app with no native libraries. The installer stages
-    /// only the selected slice (other ABIs are dropped); this records which
-    /// one, so a reviewer can see the selection without re-reading the APK.
+    /// The native ABI slice selected at install ("x86_64"), or ""
+    /// for a bytecode-only app with no native libraries. The installer keeps
+    /// every ABI slice beside the retained base.apk; this records which one
+    /// is selected for execution, so a reviewer can see it without re-reading
+    /// the APK.
     native_abi: []const u8 = "",
+    /// android:versionCode pinned at install; upgrades to an older build fail.
+    version_code: u32 = 0,
 };
 
 pub const Registry = struct {
@@ -126,14 +129,19 @@ pub const Registry = struct {
     }
 
     /// Write `data` to `path` atomically: O_CREAT|O_EXCL|O_NOFOLLOW tmp
-    /// sibling + fsync + rename. The tmp name carries the pid so two
-    /// writers never share it; O_EXCL makes a stale tmp fail loudly
-    /// (caller unlinks and retries) instead of truncating. Fail-closed:
-    /// any error leaves the destination untouched.
+    /// sibling + fsync + rename + parent-dir fsync. The tmp name carries the
+    /// pid so two writers never share it; O_EXCL makes a stale tmp fail
+    /// loudly, so a clash unlinks it and retries once instead of jamming
+    /// every later save. Fail-closed: any error leaves the destination
+    /// untouched.
     pub fn writeAtomic(io: std.Io, gpa: std.mem.Allocator, path: []const u8, data: []const u8, mode: u32) !void {
         const tmp_path = try tmpSiblingPath(gpa, path);
         defer gpa.free(tmp_path);
-        const fd = try openTmpExclusive(tmp_path, mode);
+        const fd = openTmpExclusive(tmp_path, mode) catch |err| blk: {
+            if (err != error.TmpExists) return err;
+            try std.Io.Dir.deleteFileAbsolute(io, tmp_path);
+            break :blk try openTmpExclusive(tmp_path, mode);
+        };
         errdefer std.Io.Dir.deleteFileAbsolute(io, tmp_path) catch {};
         var off: usize = 0;
         while (off < data.len) {
@@ -156,6 +164,9 @@ pub const Registry = struct {
         }
         _ = std.os.linux.close(fd);
         try std.Io.Dir.renameAbsolute(tmp_path, path, io);
+        // The file fsync above orders the data; fsync the parent dir so
+        // the rename itself survives a crash.
+        try fsyncParentDir(path);
     }
 
     /// Tmp sibling for an atomic write: "<path>.tmp.<pid>". Caller owns.
@@ -464,19 +475,127 @@ pub const TerminateError = error{
 } || std.posix.KillError || std.Io.Cancelable;
 
 pub fn terminatePid(io: std.Io, pid: u32, timeout_ms: u64) TerminateError!void {
+    return terminateInner(io, pid, null, timeout_ms);
+}
+
+/// Checked terminate for destructive paths (uninstall): `expected_started`
+/// is the launch epoch recorded in the registry. Refuses when /proc shows
+/// the pid started after that epoch (a recycled pid), or when the occupant
+/// changes mid-kill; 0 skips the epoch check (pre-identity entries) but
+/// still guards the kill sequence against recycling.
+pub fn terminatePidChecked(io: std.Io, pid: u32, expected_started: u64, timeout_ms: u64) TerminateError!void {
+    return terminateInner(io, pid, expected_started, timeout_ms);
+}
+
+/// Clock ticks per second for /proc starttime conversion (Linux USER_HZ).
+const proc_clk_tck: u64 = 100;
+/// Slack comparing a recorded launch epoch against the /proc-derived start
+/// time: epoch truncation plus boot-time granularity.
+const proc_start_slack_s: u64 = 120;
+
+/// Start time of `pid` in clock ticks since boot (/proc/<pid>/stat field
+/// 22). Null when the pid is gone or unreadable.
+fn procStartTicks(io: std.Io, pid: u32) ?u64 {
+    var pathbuf: [64]u8 = undefined;
+    const path = std.fmt.bufPrint(&pathbuf, "/proc/{d}/stat", .{pid}) catch return null;
+    var file = std.Io.Dir.openFileAbsolute(io, path, .{ .mode = .read_only }) catch return null;
+    defer file.close(io);
+    var rbuf: [512]u8 = undefined;
+    var reader = file.reader(io, &rbuf);
+    var sbuf: [1024]u8 = undefined;
+    const n = reader.interface.readSliceShort(&sbuf) catch return null;
+    const data = sbuf[0..n];
+    // comm may contain spaces/parens: fields start after the last ')'.
+    const end = std.mem.lastIndexOfScalar(u8, data, ')') orelse return null;
+    var it = std.mem.splitScalar(u8, data[end + 1 ..], ' ');
+    var i: usize = 0;
+    while (it.next()) |tok| {
+        if (tok.len == 0) continue;
+        i += 1;
+        if (i == 20) return std.fmt.parseInt(u64, tok, 10) catch null;
+    }
+    return null;
+}
+
+/// Boot time (epoch seconds) from /proc/stat. Null when unreadable.
+fn procBootTime(io: std.Io) ?u64 {
+    var file = std.Io.Dir.openFileAbsolute(io, "/proc/stat", .{ .mode = .read_only }) catch return null;
+    defer file.close(io);
+    var rbuf: [256]u8 = undefined;
+    var reader = file.reader(io, &rbuf);
+    var line: [64]u8 = undefined;
+    var len: usize = 0;
+    var overflowed = false;
+    while (true) {
+        const byte = reader.interface.takeByte() catch return null;
+        if (byte == '\n') {
+            if (!overflowed and std.mem.startsWith(u8, line[0..len], "btime ")) {
+                return std.fmt.parseInt(u64, line[0..len]["btime ".len..], 10) catch null;
+            }
+            len = 0;
+            overflowed = false;
+        } else if (!overflowed) {
+            if (len < line.len) {
+                line[len] = byte;
+                len += 1;
+            } else overflowed = true;
+        }
+    }
+}
+
+/// True while `pid` still names the process that started at `ticks`.
+fn sameProc(io: std.Io, pid: u32, ticks: u64) bool {
+    const cur = procStartTicks(io, pid) orelse return false;
+    return cur == ticks;
+}
+
+/// fsync the directory containing `path` so a just-completed rename is
+/// durable before returning.
+fn fsyncParentDir(path: []const u8) !void {
+    const dir = std.fs.path.dirname(path) orelse ".";
+    const linux = std.os.linux;
+    var zbuf: [4096]u8 = undefined;
+    if (dir.len + 1 > zbuf.len) return error.NameTooLong;
+    @memcpy(zbuf[0..dir.len], dir);
+    zbuf[dir.len] = 0;
+    const z: [*:0]const u8 = @ptrCast(&zbuf);
+    const rc = linux.openat(linux.AT.FDCWD, z, .{ .DIRECTORY = true, .CLOEXEC = true }, 0);
+    if (linux.errno(rc) != .SUCCESS) return error.OpenFailed;
+    const fd: linux.fd_t = @bitCast(@as(u32, @truncate(rc)));
+    defer _ = linux.close(fd);
+    if (linux.errno(linux.fsync(fd)) != .SUCCESS) return error.SyncFailed;
+}
+
+fn terminateInner(io: std.Io, pid: u32, expected_started: ?u64, timeout_ms: u64) TerminateError!void {
     const self: u32 = @intCast(std.posix.system.getpid());
     if (pid <= 1 or pid == self) return error.Refused;
+    // Confirm identity before signaling: sample the /proc start time and
+    // require the same occupant for the whole sequence.
+    const start = procStartTicks(io, pid);
+    if (start == null and !isAlive(pid)) return;
+    const t0 = start orelse return error.Refused;
+    if (expected_started) |exp| {
+        if (exp != 0) {
+            const btime = procBootTime(io) orelse return error.Refused;
+            if (btime +| t0 / proc_clk_tck > exp +| proc_start_slack_s) return error.Refused;
+        }
+    }
     if (!isAlive(pid)) return;
     std.posix.kill(@intCast(pid), .TERM) catch |err| switch (err) {
         error.ProcessNotFound => return,
         else => return err,
     };
-    if (try awaitGone(io, pid, timeout_ms)) return;
+    if (try awaitGone(io, pid, t0, timeout_ms)) return;
+    // Re-confirm before escalating: never SIGKILL a recycled occupant.
+    if (!sameProc(io, pid, t0)) {
+        if (!isAlive(pid)) return;
+        return error.Refused;
+    }
     std.posix.kill(@intCast(pid), .KILL) catch |err| switch (err) {
         error.ProcessNotFound => return,
         else => return err,
     };
-    if (try awaitGone(io, pid, kill_recheck_ms)) return;
+    if (try awaitGone(io, pid, t0, kill_recheck_ms)) return;
     return error.Timeout;
 }
 
@@ -484,12 +603,14 @@ const terminate_poll_ms: u64 = 50;
 const kill_recheck_ms: u64 = 500;
 
 /// Poll isAlive every ~50ms up to budget_ms; true once the pid is gone.
-fn awaitGone(io: std.Io, pid: u32, budget_ms: u64) TerminateError!bool {
+/// Refuses when the occupant changes mid-wait (pid recycled under us).
+fn awaitGone(io: std.Io, pid: u32, ticks: u64, budget_ms: u64) TerminateError!bool {
     var waited: u64 = 0;
     while (waited < budget_ms) {
         const step: u64 = @min(terminate_poll_ms, budget_ms - waited);
         try std.Io.sleep(io, .fromMilliseconds(@as(i64, @intCast(step))), .awake);
         if (!isAlive(pid)) return true;
+        if (!sameProc(io, pid, ticks)) return error.Refused;
         waited += step;
     }
     return !isAlive(pid);

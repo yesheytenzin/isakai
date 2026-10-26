@@ -135,6 +135,7 @@ final class AndroidfwTable implements ResourceTable {
         @Override
         public void setTo(ThemeImpl other) {
             if (other instanceof NativeThemeImpl) theme.setTo(((NativeThemeImpl) other).theme);
+            else theme.clear();
         }
 
         @Override

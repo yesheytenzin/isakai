@@ -25,7 +25,28 @@ public class ContextWrapper extends Context {
 
     @Override
     public Context createConfigurationContext(android.content.res.Configuration overrideConfiguration) {
-        return base.createConfigurationContext(overrideConfiguration);
+        if (overrideConfiguration == null) {
+            throw new IllegalArgumentException("overrideConfiguration must not be null");
+        }
+        android.content.res.Resources baseResources = getResources();
+        android.content.res.Configuration config = baseResources.getConfiguration();
+        config.updateFrom(overrideConfiguration);
+        android.content.res.Resources resources = new android.content.res.Resources(
+                baseResources.getAssets(), baseResources.getDisplayMetrics(), config);
+        Context self = this;
+        return new ContextWrapper(self) {
+            @Override
+            public android.content.res.Resources getResources() {
+                return resources;
+            }
+
+            @Override
+            public android.content.res.Resources.Theme getTheme() {
+                android.content.res.Resources.Theme theme = resources.newTheme();
+                theme.setTo(self.getTheme());
+                return theme;
+            }
+        };
     }
 
     @Override

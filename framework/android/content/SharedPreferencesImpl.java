@@ -283,7 +283,7 @@ public final class SharedPreferencesImpl implements SharedPreferences {
 
     // --- Durable write protocol: .bak rename-write-fsync-chmod(0600)-stat-unlink ---
 
-    private void writeToDisk(Map<String, Object> snapshot) {
+    private boolean writeToDisk(Map<String, Object> snapshot) {
         File parent = file.getParentFile();
         if (parent != null && !parent.isDirectory()) {
             parent.mkdirs();
@@ -293,7 +293,7 @@ public final class SharedPreferencesImpl implements SharedPreferences {
                 if (backupFile.exists()) backupFile.delete();
                 if (!file.renameTo(backupFile)) {
                     System.err.println("isakai: prefs cannot backup " + file);
-                    return;
+                    return false;
                 }
             }
             boolean ok = false;
@@ -307,10 +307,12 @@ public final class SharedPreferencesImpl implements SharedPreferences {
             }
             ok = true;
             if (ok) backupFile.delete();
+            return true;
         } catch (Exception e) {
             System.err.println("isakai: prefs write failed for " + file + ": " + e.getMessage());
             if (file.exists()) file.delete();
             if (backupFile.exists()) backupFile.renameTo(file);
+            return false;
         }
     }
 
@@ -343,7 +345,12 @@ public final class SharedPreferencesImpl implements SharedPreferences {
 
         @Override
         public Editor putStringSet(String key, Set<String> values) {
-            staged.put(key, values != null ? new HashSet<>(values) : null);
+            if (values == null) {
+                staged.remove(key);
+                removed.add(key);
+                return this;
+            }
+            staged.put(key, new HashSet<>(values));
             removed.remove(key);
             return this;
         }
@@ -412,9 +419,10 @@ public final class SharedPreferencesImpl implements SharedPreferences {
             }
             final CountDownLatch latch = new CountDownLatch(1);
             final Map<String, Object> toWrite = snapshot;
+            final java.util.concurrent.atomic.AtomicBoolean wrote = new java.util.concurrent.atomic.AtomicBoolean(false);
             IsakaiPrefsWork.enqueue(() -> {
                 try {
-                    writeToDisk(toWrite);
+                    wrote.set(writeToDisk(toWrite));
                 } finally {
                     latch.countDown();
                 }
@@ -426,7 +434,7 @@ public final class SharedPreferencesImpl implements SharedPreferences {
                 return false;
             }
             for (String k : changed) notifyListeners(k);
-            return true;
+            return wrote.get();
         }
 
         @Override

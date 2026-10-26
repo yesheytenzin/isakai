@@ -1,0 +1,10 @@
+step	what	evidence	result
+B-design	fix-all playbook + 6 disjoint areas	.audit/fixall.todo.md	designed
+A-privileged	F1 19-check F2 fail-closed F17 NOFOLLOW F18 fixed-exe N2 data-cap	built green after exe-param fix	VERIFIED (build)
+B-installer	F3 staged-verify F4 exact-name F6 pid F13 downgrade F14 reuse F15 fsync F16 order F21 header	check --check clean, flow install ok	VERIFIED (build+flow)
+C-translator	F19 reject-bad F20 budget+caps	fresh-tree calc install+launch translated clean	VERIFIED (flow)
+D-framework	F8 pop-all F9 meta F10 qualify F11 theme F12 ref+dp F30 hex N1 reset F5 commit	calc flow PASS incl prefs flip	VERIFIED (flow)
+E-bridge	F7 len F22 rdebug F23 dlerror F24 table N4-handles N5 ring N6 gen+clipboard	build green; N4-txn blocked	VERIFIED (build) except N4-txn BLOCKED
+F-resources	F25 dialog F26 kbflags F27 theme-clear F28 reverse F29 press N7 KEEP-gate	calc flow PASS; evidence cited	VERIFIED (flow+gate)
+fix-round	unused exe param in spawnViaHelper	removed param+call site	build green	CHECK_OK
+DEBT	Keyboard/KeyboardView/CountDownTimer/LogPrinter/Printer: all entered via bulk commit 0ce08e8, true author unattributable; zero references tree-wide as of today	KEEP until IME/framework work claims them; delete if still unreferenced	RECORDED

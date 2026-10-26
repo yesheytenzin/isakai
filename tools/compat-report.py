@@ -38,7 +38,7 @@ def native_inventory(archive):
                 if parts[1] in expected and ((elf_class,machine)!=expected[parts[1]] or endian!='little'):
                     item['problems'].append('directory_elf_abi_mismatch')
         details.append(item)
-    status='bytecode_only' if not abis else 'supported_subset' if 'x86_64' in abis else 'unsupported'
+    status='bytecode_only' if not abis else 'header_only' if 'x86_64' in abis else 'unsupported'
     if any(item['selected'] and item['problems'] for item in details):status='invalid_native_libraries'
     host=platform.machine()
     result={'available':abis,'selected':'x86_64' if 'x86_64' in abis else None,

@@ -96,9 +96,10 @@ void isakai_res_close(IsakaiRes* res) { delete res; }
 
 // fields: mcc, mnc, orientation, touchscreen, density, keyboard, inputFlags,
 // navigation, screenWidth, screenHeight, smallestScreenWidthDp,
-// screenWidthDp, screenHeightDp, screenLayout, uiMode, colorMode, sdkVersion
+// screenWidthDp, screenHeightDp, screenLayout, uiMode, colorMode, sdkVersion,
+// hardKeyboardHidden
 void isakai_res_set_config(IsakaiRes* res, const int32_t* f, size_t n, const char* locale) {
-  if (n < 17) return;
+  if (n < 18) return;
   android::ResTable_config c{};
   c.size = sizeof(c);
   c.mcc = static_cast<uint16_t>(f[0]);
@@ -107,7 +108,7 @@ void isakai_res_set_config(IsakaiRes* res, const int32_t* f, size_t n, const cha
   c.touchscreen = static_cast<uint8_t>(f[3]);
   c.density = static_cast<uint16_t>(f[4]);
   c.keyboard = static_cast<uint8_t>(f[5]);
-  c.inputFlags = static_cast<uint8_t>(f[6]);
+  c.inputFlags = static_cast<uint8_t>(f[6] | ((f[17] & 0x3) << 4));  // match masks read only the low nibble
   c.navigation = static_cast<uint8_t>(f[7]);
   c.screenWidth = static_cast<uint16_t>(f[8]);
   c.screenHeight = static_cast<uint16_t>(f[9]);
@@ -198,6 +199,11 @@ bool isakai_theme_apply(IsakaiTheme* theme, uint32_t style, bool force) {
 bool isakai_theme_set_to(IsakaiTheme* dst, const IsakaiTheme* src) {
   std::lock_guard<std::mutex> lock(dst->res->mutex);
   return dst->theme->SetTo(*src->theme).has_value();
+}
+
+void isakai_theme_clear(IsakaiTheme* theme) {
+  std::lock_guard<std::mutex> lock(theme->res->mutex);
+  theme->theme->Clear();
 }
 
 bool isakai_theme_attr(IsakaiTheme* theme, uint32_t attr, bool resolve, IsakaiValue* out) {

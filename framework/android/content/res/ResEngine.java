@@ -47,6 +47,7 @@ final class ResEngine implements AutoCloseable {
     static native void nThemeDelete(long theme);
     static native boolean nThemeApply(long theme, int style, boolean force);
     static native boolean nThemeSetTo(long dst, long src);
+    static native void nThemeClear(long theme);
     static native boolean nThemeAttr(long theme, int attr, boolean resolve, int[] out);
     static native int nThemeChangingConfigurations(long theme);
     static native boolean nApplyStyle(long theme, long xml, int defStyleAttr, int defStyleRes,
@@ -173,6 +174,9 @@ final class ResEngine implements AutoCloseable {
             c.keyboardHidden | (c.navigationHidden << 2), c.navigation,
             Math.max(m.widthPixels, m.heightPixels), Math.min(m.widthPixels, m.heightPixels),
             smallest, widthDp, heightDp, c.screenLayout, uiMode, c.colorMode, sdk,
+            // No selector field exists for this in ResTable_config; res_engine.cpp
+            // carries it in the free upper inputFlags bits.
+            c.hardKeyboardHidden,
         };
         Locale locale = c.locale != null ? c.locale : Locale.getDefault();
         nSetConfiguration(ptr(), fields, locale.toLanguageTag());
@@ -239,6 +243,10 @@ final class ResEngine implements AutoCloseable {
 
         void setTo(NativeTheme other) {
             nThemeSetTo(ptr(), other.ptr());
+        }
+
+        void clear() {
+            nThemeClear(ptr());
         }
 
         TypedValue attribute(int attr, boolean resolveRefs) {

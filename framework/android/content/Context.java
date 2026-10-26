@@ -326,6 +326,13 @@ public abstract class Context {
             public android.content.res.Resources getResources() {
                 return resources;
             }
+
+            @Override
+            public android.content.res.Resources.Theme getTheme() {
+                android.content.res.Resources.Theme theme = resources.newTheme();
+                theme.setTo(Context.this.getTheme());
+                return theme;
+            }
         };
     }
 

@@ -214,7 +214,17 @@ extern fn dlvsym(handle: ?*anyopaque, symbol: [*:0]const u8, version: [*:0]const
 extern fn dladdr(addr: ?*const anyopaque, info: *DlInfo) c_int;
 extern fn setenv(name: [*:0]const u8, value: [*:0]const u8, overwrite: c_int) c_int;
 extern fn getenv(name: [*:0]const u8) ?[*:0]u8;
-extern var _r_debug: u8;
+// ELF link.h `struct r_debug` (64-bit): version, map, brk, state, ldbase.
+// Declared at its true size: the Android loader reads the whole struct
+// through _r_debug_ptr, and a narrower declaration corrupts neighbors.
+const RDebug = extern struct {
+    r_version: c_int,
+    r_map: ?*anyopaque,
+    r_brk: usize,
+    r_state: c_int,
+    r_ldbase: usize,
+};
+extern var _r_debug: RDebug;
 extern fn atan2(y: f64, x: f64) f64;
 
 const rtld_next: ?*anyopaque = @ptrFromInt(~@as(usize, 0));
@@ -282,8 +292,7 @@ var bionic_dlsym: ?BionicDlsymFn = null;
 var bionic_dlclose: ?BionicDlcloseFn = null;
 var bionic_dlerror: ?BionicDlerrorFn = null;
 
-const max_bionic_handles = 64;
-var bionic_handles: [max_bionic_handles]?*anyopaque = @splat(null);
+var bionic_handles: std.ArrayListUnmanaged(?*anyopaque) = .empty;
 var handles_lock = std.atomic.Value(bool).init(false);
 
 fn handlesLock() void {
@@ -297,19 +306,22 @@ fn handlesUnlock() void {
 fn trackHandle(handle: *anyopaque) bool {
     handlesLock();
     defer handlesUnlock();
-    for (&bionic_handles) |*slot| {
+    for (bionic_handles.items) |*slot| {
         if (slot.* == null) {
             slot.* = handle;
             return true;
         }
     }
-    return false;
+    // No cap: grow the table instead of closing a good library and
+    // failing the load once the initial slots fill.
+    bionic_handles.append(std.heap.c_allocator, handle) catch return false;
+    return true;
 }
 
 fn isTracked(handle: *anyopaque) bool {
     handlesLock();
     defer handlesUnlock();
-    for (bionic_handles) |slot| {
+    for (bionic_handles.items) |slot| {
         if (slot == handle) return true;
     }
     return false;
@@ -318,7 +330,7 @@ fn isTracked(handle: *anyopaque) bool {
 fn untrackHandle(handle: *anyopaque) bool {
     handlesLock();
     defer handlesUnlock();
-    for (&bionic_handles) |*slot| {
+    for (bionic_handles.items) |*slot| {
         if (slot.* == handle) {
             slot.* = null;
             return true;
@@ -329,6 +341,10 @@ fn untrackHandle(handle: *anyopaque) bool {
 
 threadlocal var err_buf: [512]u8 = undefined;
 threadlocal var err_len: usize = 0;
+
+fn clearError() void {
+    err_len = 0;
+}
 
 fn setError(comptime fmt: []const u8, args: anytype) void {
     const text = std.mem.printSentinel(&err_buf, fmt, args, 0) catch {
@@ -430,7 +446,10 @@ export fn dlopen(file_name: ?[*:0]const u8, flags: c_int) ?*anyopaque {
     // Host libraries (libjvm's own dependencies, JNI libs built for glibc)
     // keep the normal path. Only a library glibc rejects is retried with the
     // Android loader.
-    if (real_dlopen.?(file_name, flags)) |handle| return handle;
+    if (real_dlopen.?(file_name, flags)) |handle| {
+        clearError();
+        return handle;
+    }
     if (file_name == null) return null;
     if (!ensureLoader()) return null;
     const handle = bionic_dlopen.?(file_name.?, flags) orelse {
@@ -441,29 +460,44 @@ export fn dlopen(file_name: ?[*:0]const u8, flags: c_int) ?*anyopaque {
     };
     if (!trackHandle(handle)) {
         _ = bionic_dlclose.?(handle);
-        setError("isakai: too many bionic libraries loaded", .{});
+        setError("isakai: out of memory tracking bionic library", .{});
         return null;
     }
+    clearError();
     return handle;
 }
 
 export fn dlsym(handle: ?*anyopaque, symbol: [*:0]const u8) ?*anyopaque {
     resolveReal();
     if (handle) |h| {
-        if (isTracked(h)) return bionic_dlsym.?(h, symbol);
+        if (isTracked(h)) {
+            const sym = bionic_dlsym.?(h, symbol) orelse {
+                if (bionic_dlerror) |f| {
+                    if (f()) |message| setError("{s}", .{std.mem.sliceTo(message, 0)});
+                }
+                return null;
+            };
+            clearError();
+            return sym;
+        }
     }
-    return if (real_dlsym) |f| f(handle, symbol) else null;
+    const sym = if (real_dlsym) |f| f(handle, symbol) else null;
+    if (sym != null) clearError();
+    return sym;
 }
 
 export fn dlclose(handle: ?*anyopaque) c_int {
     resolveReal();
     if (handle) |h| {
         if (untrackHandle(h)) {
-            if (bionic_dlclose) |f| return f(h);
-            return 0;
+            const rc = if (bionic_dlclose) |f| f(h) else 0;
+            if (rc == 0) clearError();
+            return rc;
         }
     }
-    return if (real_dlclose) |f| f(handle) else -1;
+    const rc = if (real_dlclose) |f| f(handle) else -1;
+    if (rc == 0) clearError();
+    return rc;
 }
 
 export fn dlerror() ?[*:0]u8 {

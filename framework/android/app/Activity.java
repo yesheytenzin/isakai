@@ -535,9 +535,16 @@ public class Activity extends android.view.ContextThemeWrapper implements androi
         final java.util.ArrayList<Activity> stack = new java.util.ArrayList<>();
         final java.util.Queue<Runnable> pending = new java.util.concurrent.ConcurrentLinkedQueue<>();
         Activity top() { return stack.get(stack.size() - 1); }
+        static String expandName(android.content.ComponentName component) {
+            String name = component.getClassName();
+            if (name.startsWith(".")) return component.getPackageName() + name;
+            if (name.indexOf('.') < 0) return component.getPackageName() + "." + name;
+            return name;
+        }
         boolean contains(android.content.ComponentName dest) {
+            String want = expandName(dest);
             for (Activity activity : stack)
-                if (activity.getClass().getName().equals(dest.getClassName())) return true;
+                if (activity.getClass().getName().equals(want)) return true;
             return false;
         }
         void launch(Activity caller, Intent intent, int code) {
@@ -548,9 +555,7 @@ public class Activity extends android.view.ContextThemeWrapper implements androi
             final Activity next;
             final int destinationTheme;
             try {
-                String name = component.getClassName();
-                if (name.startsWith(".")) name = component.getPackageName() + name;
-                else if (name.indexOf('.') < 0) name = component.getPackageName() + "." + name;
+                String name = expandName(component);
                 destinationTheme = caller.getPackageManager().getActivityInfo(component, 0).theme;
                 next = Class.forName(name).asSubclass(Activity.class).getDeclaredConstructor().newInstance();
             } catch (ReflectiveOperationException | ClassCastException
@@ -790,7 +795,14 @@ public class Activity extends android.view.ContextThemeWrapper implements androi
         android.content.ComponentName dest = upIntent.getComponent();
         if (dest == null) return false;
         if (navigator.contains(dest)) {
-            finish();
+            String want = Navigator.expandName(dest);
+            int target = -1;
+            for (int i = 0; i < navigator.stack.size(); i++) {
+                if (navigator.stack.get(i).getClass().getName().equals(want)) { target = i; break; }
+            }
+            for (int i = navigator.stack.size() - 1; i > target && target >= 0; i--) {
+                navigator.stack.get(i).finish();
+            }
             return true;
         }
         startActivity(upIntent);

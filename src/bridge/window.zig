@@ -76,6 +76,11 @@ pub const Window = struct {
     /// mapped buffer is outstanding. STALE after any post/commit/remake:
     /// a second commit of the same slot is a no-op error.
     last_mapped: ?usize = null,
+    /// Pool generation at the last tryMap; commit rejects the buffer when
+    /// a resize remade the pool (unmapping Java's DirectByteBuffer) since.
+    mapped_gen: u64 = 0,
+    /// Bumped on every pool (re)make; tryMap stamps it into mapped_gen.
+    pool_gen: u64 = 0,
     closed: bool = false,
     sync_id: u32 = 0,
     sync_done: bool = false,
@@ -137,6 +142,8 @@ pub const Window = struct {
     ev_head: usize = 0,
     ev_len: usize = 0,
     ev_dropped: bool = false,
+    /// Events dropped since the last full drain (see takeInput).
+    ev_drop_count: usize = 0,
 
     // --- M4 touch/output state (touch agent owns; clipboard agent owns
     // --- data-device state elsewhere in this struct) ---
@@ -347,6 +354,7 @@ pub const Window = struct {
         const buf_len = @as(usize, w) * 4 * @as(usize, h);
         if ((slot + 1) * buf_len > map.len) return null;
         self.last_mapped = slot;
+        self.mapped_gen = self.pool_gen;
         return map[slot * buf_len ..][0..buf_len];
     }
 
@@ -371,9 +379,14 @@ pub const Window = struct {
     }
 
     /// Commit the buffer previously handed out by tryMap. Returns false
-    /// when there is no outstanding mapped buffer (stale/double commit).
+    /// when there is no outstanding mapped buffer (stale/double commit)
+    /// or a resize remade the pool since, unmapping Java's buffer.
     pub fn commit(self: *Window, w: u31, h: u31) !bool {
         const bi = self.last_mapped orelse return false;
+        if (self.mapped_gen != self.pool_gen) {
+            self.last_mapped = null;
+            return false;
+        }
         try self.commitSlot(bi, w, h);
         return true;
     }
@@ -627,12 +640,13 @@ pub const Window = struct {
     }
 
     /// Copy: publish `text` as the Wayland selection. Empty text clears
-    /// the selection (null source). No manager/seat/device = local-only:
-    /// record nothing here; the Java side keeps its process-local copy.
-    /// A previous live source is destroyed first. Best-effort sends: a
-    /// dead socket leaves the text staged for the send handler.
-    pub fn clipboardCopy(self: *Window, text: []const u8) void {
-        if (self.data_manager == 0 or self.data_device == 0) return;
+    /// the selection (null source). Returns false when no manager/seat
+    /// device is bound (nothing published); the Java side keeps its own
+    /// copy either way. A previous live source is destroyed first.
+    /// Best-effort sends: a dead socket leaves the text staged for the
+    /// send handler.
+    pub fn clipboardCopy(self: *Window, text: []const u8) bool {
+        if (self.data_manager == 0 or self.data_device == 0) return false;
         if (self.clip_source != 0) {
             self.sendWords(self.clip_source, 0, &.{}) catch {};
             self.clip_source = 0;
@@ -643,13 +657,13 @@ pub const Window = struct {
         }
         if (text.len == 0) {
             self.sendWords(self.data_device, 1, &.{ 0, self.last_serial }) catch {};
-            return;
+            return true;
         }
-        const dup = self.gpa.dupe(u8, text) catch return;
+        const dup = self.gpa.dupe(u8, text) catch return false;
         const src = self.allocId();
         self.sendWords(self.data_manager, 0, &.{src}) catch {
             self.gpa.free(dup);
-            return;
+            return false;
         };
         self.sendStr(src, 0, clip_mime_utf8) catch {};
         self.sendStr(src, 0, clip_mime_plain) catch {};
@@ -657,6 +671,7 @@ pub const Window = struct {
         self.sendWords(self.data_device, 1, &.{ src, self.last_serial }) catch {};
         self.clip_source = src;
         self.clip_text = dup;
+        return true;
     }
 
     /// Best-effort clear of our selection (null source + drop staged text).
@@ -864,13 +879,33 @@ pub const Window = struct {
     // extern/linkLibC surface lives in xkb.zig).
     // ------------------------------------------------------------------
 
-    /// Push one 8-jint event. Cap 256; on overflow the oldest is dropped
-    /// and `ev_dropped` latches (takeInput clears it on read).
+    /// Push one 8-jint event. Cap 256; on overflow the oldest mergeable
+    /// motion event (kind 2) is dropped first — only the newest position
+    /// matters — else the oldest event. `ev_dropped` latches with a count
+    /// until takeInput fully drains, so a stuck key is never hidden.
     pub fn pushEvent(self: *Window, ev: [8]i32) void {
         if (self.ev_len == self.events.len) {
-            self.ev_head = (self.ev_head + 1) % self.events.len;
-            self.ev_len -= 1;
+            var drop: ?usize = null;
+            var i: usize = 0;
+            while (i < self.ev_len) : (i += 1) {
+                if (self.events[(self.ev_head + i) % self.events.len][0] == 2) {
+                    drop = i;
+                    break;
+                }
+            }
+            if (drop) |d| {
+                var j = d;
+                while (j + 1 < self.ev_len) : (j += 1) {
+                    self.events[(self.ev_head + j) % self.events.len] =
+                        self.events[(self.ev_head + j + 1) % self.events.len];
+                }
+                self.ev_len -= 1;
+            } else {
+                self.ev_head = (self.ev_head + 1) % self.events.len;
+                self.ev_len -= 1;
+            }
             self.ev_dropped = true;
+            self.ev_drop_count += 1;
         }
         const idx = (self.ev_head + self.ev_len) % self.events.len;
         self.events[idx] = ev;
@@ -882,14 +917,20 @@ pub const Window = struct {
         return self.ev_len;
     }
 
-    /// True when at least one event was dropped since the last takeInput.
+    /// True when at least one event was dropped since the last full drain.
     pub fn inputDropped(self: *const Window) bool {
         return self.ev_dropped;
     }
 
+    /// Events dropped since the last full drain.
+    pub fn inputDropCount(self: *const Window) usize {
+        return self.ev_drop_count;
+    }
+
     /// Drain up to `out.len / 8` events into `out` (must be a multiple of
-    /// 8 ints). Returns the event count; clears the dropped flag.
-    /// Pure accessor: performs no I/O.
+    /// 8 ints). Returns the event count; clears the dropped flag and
+    /// count only once fully drained, so a partial drain keeps reporting
+    /// the loss. Pure accessor: performs no I/O.
     pub fn takeInput(self: *Window, out: []i32) usize {
         std.debug.assert(out.len % 8 == 0);
         const cap = out.len / 8;
@@ -900,7 +941,10 @@ pub const Window = struct {
             self.ev_head = (self.ev_head + 1) % self.events.len;
             self.ev_len -= 1;
         }
-        self.ev_dropped = false;
+        if (self.ev_len == 0) {
+            self.ev_dropped = false;
+            self.ev_drop_count = 0;
+        }
         return n;
     }
 
@@ -1969,6 +2013,7 @@ pub const Window = struct {
         self.pool_w = w;
         self.pool_h = h;
         self.buf_busy = .{ false, false };
+        self.pool_gen += 1;
     }
 
     fn remakePool(self: *Window, w: u31, h: u31) !void {

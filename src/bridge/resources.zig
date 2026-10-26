@@ -40,6 +40,7 @@ const c = struct {
     extern fn isakai_theme_delete(theme: *Theme) void;
     extern fn isakai_theme_apply(theme: *Theme, style: u32, force: bool) bool;
     extern fn isakai_theme_set_to(dst: *Theme, src: *const Theme) bool;
+    extern fn isakai_theme_clear(theme: *Theme) void;
     extern fn isakai_theme_attr(theme: *Theme, attr: u32, resolve: bool, out: *Value) bool;
     extern fn isakai_theme_changing_configurations(theme: *Theme) u32;
     extern fn isakai_apply_style(theme: *Theme, xml: ?*Xml, def_attr: u32, def_res: u32, attrs: [*]const u32, n: usize, out_values: [*]u32, out_indices: [*]u32) bool;
@@ -318,6 +319,10 @@ export fn Java_android_content_res_ResEngine_nThemeSetTo(_: Env, _: Obj, dst: Jn
     const d = handle(Theme, dst) orelse return 0;
     const s = handle(Theme, src) orelse return 0;
     return @intFromBool(c.isakai_theme_set_to(d, s));
+}
+
+export fn Java_android_content_res_ResEngine_nThemeClear(_: Env, _: Obj, t: JniLong) callconv(.c) void {
+    if (handle(Theme, t)) |theme| c.isakai_theme_clear(theme);
 }
 
 export fn Java_android_content_res_ResEngine_nThemeAttr(env: Env, _: Obj, t: JniLong, attr: JniInt, resolve: JniBool, out: Obj) callconv(.c) JniBool {

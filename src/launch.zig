@@ -572,16 +572,22 @@ pub const RunResult = struct {
 /// bytes + NUL), and stat as a unix socket; anything else is a fail-closed
 /// error. Caller owns the result. A `null` return means "no compositor
 /// socket configured" (neither var set) — the caller warns, never brokers.
-pub fn resolveWaylandSocket(gpa: std.mem.Allocator, env: *const std.process.Environ.Map) !?[]u8 {
+pub fn resolveWaylandSocket(io: std.Io, gpa: std.mem.Allocator, env: *const std.process.Environ.Map) !?[]u8 {
     const display = env.get("WAYLAND_DISPLAY") orelse return null;
     if (display.len == 0) return null;
+    const runtime = env.get("XDG_RUNTIME_DIR") orelse return null;
+    if (runtime.len == 0) return null;
     var path: []u8 = undefined;
     if (display[0] == '/') {
         path = try gpa.dupe(u8, display);
     } else {
-        const runtime = env.get("XDG_RUNTIME_DIR") orelse return null;
-        if (runtime.len == 0) return null;
         path = try std.fmt.allocPrint(gpa, "{s}/{s}", .{ runtime, display });
+    }
+    // Anchor under the caller's own runtime dir: absolute displays cannot
+    // point elsewhere, relative ones already resolve inside it.
+    if (!std.mem.startsWith(u8, path, runtime) or path.len == runtime.len or path[runtime.len] != '/') {
+        gpa.free(path);
+        return error.BadWaylandSocket;
     }
     if (!validAbsPath(path)) {
         gpa.free(path);
@@ -592,24 +598,37 @@ pub fn resolveWaylandSocket(gpa: std.mem.Allocator, env: *const std.process.Envi
         gpa.free(path);
         return error.BadWaylandSocket;
     }
-    // Must stat as a unix-domain socket (fail closed: no broker of
-    // regular files, dirs, or missing paths into the app sandbox).
-    var zbuf: [4096]u8 = undefined;
-    if (path.len >= zbuf.len) {
+    // O_NOFOLLOW-style via Zig std: a symlinked final component reports
+    // .sym_link and is rejected, never followed (fail closed: no broker
+    // of regular files, dirs, or missing paths into the app sandbox).
+    const st = std.Io.Dir.cwd().statFile(io, path, .{ .follow_symlinks = false }) catch {
+        gpa.free(path);
+        return error.BadWaylandSocket;
+    };
+    if (st.kind != .unix_domain_socket) {
         gpa.free(path);
         return error.BadWaylandSocket;
     }
-    @memcpy(zbuf[0..path.len], path);
-    zbuf[path.len] = 0;
-    var stx: std.os.linux.Statx = undefined;
-    const rc = std.os.linux.statx(std.os.linux.AT.FDCWD, @ptrCast(&zbuf), 0, .{ .TYPE = true, .MODE = true }, &stx);
-    if (std.os.linux.errno(rc) != .SUCCESS) {
-        gpa.free(path);
-        return error.BadWaylandSocket;
-    }
-    if (stx.mode & std.os.linux.S.IFMT != std.os.linux.S.IFSOCK) {
-        gpa.free(path);
-        return error.BadWaylandSocket;
+    // Stream probe: only a SOCK_STREAM listener accepts this connect;
+    // datagram sockets fail here instead of inside the sandbox.
+    {
+        const linux = std.os.linux;
+        const sfd = linux.socket(@as(u32, linux.AF.UNIX), @as(u32, linux.SOCK.STREAM | linux.SOCK.CLOEXEC), 0);
+        if (linux.errno(sfd) != .SUCCESS) {
+            gpa.free(path);
+            return error.BadWaylandSocket;
+        }
+        const s: linux.fd_t = @bitCast(@as(u32, @truncate(sfd)));
+        defer _ = linux.close(s);
+        var addr_arr: [pathmod.max_path]u8 = undefined;
+        @memset(&addr_arr, 0);
+        @memcpy(addr_arr[0..path.len], path);
+        var addr = linux.sockaddr.un{ .path = addr_arr };
+        const addrlen: linux.socklen_t = @intCast(2 + path.len + 1);
+        if (linux.errno(linux.connect(s, @ptrCast(&addr), addrlen)) != .SUCCESS) {
+            gpa.free(path);
+            return error.BadWaylandSocket;
+        }
     }
     return path;
 }
@@ -678,6 +697,20 @@ pub fn validAbsPath(s: []const u8) bool {
     return true;
 }
 
+/// True when `work` is anchored level by level: absolute, every prefix a
+/// real directory, no symlink component (O_NOFOLLOW-style via Zig std).
+fn anchorWork(io: std.Io, work: []const u8) bool {
+    if (work.len == 0 or work.len > 4000 or work[0] != '/') return false;
+    var i: usize = 1;
+    while (i <= work.len) : (i += 1) {
+        if (i == work.len or work[i] == '/') {
+            const st = std.Io.Dir.cwd().statFile(io, work[0..i], .{ .follow_symlinks = false }) catch return false;
+            if (st.kind != .directory) return false;
+        }
+    }
+    return true;
+}
+
 /// Remove session-bus vars from our own environ so no-priv children
 /// cannot reach the bus directly (they must go through the bridge).
 /// Privileged children get a minimal env from runAs anyway.
@@ -731,8 +764,23 @@ fn linuxKill(pid: std.posix.pid_t, sig: u8) void {
 /// M6f: per-operation pkexec wrapper installed by `make install`; matches
 /// the id.isakai.run-app policy action's exec.path. When absent (dev
 /// relocatable installs with INSTALL_POLICY=0) launch falls back to the
-/// direct `pkexec <exe> uid-helper run-jvm ...` argv.
+/// direct `pkexec /usr/bin/isakai uid-helper run-jvm ...` argv.
 const run_wrapper = "/usr/bin/isakai-run-app";
+
+/// Fixed installed launcher: pkexec/sudo must never elevate argv[0],
+/// which in a dev tree points at a writable checkout binary.
+const installed_exe = "/usr/bin/isakai";
+
+/// /proc/self/exe when it is the installed binary, else the fixed path.
+fn privilegedExe(gpa: std.mem.Allocator) []const u8 {
+    const linux = std.os.linux;
+    var buf: [4096]u8 = undefined;
+    const n = linux.readlink("/proc/self/exe", &buf, buf.len);
+    if (linux.errno(n) == .SUCCESS and n < buf.len and std.mem.startsWith(u8, buf[0..n], "/usr/bin/")) {
+        return gpa.dupe(u8, buf[0..n]) catch installed_exe;
+    }
+    return installed_exe;
+}
 
 fn hasRunWrapper(io: std.Io) bool {
     std.Io.Dir.cwd().access(io, run_wrapper, .{ .execute = true }) catch return false;
@@ -743,7 +791,6 @@ fn spawnViaHelper(
     io: std.Io,
     gpa: std.mem.Allocator,
     env: *const std.process.Environ.Map,
-    exe: []const u8,
     pkg: *const registry.Package,
     work: []const u8,
     bridge_dir: []const u8,
@@ -753,13 +800,17 @@ fn spawnViaHelper(
 ) !std.process.Child {
     const uid_s = try std.fmt.allocPrint(gpa, "{d}", .{pkg.uid});
     defer gpa.free(uid_s);
+    const helper_exe = privilegedExe(gpa);
+    defer {
+        if (helper_exe.ptr != installed_exe.ptr) gpa.free(helper_exe);
+    }
     const noninteractive = registry.envFlag(env, "ISAKAI_NONINTERACTIVE");
     var argv: std.ArrayListUnmanaged([]const u8) = .empty;
     defer argv.deinit(gpa);
     if (!noninteractive) {
         // pkexec if present, else fall back to sudo -n on spawn failure.
         try argv.append(gpa, "/usr/bin/pkexec");
-        var head = try helperRunHead(gpa, exe, pkg.name, uid_s, pkg.data_dir, pkg.apk, work, wayland_sock, bridge_dir, framework_dir, fields);
+        var head = try helperRunHead(gpa, helper_exe, pkg.name, uid_s, pkg.data_dir, pkg.apk, work, wayland_sock, bridge_dir, framework_dir, fields);
         defer head.deinit(gpa);
         // M6f: prefer the per-operation run wrapper (matches the
         // id.isakai.run-app policy action's exec.path → its own dialog
@@ -775,7 +826,7 @@ fn spawnViaHelper(
                 argv.clearRetainingCapacity();
                 try argv.append(gpa, "/usr/bin/sudo");
                 try argv.append(gpa, "-n");
-                var head2 = try helperRunHead(gpa, exe, pkg.name, uid_s, pkg.data_dir, pkg.apk, work, wayland_sock, bridge_dir, framework_dir, fields);
+                var head2 = try helperRunHead(gpa, helper_exe, pkg.name, uid_s, pkg.data_dir, pkg.apk, work, wayland_sock, bridge_dir, framework_dir, fields);
                 defer head2.deinit(gpa);
                 try argv.appendSlice(gpa, head2.items);
                 return spawnInherit(io, argv.items);
@@ -785,7 +836,7 @@ fn spawnViaHelper(
     }
     try argv.append(gpa, "/usr/bin/sudo");
     try argv.append(gpa, "-n");
-    var head = try helperRunHead(gpa, exe, pkg.name, uid_s, pkg.data_dir, pkg.apk, work, wayland_sock, bridge_dir, framework_dir, fields);
+    var head = try helperRunHead(gpa, helper_exe, pkg.name, uid_s, pkg.data_dir, pkg.apk, work, wayland_sock, bridge_dir, framework_dir, fields);
     defer head.deinit(gpa);
     try argv.appendSlice(gpa, head.items);
     return spawnInherit(io, argv.items);
@@ -836,6 +887,13 @@ pub fn launch(
             }
         },
         else => {},
+    }
+    // N2: cap --data once here so both the privileged helper path and the
+    // no-privilege JVM path below share the same bound.
+    if (intent_data.len > 4096 or std.mem.indexOfScalar(u8, intent_data, 0) != null) {
+        std.log.err("intent data exceeds 4096 bytes; refusing launch", .{});
+        lock.release();
+        return error.BadIntentData;
     }
     // Manifest gives app/activity classes.
     const manifest_path = try std.fmt.allocPrint(gpa, "{s}/AndroidManifest.xml", .{pkg.apk});
@@ -904,7 +962,7 @@ pub fn launch(
     var wayland_sock: ?[]u8 = null;
     defer if (wayland_sock) |s| gpa.free(s);
     if (windowed and !no_priv) {
-        wayland_sock = try resolveWaylandSocket(gpa, env);
+        wayland_sock = try resolveWaylandSocket(io, gpa, env);
         if (wayland_sock == null) {
             std.log.err("windowed launch: no compositor socket (set WAYLAND_DISPLAY+XDG_RUNTIME_DIR); run with ISAKAI_NO_PRIVILEGE=1 for now, e.g. ISAKAI_WINDOW=1 ISAKAI_NO_PRIVILEGE=1 isakai launch <pkg>", .{});
             rollbackToInstalled(&reg, io, gpa, work, pkg);
@@ -933,6 +991,12 @@ pub fn launch(
     defer gpa.free(dirs.stage);
     const bridge_dir = env.get("ISAKAI_BRIDGE_DIR") orelse dirs.bridge;
     const stage_dir = env.get("ISAKAI_STAGE_DIR") orelse dirs.stage;
+    if (!anchorWork(io, work)) {
+        std.log.err("work dir is not an anchored directory: {s}", .{work});
+        rollbackToInstalled(&reg, io, gpa, work, pkg);
+        lock.release();
+        return error.BadWorkDir;
+    }
     if (!pathmod.validDir(bridge_dir) or !validAbsPath(stage_dir)) {
         std.log.err("bridge dir must be absolute {s}/{s}<uid>-<digest>; stage dir absolute without '..'", .{ pathmod.tmp_base, pathmod.dir_prefix });
         rollbackToInstalled(&reg, io, gpa, work, pkg);
@@ -1018,7 +1082,7 @@ pub fn launch(
             return err;
         };
     } else {
-        child = spawnViaHelper(io, gpa, &child_env, exe, &pkg, work, bridge_dir, .{
+        child = spawnViaHelper(io, gpa, &child_env, &pkg, work, bridge_dir, .{
             .java = java,
             .windowed = windowed,
             .app_class = app_arg,

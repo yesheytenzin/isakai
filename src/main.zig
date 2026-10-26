@@ -305,6 +305,7 @@ fn cmdUidHelperRun(
     var wayland_sock: ?[]const u8 = null;
     var bridge_dir: ?[]const u8 = null;
     var cursor: usize = 5;
+    var confinement_disabled = false;
     if (rest.len > cursor + 1 and std.mem.eql(u8, rest[cursor], "--wayland-sock")) {
         wayland_sock = rest[cursor + 1];
         cursor += 2;
@@ -313,12 +314,16 @@ fn cmdUidHelperRun(
         bridge_dir = rest[cursor + 1];
         cursor += 2;
     }
+    if (rest.len > cursor and std.mem.eql(u8, rest[cursor], "--insecure-no-confinement")) {
+        confinement_disabled = true;
+        cursor += 1;
+    }
     const names = [_][]const u8{
         "--code-dir", "--java",      "--framework",      "--windowed",   "--app-class", "--activity-class",
         "--title",    "--app-theme", "--activity-theme", "--target-sdk", "--min-sdk",   "--intent-data",
     };
     if (rest.len != cursor + names.len * 2) {
-        try err_writer.writeAll("usage: isakai uid-helper run-jvm <package> <uid> <data-dir> <work> [socket flags] --code-dir D --java J --framework F --windowed 0|1 --app-class C --activity-class C --title T --app-theme N --activity-theme N --target-sdk N --min-sdk N --intent-data URI\n");
+        try err_writer.writeAll("usage: isakai uid-helper run-jvm <package> <uid> <data-dir> <work> [socket flags] [--insecure-no-confinement] --code-dir D --java J --framework F --windowed 0|1 --app-class C --activity-class C --title T --app-theme N --activity-theme N --target-sdk N --min-sdk N --intent-data URI\n");
         return 2;
     }
     var values: [names.len][:0]const u8 = undefined;
@@ -338,7 +343,7 @@ fn cmdUidHelperRun(
         try err_writer.writeAll("uid-helper run-jvm: windowed must be 0 or 1\n");
         return 2;
     };
-    const confinement_disabled = std.mem.eql(u8, init.environ_map.get("ISAKAI_CONFINEMENT") orelse "", "0");
+    // ISAKAI_CONFINEMENT=0 no longer disables anything; only the explicit flag above does.
     return uid_helper.runJvm(init.gpa, .{
         .package = rest[1],
         .uid = uid,

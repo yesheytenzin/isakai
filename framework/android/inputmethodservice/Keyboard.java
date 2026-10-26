@@ -46,9 +46,9 @@ public class Keyboard {
             return px >= x && px < x + width && py >= y && py < y + height;
         }
 
-        public void onPressed() { pressed = !pressed; }
+        public void onPressed() { pressed = true; }
         public void onReleased(boolean inside) {
-            pressed = !pressed;
+            pressed = false;
             if (sticky && inside) on = !on;
         }
     }

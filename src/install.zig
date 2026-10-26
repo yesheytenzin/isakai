@@ -33,6 +33,7 @@ pub const Manifest = struct {
     services: std.ArrayListUnmanaged([]const u8) = .empty,
     min_sdk: u32 = 1,
     target_sdk: u32 = 1,
+    version_code: u32 = 0,
     permissions: std.ArrayListUnmanaged([]const u8) = .empty,
 };
 
@@ -518,6 +519,9 @@ pub fn parseManifest(gpa: std.mem.Allocator, data: []const u8) ApkError!Manifest
                     {
                         return error.SplitUnsupported;
                     }
+                    if (lookup.android(&attrs, "versionCode", ka)) |v| {
+                        manifest.version_code = std.fmt.parseInt(u32, v, 10) catch return error.BadSdkVersion;
+                    }
                 } else if (std.mem.eql(u8, name, "uses-sdk") and parent != null and std.mem.eql(u8, parent.?, "manifest")) {
                     if (lookup.android(&attrs, "minSdkVersion", ka)) |v| {
                         manifest.min_sdk = std.fmt.parseInt(u32, v, 10) catch return error.BadSdkVersion;
@@ -726,6 +730,14 @@ fn validateNativeHeader(bytes: []const u8) ApkError!void {
     // EV_CURRENT, ET_DYN and the ELF64 header size.
     if (bytes[6] != 1 or try u32At(bytes, 20) != 1 or
         try u16At(bytes, 16) != 3 or try u16At(bytes, 52) != 64) return error.InvalidNativeLibrary;
+    // The program-header table the loader walks must lie inside the file.
+    const phoff: usize = std.math.cast(usize, std.mem.readInt(u64, bytes[32..][0..8], .little)) orelse
+        return error.InvalidNativeLibrary;
+    const phsize: usize = try u16At(bytes, 54);
+    const phnum: usize = try u16At(bytes, 56);
+    const table = std.math.mul(usize, phsize, phnum) catch return error.InvalidNativeLibrary;
+    const ph_end = std.math.add(usize, phoff, table) catch return error.InvalidNativeLibrary;
+    if (ph_end > bytes.len) return error.InvalidNativeLibrary;
 }
 
 pub fn sha256File(io: std.Io, gpa: std.mem.Allocator, path: []const u8) ![]u8 {
@@ -862,6 +874,38 @@ pub fn verifyRetained(io: std.Io, gpa: std.mem.Allocator, code_dir: []const u8, 
     }
 }
 
+/// Identity re-check on the staged copy: the retained base.apk is what
+/// actually runs, so re-verify its signature and require the same package
+/// + signer set. An APK swapped between hashing and staging cannot promote
+/// a different identity. Unsigned installs require a still-unsigned copy.
+/// Callers rely on errdefer to drop code_dir on failure.
+pub fn verifyStagedIdentity(io: std.Io, gpa: std.mem.Allocator, code_dir: []const u8, m: *const Manifest, fingerprints: []const []const u8) !void {
+    const retained = try std.fmt.allocPrint(gpa, "{s}/" ++ retained_apk, .{code_dir});
+    defer gpa.free(retained);
+    var staged = try inspect(io, gpa, retained);
+    defer freeManifest(gpa, &staged);
+    if (!std.mem.eql(u8, staged.package, m.package)) return error.SignerMismatch;
+    if (fingerprints.len == 0) {
+        if (apksig.verifyApk(io, gpa, retained)) |fps| {
+            for (fps) |f| gpa.free(f);
+            gpa.free(fps);
+            return error.SignerMismatch;
+        } else |err| {
+            if (err != error.NoV2Block) return err;
+        }
+        return;
+    }
+    const staged_fps = try apksig.verifyApk(io, gpa, retained);
+    defer {
+        for (staged_fps) |f| gpa.free(f);
+        gpa.free(staged_fps);
+    }
+    if (staged_fps.len != fingerprints.len) return error.SignerMismatch;
+    for (staged_fps, fingerprints) |s, f| {
+        if (!std.mem.eql(u8, s, f)) return error.SignerMismatch;
+    }
+}
+
 /// Result of a successful install.
 pub const InstallResult = struct {
     package: []const u8,
@@ -921,7 +965,11 @@ fn installInner(
     defer lock.release();
     var reg = try registry.Registry.loadChecked(io, gpa, work);
     defer reg.deinit();
-    if (reg.get(m.package) != null) return error.AlreadyInstalled;
+    if (reg.get(m.package)) |existing| {
+        // A .removing entry is a failed uninstall, not an install: proceed
+        // over it instead of bricking reinstall.
+        if (existing.state != .removing) return error.AlreadyInstalled;
+    }
     const uid = reg.nextUid(uid_start, uid_end) orelse return error.NoFreeUid;
 
     const digest = try sha256File(io, gpa, apk_path);
@@ -937,9 +985,19 @@ fn installInner(
     try std.Io.Dir.cwd().createDirPath(io, code_parent);
     try std.Io.Dir.cwd().createDirPath(io, data_parent);
 
-    try stage(io, gpa, apk_path, code_dir);
+    stage(io, gpa, apk_path, code_dir) catch |err| {
+        if (err != error.StagingExists) return err;
+        // A killed install leaves the digest-named dir behind: reuse it
+        // when the retained copy still hashes to this digest, else clear
+        // it and stage fresh.
+        verifyRetained(io, gpa, code_dir, digest) catch {
+            std.Io.Dir.cwd().deleteTree(io, code_dir) catch {};
+            try stage(io, gpa, apk_path, code_dir);
+        };
+    };
     errdefer std.Io.Dir.cwd().deleteTree(io, code_dir) catch {};
     try verifyRetained(io, gpa, code_dir, digest);
+    try verifyStagedIdentity(io, gpa, code_dir, m, fingerprints);
 
     // Privileged step: create the app user + chown the data dir.
     // Skipped when ISAKAI_NO_PRIVILEGE=1 (dev/test without auth).
@@ -958,9 +1016,9 @@ fn installInner(
         };
     }
 
-    // Record the selected native ABI slice. stage() keeps only lib/x86_64/
-    // (wantEntry drops the other ABIs), so a populated staged lib/x86_64
-    // directory means that slice was selected; a bytecode-only app records "".
+    // Record the selected native ABI slice. stage() keeps every ABI slice
+    // beside the retained base.apk; a populated staged lib/x86_64 directory
+    // means that slice was selected for execution, "" means bytecode-only.
     const native_abi: []const u8 = native_abi: {
         const lib_dir = try std.fmt.allocPrint(gpa, "{s}/lib/x86_64", .{code_dir});
         defer gpa.free(lib_dir);
@@ -983,6 +1041,7 @@ fn installInner(
         .signer_sha256 = if (fingerprints.len > 0) fingerprints[0] else null, // reg.add dupes into its arena
         .signer_sha256_set = fingerprints, // ditto (dupes every element)
         .native_abi = native_abi,
+        .version_code = m.version_code,
     });
     try reg.save(io, gpa, work);
 
@@ -1015,7 +1074,8 @@ pub fn uninstall(
     defer lock.release();
     var reg = try registry.Registry.loadChecked(io, gpa, work);
     defer reg.deinit();
-    const pkg = reg.resolve(gpa, selector) catch return error.NotInstalled;
+    // Destructive path: exact package name only, never fuzzy resolution.
+    const pkg = reg.get(selector) orelse return error.NotInstalled;
     const name = try gpa.dupe(u8, pkg.name);
     errdefer gpa.free(name);
     // Never delete a live app's code+data: terminate first, abort on
@@ -1024,7 +1084,7 @@ pub fn uninstall(
         .running => |r| {
             if (registry.isAlive(r.pid)) {
                 std.log.info("uninstall: terminating live {s} (pid {d})", .{ pkg.name, r.pid });
-                registry.terminatePid(io, r.pid, registry.default_terminate_timeout_ms) catch |err| {
+                registry.terminatePidChecked(io, r.pid, r.started, registry.default_terminate_timeout_ms) catch |err| {
                     std.log.warn("uninstall: refusing to remove live {s} (pid {d}): {t}", .{ pkg.name, r.pid, err });
                     return err;
                 };
@@ -1037,13 +1097,8 @@ pub fn uninstall(
     removing.state = .removing;
     try reg.updateState(io, gpa, work, removing);
 
-    if (std.Io.Dir.cwd().statFile(io, pkg.apk, .{}) catch null) |_| {
-        try std.Io.Dir.cwd().deleteTree(io, pkg.apk);
-        // Remove the per-package parent if now empty; ignore if not.
-        if (std.fs.path.dirname(pkg.apk)) |parent| {
-            std.Io.Dir.cwd().deleteDir(io, parent) catch {};
-        }
-    }
+    // Data first: a helper failure leaves the code dir behind with the
+    // .removing entry retryable, instead of bricking it with code gone.
     const no_priv = registry.envFlag(env, "ISAKAI_NO_PRIVILEGE");
     if (no_priv) {
         if (std.Io.Dir.cwd().statFile(io, pkg.data_dir, .{}) catch null) |_| {
@@ -1052,6 +1107,13 @@ pub fn uninstall(
     } else {
         const noninteractive = registry.envFlag(env, "ISAKAI_NONINTERACTIVE");
         try uid_helper.invoke(io, gpa, exe, "remove", pkg.name, pkg.uid, pkg.data_dir, work, noninteractive);
+    }
+    if (std.Io.Dir.cwd().statFile(io, pkg.apk, .{}) catch null) |_| {
+        try std.Io.Dir.cwd().deleteTree(io, pkg.apk);
+        // Remove the per-package parent if now empty; ignore if not.
+        if (std.fs.path.dirname(pkg.apk)) |parent| {
+            std.Io.Dir.cwd().deleteDir(io, parent) catch {};
+        }
     }
     _ = reg.remove(pkg.name);
     try reg.save(io, gpa, work);

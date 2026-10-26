@@ -56,8 +56,6 @@ public class FrameLayout extends ViewGroup {
         super(context, attrs, defStyleAttr);
     }
 
-    public void setForeground(android.graphics.drawable.Drawable foreground) {}
-
     @Override
     protected void onLayout(boolean changed, int left, int top, int right, int bottom) {
         for (int i = 0; i < getChildCount(); i++) {

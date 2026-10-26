@@ -537,8 +537,16 @@ public abstract class Drawable {
         String ref = raw.substring(1);
         if (ref.startsWith("+")) ref = ref.substring(1);
         try {
-            if (ref.startsWith("0x")) return (int) Long.parseLong(ref.substring(2), 16);
-            if (ref.matches("[0-9]+")) return (int) Long.parseLong(ref);
+            if (ref.startsWith("0x") || ref.startsWith("0X"))
+                return (int) Long.parseLong(ref.substring(2), 16);
+            try {
+                return (int) Long.parseLong(ref);
+            } catch (NumberFormatException decimal) {
+            }
+            try {
+                return (int) Long.parseLong(ref, 16);
+            } catch (NumberFormatException hex) {
+            }
         } catch (NumberFormatException invalid) { return fallback; }
         if ("android:id/mask".equals(ref)) return 0x0102002e;
         int id = resources.getIdentifier(ref, type, null);

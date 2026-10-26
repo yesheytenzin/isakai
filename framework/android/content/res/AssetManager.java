@@ -185,6 +185,7 @@ public class AssetManager implements AutoCloseable {
     public static final class AssetInputStream extends InputStream {
         private final ResEngine.NativeAsset asset;
         private long mark;
+        private boolean marked;
 
         AssetInputStream(ResEngine.NativeAsset asset) {
             this.asset = asset;
@@ -229,10 +230,12 @@ public class AssetManager implements AutoCloseable {
         @Override
         public synchronized void mark(int readlimit) {
             mark = asset.length() - asset.remaining();
+            marked = true;
         }
 
         @Override
         public synchronized void reset() throws IOException {
+            if (!marked) throw new IOException("reset without mark");
             if (asset.seek(mark, 0) < 0) throw new IOException("asset seek failed");
         }
 

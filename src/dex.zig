@@ -123,6 +123,12 @@ pub fn parseHeader(data: []const u8) DexError!Header {
         const end = @as(usize, s.off) + bytes;
         if (s.off < header_size or end > data.len) return error.BadSection;
     }
+    // The data section itself must sit inside the file; item readers
+    // below only accept offsets inside it.
+    if (h.data_size > 0) {
+        const data_end = @as(usize, h.data_off) + @as(usize, h.data_size);
+        if (@as(usize, h.data_off) < header_size or data_end > data.len) return error.BadSection;
+    }
     return h;
 }
 
@@ -427,6 +433,15 @@ fn readMethods(gpa: std.mem.Allocator, data: []const u8, pos: *usize, count: u32
     return out;
 }
 
+/// Class_data/code/debug offsets (0 means absent, handled by callers)
+/// must sit inside the data section. Beyond-EOF stays Truncated at the
+/// call site; an in-file offset outside the section is malformed.
+fn inDataSection(d: Dex, off: u32) bool {
+    const o: usize = off;
+    const start: usize = d.header.data_off;
+    return o >= start and o < start + @as(usize, d.header.data_size);
+}
+
 pub fn readClassData(gpa: std.mem.Allocator, dex: Dex, off: u32) DexError!ClassData {
     if (off == 0) return .{
         .static_fields = &.{},
@@ -436,6 +451,7 @@ pub fn readClassData(gpa: std.mem.Allocator, dex: Dex, off: u32) DexError!ClassD
     };
     var pos: usize = off;
     if (pos >= dex.data.len) return error.Truncated;
+    if (!inDataSection(dex, off)) return error.BadSection;
     const n_static = try readUleb128(dex.data, &pos);
     const n_instance = try readUleb128(dex.data, &pos);
     const n_direct = try readUleb128(dex.data, &pos);
@@ -481,6 +497,8 @@ pub const CatchHandler = struct {
 pub fn readCatchHandlers(gpa: std.mem.Allocator, dex: Dex, code: Code, handler_off: u32) DexError![]CatchHandler {
     var pos: usize = std.math.add(u32, code.handlers_base, handler_off) catch return error.BadSection;
     const size = try readSleb128(dex.data, &pos);
+    // -minInt traps: a garbage size is malformed, not fatal.
+    if (size == std.math.minInt(i32)) return error.BadSection;
     const n: usize = @intCast(if (size < 0) -size else size);
     const has_catchall = size <= 0;
     if (n > 1024) return error.BadSection;
@@ -506,10 +524,14 @@ pub fn readCode(gpa: std.mem.Allocator, dex: Dex, off: u32) DexError!Code {
     const tries_size = try u16At(dex.data, pos + 6);
     const debug_off = try u32At(dex.data, pos + 8);
     const insns_size = try u32At(dex.data, pos + 12);
-    if (registers > 65536 or insns_size > (1 << 24)) return error.BadSection;
+    if (insns_size > (1 << 24)) return error.BadSection;
+    // registers is u16 (never > 65535): bound registers * code size, the
+    // snapshot working set, instead of a comparison that cannot fire.
+    if (@as(usize, registers) * @as(usize, insns_size) > (1 << 20)) return error.BadSection;
     pos += 16;
     const insns_bytes = @as(usize, insns_size) * 2;
     if (pos + insns_bytes > dex.data.len) return error.Truncated;
+    if (!inDataSection(dex, off)) return error.BadSection;
     // Copy to an aligned buffer: the DEX slice itself may be odd-aligned.
     const insns = gpa.alloc(u16, insns_size) catch return error.OutOfMemory;
     errdefer gpa.free(insns);
@@ -563,6 +585,7 @@ pub fn readDebugLines(gpa: std.mem.Allocator, d: Dex, debug_off: u32) DexError![
     if (debug_off == 0) return out.toOwnedSlice(gpa) catch return error.OutOfMemory;
     var pos: usize = debug_off;
     if (pos >= d.data.len) return error.Truncated;
+    if (!inDataSection(d, debug_off)) return error.BadSection;
     var line: u32 = try readUleb128(d.data, &pos);
     const param_count = try readUleb128(d.data, &pos);
     if (param_count > 65536) return error.BadSection;

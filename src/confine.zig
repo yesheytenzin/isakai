@@ -6,8 +6,8 @@
 //! before seccomp, then both restrictions survive the JVM exec and descendants.
 //! Landlock ABI probing follows the kernel UAPI (null/zero + VERSION); creation
 //! uses attributes + flags=0. REFER/TRUNCATE rights are negotiated on ABI 2/3.
-//! Missing kernel support warns; other failures abort launch. The debug-only
-//! ISAKAI_CONFINEMENT=0 opt-out skips both layers. Filesystem grants are built
+//! Missing kernel support aborts launch, as do other failures. Only the
+//! explicit --insecure-no-confinement helper flag skips both layers. Filesystem grants are built
 //! by uid_helper.applyRuntimeConfinement; no / or whole-home grants are used.
 //! The seccomp allowlist is x86_64-only and denies other syscalls with EPERM.
 //! These entry points are allocation-free for use after fork.
@@ -398,19 +398,13 @@ pub fn applyLandlock(rules: []const Rule, pathbuf: []u8) !void {
 /// Landlock BEFORE seccomp: Landlock syscalls are not part of the app allowlist.
 pub fn confineAndRestrict(rules: []const Rule, disabled: bool) !void {
     if (disabled) {
-        warn("uid-helper run: confinement disabled by ISAKAI_CONFINEMENT=0\n");
+        warn("uid-helper run: confinement disabled by --insecure-no-confinement; UID isolation only\n");
         return;
     }
     var pathbuf: [4096]u8 = undefined;
-    applyLandlock(rules, &pathbuf) catch |e| switch (e) {
-        error.LandlockUnsupported => warn("uid-helper run: Landlock unavailable; continuing with UID isolation\n"),
-        else => return e,
-    };
+    try applyLandlock(rules, &pathbuf);
     var filter_buf: [filter_capacity]SockFilter = undefined;
-    applySeccomp(&filter_buf) catch |e| switch (e) {
-        error.SeccompUnsupported => warn("uid-helper run: seccomp unavailable; continuing with UID isolation\n"),
-        else => return e,
-    };
+    try applySeccomp(&filter_buf);
 }
 
 fn warn(msg: []const u8) void {

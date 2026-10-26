@@ -2,9 +2,11 @@
 
 //! JNI bridge between `org.isakai.db.IsakaiSQLite` and the system
 //! libsqlite3. Thin handle translation: Java owns open/close pairing;
-//! statements must be finalized before close. No ThrowNew here — errors
-//! surface as 0/negative returns plus `nErr` text, and the Java wrapper
-//! raises typed exceptions (code 5 → Locked).
+//! statements must be finalized before close. No ThrowNew here except a
+//! dead statement handle in a column getter, which throws
+//! `IllegalStateException` rather than returning a value-like 0/NULL.
+//! Other errors surface as 0/negative returns plus `nErr` text, and the
+//! Java wrapper raises typed exceptions (code 5 → Locked).
 //!
 //! Open flags mirror sqlite3_open_v2 bits accepted from Java: READONLY=1,
 //! READWRITE=2, CREATE=4. FULLMUTEX (0x10000) is always added and a 5s
@@ -143,6 +145,16 @@ fn jniGetByteRegion(env: ?*anyopaque, fns: *const JniTable, arr: ?*anyopaque, st
 fn jniSetByteRegion(env: ?*anyopaque, fns: *const JniTable, arr: ?*anyopaque, start: JniInt, len: JniInt, buf: [*]const u8) void {
     const Fn = fn (?*anyopaque, ?*anyopaque, JniInt, JniInt, [*]const u8) callconv(.c) void;
     _ = jniCall(slot_set_byte_array_region, Fn, fns, env, .{ arr, start, len, buf });
+}
+
+/// Best-effort `IllegalStateException` throw with `msg`; silent when the
+/// JNI table or FindClass fails. Callers still return a default so a
+/// missed throw degrades to the old sentinel, never a crash.
+fn jniThrowState(env: ?*anyopaque, fns: *const JniTable, msg: [*:0]const u8) void {
+    const Find = fn (?*anyopaque, [*:0]const u8) callconv(.c) ?*anyopaque;
+    const cls = jniCall(6, Find, fns, env, .{@as([*:0]const u8, @ptrCast("java/lang/IllegalStateException"))}) orelse return;
+    const Throw = fn (?*anyopaque, ?*anyopaque, [*:0]const u8) callconv(.c) JniInt;
+    _ = jniCall(slot_throw_new, Throw, fns, env, .{ cls, msg });
 }
 
 /// Copy a jstring to an owned NUL-terminated buffer. Null on null input
@@ -419,9 +431,12 @@ export fn Java_org_isakai_db_IsakaiSQLite_nColumnCount(
     clazz: ?*anyopaque,
     handle: JniLong,
 ) callconv(.c) JniInt {
-    _ = env;
     _ = clazz;
-    const stmt = asStmt(handle) orelse return -1;
+    const fns = jniFunctions(env) orelse return -1;
+    const stmt = asStmt(handle) orelse {
+        jniThrowState(env, fns, "dead sqlite statement");
+        return -1;
+    };
     return c.sqlite3_column_count(stmt);
 }
 
@@ -432,8 +447,11 @@ export fn Java_org_isakai_db_IsakaiSQLite_nColumnName(
     col: JniInt,
 ) callconv(.c) ?*anyopaque {
     _ = clazz;
-    const stmt = asStmt(handle) orelse return null;
     const fns = jniFunctions(env) orelse return null;
+    const stmt = asStmt(handle) orelse {
+        jniThrowState(env, fns, "dead sqlite statement");
+        return null;
+    };
     const raw = c.sqlite3_column_name(stmt, col) orelse return null;
     return jniNewString(env, fns, std.mem.span(raw));
 }
@@ -444,9 +462,12 @@ export fn Java_org_isakai_db_IsakaiSQLite_nColumnType(
     handle: JniLong,
     col: JniInt,
 ) callconv(.c) JniInt {
-    _ = env;
     _ = clazz;
-    const stmt = asStmt(handle) orelse return -1;
+    const fns = jniFunctions(env) orelse return -1;
+    const stmt = asStmt(handle) orelse {
+        jniThrowState(env, fns, "dead sqlite statement");
+        return -1;
+    };
     return c.sqlite3_column_type(stmt, col);
 }
 
@@ -456,9 +477,12 @@ export fn Java_org_isakai_db_IsakaiSQLite_nColumnLong(
     handle: JniLong,
     col: JniInt,
 ) callconv(.c) JniLong {
-    _ = env;
     _ = clazz;
-    const stmt = asStmt(handle) orelse return 0;
+    const fns = jniFunctions(env) orelse return 0;
+    const stmt = asStmt(handle) orelse {
+        jniThrowState(env, fns, "dead sqlite statement");
+        return 0;
+    };
     return c.sqlite3_column_int64(stmt, col);
 }
 
@@ -468,9 +492,12 @@ export fn Java_org_isakai_db_IsakaiSQLite_nColumnDouble(
     handle: JniLong,
     col: JniInt,
 ) callconv(.c) JniDouble {
-    _ = env;
     _ = clazz;
-    const stmt = asStmt(handle) orelse return 0;
+    const fns = jniFunctions(env) orelse return 0;
+    const stmt = asStmt(handle) orelse {
+        jniThrowState(env, fns, "dead sqlite statement");
+        return 0;
+    };
     return c.sqlite3_column_double(stmt, col);
 }
 
@@ -481,8 +508,11 @@ export fn Java_org_isakai_db_IsakaiSQLite_nColumnText(
     col: JniInt,
 ) callconv(.c) ?*anyopaque {
     _ = clazz;
-    const stmt = asStmt(handle) orelse return null;
     const fns = jniFunctions(env) orelse return null;
+    const stmt = asStmt(handle) orelse {
+        jniThrowState(env, fns, "dead sqlite statement");
+        return null;
+    };
     const raw = c.sqlite3_column_text(stmt, col);
     if (raw == null) return null;
     const n: usize = @intCast(c.sqlite3_column_bytes(stmt, col));
@@ -497,8 +527,11 @@ export fn Java_org_isakai_db_IsakaiSQLite_nColumnBlob(
     col: JniInt,
 ) callconv(.c) ?*anyopaque {
     _ = clazz;
-    const stmt = asStmt(handle) orelse return null;
     const fns = jniFunctions(env) orelse return null;
+    const stmt = asStmt(handle) orelse {
+        jniThrowState(env, fns, "dead sqlite statement");
+        return null;
+    };
     const n: usize = @intCast(c.sqlite3_column_bytes(stmt, col));
     if (n > std.math.maxInt(JniInt)) return null;
     const arr = jniNewByteArray(env, fns, @intCast(n)) orelse return null;

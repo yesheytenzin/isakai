@@ -625,13 +625,37 @@ fn runPrepared(
         try err_writer.writeAll("uid-helper run: bad work path\n");
         return 2;
     }
+    // Anchor work level by level: every prefix must be a real directory.
+    {
+        var wbuf: [4096]u8 = undefined;
+        var i: usize = 1;
+        while (i <= work.len) : (i += 1) {
+            if (i == work.len or work[i] == '/') {
+                const wz = toZ(work[0..i], &wbuf) orelse {
+                    try err_writer.writeAll("uid-helper run: bad work path\n");
+                    return 2;
+                };
+                var wstx: linux.Statx = undefined;
+                const wrc = linux.statx(linux.AT.FDCWD, wz, linux.AT.SYMLINK_NOFOLLOW, .{ .TYPE = true }, &wstx);
+                if (linux.errno(wrc) != .SUCCESS or wstx.mode & linux.S.IFMT != linux.S.IFDIR) {
+                    try err_writer.writeAll("uid-helper run: work dir not anchored\n");
+                    return 2;
+                }
+            }
+        }
+    }
     if (framework_dir) |path| {
         if (!validWaylandSockPath(path) or std.mem.eql(u8, path, "/")) {
             try err_writer.writeAll("uid-helper run: bad framework path\n");
             return 2;
         }
     }
-    if (cmd.len != 18) unreachable;
+    if (cmd.len != 19) unreachable;
+    // Fixed positions from runJvm above: flags, classpath, entry class.
+    if (!std.mem.eql(u8, cmd[6], "-cp") or !std.mem.eql(u8, cmd[8], "org.isakai.runtime.IsakaiMain")) {
+        try err_writer.writeAll("uid-helper run: command shape unexpected\n");
+        return 2;
+    }
     // argv[0] must be absolute (no PATH search: PATH is attacker-influenced
     // when invoked oddly) and name the java launcher.
     if (!validJavaCmd(cmd[0])) {
@@ -757,19 +781,30 @@ pub fn validWaylandSockPath(sock: []const u8) bool {
     return true;
 }
 
-/// True when `path` names a unix-domain socket. Symlinks are followed
-/// (connect() resolves the same way); per-component `..` is still
-/// rejected by validWaylandSockPath. Pre-fork probe: the launcher passes
-/// only validated sockets, so a negative here is fail-closed (exit 2),
-/// never a fallback to unbrokered.
+/// True when `path` names a live SOCK_STREAM unix socket without
+/// following a symlinked final component (NOFOLLOW reports the link
+/// itself, never the target). A SOCK_STREAM connect must also succeed,
+/// so datagram sockets fail here. Pre-fork probe: a negative here is
+/// fail-closed (exit 2), never a fallback to unbrokered.
 pub fn isStreamSocket(path: []const u8) bool {
     const linux = std.os.linux;
     var zbuf: [4096]u8 = undefined;
     const z = toZ(path, &zbuf) orelse return false;
     var stx: linux.Statx = undefined;
-    const rc = linux.statx(linux.AT.FDCWD, z, 0, .{ .TYPE = true }, &stx);
+    const rc = linux.statx(linux.AT.FDCWD, z, linux.AT.SYMLINK_NOFOLLOW, .{ .TYPE = true }, &stx);
     if (linux.errno(rc) != .SUCCESS) return false;
-    return stx.mode & linux.S.IFMT == linux.S.IFSOCK;
+    if (stx.mode & linux.S.IFMT != linux.S.IFSOCK) return false;
+    const sfd = linux.socket(@as(u32, linux.AF.UNIX), @as(u32, linux.SOCK.STREAM | linux.SOCK.CLOEXEC), 0);
+    if (linux.errno(sfd) != .SUCCESS) return false;
+    const s: linux.fd_t = @bitCast(@as(u32, @truncate(sfd)));
+    defer _ = linux.close(s);
+    var addr_arr: [pathmod.max_path]u8 = undefined;
+    @memset(&addr_arr, 0);
+    if (path.len >= addr_arr.len) return false;
+    @memcpy(addr_arr[0..path.len], path);
+    var addr = linux.sockaddr.un{ .path = addr_arr };
+    const addrlen: linux.socklen_t = @intCast(2 + path.len + 1);
+    return linux.errno(linux.connect(s, @ptrCast(&addr), addrlen)) == .SUCCESS;
 }
 
 /// True when `dir` is a desktop-bridge endpoint the helper may export to
@@ -791,6 +826,16 @@ pub fn validBridgeEndpointDir(dir: []const u8, app_uid: u32) bool {
     if (linux.errno(rc) != .SUCCESS) return false;
     if (stx.mode & linux.S.IFMT != linux.S.IFDIR) return false;
     if (stx.uid == app_uid) return false;
+    // Name-bound owner: the directory name carries its launcher uid, so
+    // only that uid may own it on disk.
+    {
+        const base = std.fs.path.basename(dir);
+        if (!std.mem.startsWith(u8, base, "isakai-")) return false;
+        const tail = base["isakai-".len..];
+        const dash = std.mem.indexOfScalar(u8, tail, '-') orelse return false;
+        const owner = std.fmt.parseInt(u32, tail[0..dash], 10) catch return false;
+        if (stx.uid != owner) return false;
+    }
     if (stx.mode & 0o022 != 0) return false;
     return true;
 }
@@ -1077,7 +1122,7 @@ fn brokerWaylandSock(sock: []const u8, data_dir: []const u8, name_buf: *[108]u8)
         sbuf[sock.len] = 0;
         const z: [*:0]const u8 = @ptrCast(&sbuf);
         var stx: linux.Statx = undefined;
-        const rc = linux.statx(linux.AT.FDCWD, z, 0, .{ .TYPE = true }, &stx);
+        const rc = linux.statx(linux.AT.FDCWD, z, linux.AT.SYMLINK_NOFOLLOW, .{ .TYPE = true }, &stx);
         if (linux.errno(rc) != .SUCCESS) {
             const msg = "uid-helper run: wayland socket vanished\n";
             _ = linux.write(linux.STDERR_FILENO, msg, msg.len);

@@ -2170,30 +2170,28 @@ pub fn translateMethod(
             if (sopcode == .packed_switch or sopcode == .sparse_switch or sopcode == .fill_array_data) {
                 const soff = @as(i32, insns[spc + 1]) + (@as(i32, insns[spc + 2]) << 16);
                 const pdex = @as(i64, @intCast(spc)) + soff;
-                if (pdex >= 0 and pdex < insns.len) {
-                    const pu: usize = @intCast(pdex);
-                    const ident = insns[pu];
-                    const want: u16 = if (sopcode == .packed_switch) 0x0100 else if (sopcode == .sparse_switch) 0x0200 else 0x0300;
-                    if (ident == want and pu + 2 <= insns.len) {
-                        var pend: usize = undefined;
-                        if (sopcode == .fill_array_data) {
-                            const width: usize = insns[pu + 1];
-                            if (width == 1 or width == 2 or width == 4 or width == 8) {
-                                const cnt: usize = (@as(usize, insns[pu + 3]) << 16) | insns[pu + 2];
-                                if (cnt <= 65536) {
-                                    pend = pu + 4 + (cnt * width + 1) / 2;
-                                } else continue;
-                            } else continue;
-                        } else {
-                            const cnt: usize = insns[pu + 1];
-                            if (cnt == 0 or cnt > 4096) continue;
-                            pend = if (sopcode == .packed_switch) pu + 4 + cnt * 2 else pu + 2 + cnt * 4;
-                        }
-                        if (pend <= insns.len) {
-                            try payloads.append(gpa, .{ .start = pu, .end = pend });
-                        }
-                    }
+                // A branch to no payload (or a corrupt payload) is damage,
+                // not empty data: reject so payload bytes never decode as
+                // fake instructions. Ranges mirror the emission checks.
+                if (pdex < 0 or pdex >= insns.len) return error.BadBranch;
+                const pu: usize = @intCast(pdex);
+                const ident = insns[pu];
+                const want: u16 = if (sopcode == .packed_switch) 0x0100 else if (sopcode == .sparse_switch) 0x0200 else 0x0300;
+                if (ident != want or pu + 2 > insns.len) return error.BadBranch;
+                var pend: usize = undefined;
+                if (sopcode == .fill_array_data) {
+                    const width: usize = insns[pu + 1];
+                    if (width != 1 and width != 2 and width != 4 and width != 8) return error.BadSection;
+                    const cnt: usize = (@as(usize, insns[pu + 3]) << 16) | insns[pu + 2];
+                    if (cnt > 65536) return error.BadSection;
+                    pend = pu + 4 + (cnt * width + 1) / 2;
+                } else {
+                    const cnt: usize = insns[pu + 1];
+                    if (cnt == 0 or cnt > 4096) return error.BadSection;
+                    pend = if (sopcode == .packed_switch) pu + 4 + cnt * 2 else pu + 2 + cnt * 4;
                 }
+                if (pend > insns.len) return error.BadBranch;
+                try payloads.append(gpa, .{ .start = pu, .end = pend });
             }
             spc += ssize;
         }
@@ -2213,7 +2211,7 @@ pub fn translateMethod(
     @memset(is_handler_pc, false);
     {
         for (code.tries) |t| {
-            const hs = dex.readCatchHandlers(gpa, d, code, t.handler_off) catch continue;
+            const hs = try dex.readCatchHandlers(gpa, d, code, t.handler_off);
             defer gpa.free(hs);
             for (hs) |h| {
                 if (h.addr < insns.len) is_handler_pc[h.addr] = true;
@@ -3582,7 +3580,7 @@ pub fn translateMethod(
         var seen_h: std.AutoHashMapUnmanaged(u32, void) = .empty;
         defer seen_h.deinit(gpa);
         for (code.tries) |t| {
-            const hs = dex.readCatchHandlers(gpa, d, code, t.handler_off) catch continue;
+            const hs = try dex.readCatchHandlers(gpa, d, code, t.handler_off);
             defer gpa.free(hs);
             for (hs) |h| {
                 if (seen_h.contains(h.addr)) continue;
@@ -4010,8 +4008,15 @@ pub const ClassWriter = struct {
         self.utf8_map.deinit(gpa);
     }
 
+    /// Pool indices are u16: refuse growth past 65535 before appending
+    /// instead of wrapping the casts below.
+    fn reserve(self: *ClassWriter, n: usize) !void {
+        if (self.entries.items.len + n > 65535) return error.TooManyIds;
+    }
+
     pub fn utf8(self: *ClassWriter, gpa: std.mem.Allocator, s: []const u8) !u16 {
         if (self.utf8_map.get(s)) |idx| return idx;
+        try self.reserve(1);
         const owned = try gpa.dupe(u8, s);
         try self.entries.append(gpa, .{ .utf8 = owned });
         const idx: u16 = @intCast(self.entries.items.len);
@@ -4022,6 +4027,7 @@ pub const ClassWriter = struct {
     /// Shared single-utf8-ref ctor (class/string differ only by entry tag).
     fn utf8Single(self: *ClassWriter, gpa: std.mem.Allocator, s: []const u8, is_class: bool) !u16 {
         const n = try self.utf8(gpa, s);
+        try self.reserve(1);
         try self.entries.append(gpa, if (is_class) .{ .class = n } else .{ .string = n });
         return @intCast(self.entries.items.len);
     }
@@ -4029,6 +4035,7 @@ pub const ClassWriter = struct {
     /// Shared two-slot ctor (long/double differ only by entry tag; both
     /// take a bit pattern — long bitcasts its value at the call site).
     fn wideSlot(self: *ClassWriter, gpa: std.mem.Allocator, bits: u64, is_double: bool) !u16 {
+        try self.reserve(2);
         try self.entries.append(gpa, if (is_double) .{ .double = bits } else .{ .long = @bitCast(bits) });
         const idx: u16 = @intCast(self.entries.items.len);
         try self.entries.append(gpa, .pad);
@@ -4040,6 +4047,7 @@ pub const ClassWriter = struct {
     fn memberRef(self: *ClassWriter, gpa: std.mem.Allocator, cls_internal: []const u8, name: []const u8, desc: []const u8, iface: ?bool) !u16 {
         const ci = try self.class(gpa, cls_internal);
         const ni = try self.nameAndType(gpa, name, desc);
+        try self.reserve(1);
         if (iface) |is_iface| {
             try self.entries.append(gpa, if (is_iface) .{ .ifacemethodref = .{ .class_idx = ci, .nat_idx = ni } } else .{ .methodref = .{ .class_idx = ci, .nat_idx = ni } });
         } else {
@@ -4057,6 +4065,7 @@ pub const ClassWriter = struct {
     }
 
     pub fn integer(self: *ClassWriter, gpa: std.mem.Allocator, v: i32) !u16 {
+        try self.reserve(1);
         try self.entries.append(gpa, .{ .integer = v });
         return @intCast(self.entries.items.len);
     }
@@ -4074,6 +4083,7 @@ pub const ClassWriter = struct {
     pub fn nameAndType(self: *ClassWriter, gpa: std.mem.Allocator, name: []const u8, desc: []const u8) !u16 {
         const ni = try self.utf8(gpa, name);
         const di = try self.utf8(gpa, desc);
+        try self.reserve(1);
         try self.entries.append(gpa, .{ .nameandtype = .{ .name_idx = ni, .desc_idx = di } });
         return @intCast(self.entries.items.len);
     }
@@ -4175,6 +4185,8 @@ pub const ClassWriter = struct {
         return out.toOwnedSlice(gpa);
     }
     pub fn emitPool(self: *ClassWriter, gpa: std.mem.Allocator, out: *std.ArrayListUnmanaged(u8)) !void {
+        // count includes the unused zero slot: a full pool is unencodable.
+        if (self.entries.items.len > 65534) return error.TooManyIds;
         try writeU16(out, gpa, @intCast(self.entries.items.len + 1));
         for (self.entries.items) |en| {
             switch (en) {

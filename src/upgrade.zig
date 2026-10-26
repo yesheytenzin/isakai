@@ -89,6 +89,9 @@ pub fn upgrade(
     const pkg = reg.get(m.package) orelse return error.NotInstalled;
     if (!signerSetMatches(pkg, fingerprints orelse &.{})) return error.SignerMismatch;
 
+    // Downgrades are rejected: the new build must not be older than installed.
+    if (m.version_code < pkg.version_code) return error.DowngradeRejected;
+
     const digest = try install.sha256File(io, gpa, apk_path);
     defer gpa.free(digest);
     const code_dir = try std.fmt.allocPrint(gpa, "{s}/code/{s}/{s}", .{ work, m.package, digest });
@@ -101,6 +104,7 @@ pub fn upgrade(
     try install.stage(io, gpa, apk_path, code_dir);
     errdefer std.Io.Dir.cwd().deleteTree(io, code_dir) catch {};
     try install.verifyRetained(io, gpa, code_dir, digest);
+    try install.verifyStagedIdentity(io, gpa, code_dir, &m, fingerprints orelse &.{});
 
     // Eager translate on the launch-time path (idempotent via its marker):
     // a broken build fails the upgrade, never the next launch. Failure
@@ -122,6 +126,7 @@ pub fn upgrade(
         next.signer_sha256_set = fs; // ditto (dupes every element)
     }
     next.installed_at = install.nowSeconds(io);
+    next.version_code = m.version_code;
     try reg.updateState(io, gpa, work, next);
 
     // One generation only: the evicted grandparent (the previous prev_apk),

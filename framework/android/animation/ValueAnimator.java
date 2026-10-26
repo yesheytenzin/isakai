@@ -193,9 +193,21 @@ public class ValueAnimator extends Animator {
     }
 
     public void reverse() {
-        float[] reversed = new float[floatValues.length];
-        for (int i = 0; i < floatValues.length; i++) reversed[i] = floatValues[floatValues.length - 1 - i];
-        floatValues = reversed;
+        for (int i = 0, j = floatValues.length - 1; i < j; i++, j--) {
+            float t = floatValues[i];
+            floatValues[i] = floatValues[j];
+            floatValues[j] = t;
+        }
+        for (int i = 0, j = intValues.length - 1; i < j; i++, j--) {
+            int t = intValues[i];
+            intValues[i] = intValues[j];
+            intValues[j] = t;
+        }
+        for (int i = 0, j = objectValues.length - 1; i < j; i++, j--) {
+            Object t = objectValues[i];
+            objectValues[i] = objectValues[j];
+            objectValues[j] = t;
+        }
     }
 
     @Override
