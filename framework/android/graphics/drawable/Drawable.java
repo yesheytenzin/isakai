@@ -330,7 +330,8 @@ public abstract class Drawable {
     /**
      * Inflate the element at the parser's current start tag. Supports the
      * software-rasterized subset: {@code color}, {@code shape} (solid color),
-     * {@code bitmap}, {@code selector}, {@code layer-list}, {@code inset},
+     * {@code bitmap}, {@code selector} and {@code animated-selector} (states
+     * without transitions), {@code layer-list}, {@code inset},
      * {@code clip}, {@code animation-list}, and filled-path {@code vector}.
      * Ripple, nine-patch, transition, and level-list XML fail-closed to
      * {@code null}; vector strokes, trim paths, and gradient fills are not rendered.
@@ -344,6 +345,12 @@ public abstract class Drawable {
             case "shape": return inflateShape(r, parser, attrs, theme);
             case "bitmap": return inflateBitmap(r, attrs);
             case "selector": return inflateSelector(r, parser, attrs, theme);
+            case "animated-selector": {
+                // AnimatedStateListDrawable: its <item> states render; the
+                // <transition> animations between them are skipped.
+                org.isakai.runtime.Capabilities.unavailable("AnimatedStateListDrawable.transitions");
+                return inflateSelector(r, parser, attrs, theme);
+            }
             case "layer-list": return inflateLayerList(r, parser, attrs, theme);
             case "ripple": {
                 ColorStateList color=ColorStateList.valueOf(resolveColorAttr(r, attrs, "color", theme, 0));
@@ -531,7 +538,7 @@ public abstract class Drawable {
         if (ref.startsWith("+")) ref = ref.substring(1);
         try {
             if (ref.startsWith("0x")) return (int) Long.parseLong(ref.substring(2), 16);
-            if (ref.matches("[0-9a-fA-F]+")) return (int) Long.parseLong(ref, 16);
+            if (ref.matches("[0-9]+")) return (int) Long.parseLong(ref);
         } catch (NumberFormatException invalid) { return fallback; }
         if ("android:id/mask".equals(ref)) return 0x0102002e;
         int id = resources.getIdentifier(ref, type, null);

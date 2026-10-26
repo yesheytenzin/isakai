@@ -241,7 +241,7 @@ fn buildManifest(gpa: std.mem.Allocator, package: []const u8, version_code: u32)
     try writeEnd(w, 3, NONE, S.uses_permission);
     // <application android:name="org.isakai.fixture.FixtureApp" android:label="@string/app_name">
     // The label is a resource reference on purpose: it covers the
-    // install-time arsc path (label id -> "Fixture" from the table).
+    // runtime label path (label id -> "Fixture" from the table).
     try writeStart(w, 4, NONE, S.application, &.{
         .{ .ns = S.android_ns, .name = S.name_attr, .raw = S.app_class, .typ = 3, .val = S.app_class },
         .{ .ns = S.android_ns, .name = S.label_attr, .raw = NONE, .typ = 1, .val = 0x7f110000 },
@@ -1227,7 +1227,7 @@ fn writeZip(
 /// Fixture resources.arsc: package 0x7f with string entries
 /// 0x7f110000 "Fixture" (app label), 0x7f110001 "Fixture" (activity
 /// label), 0x7f110002 greeting text, color 0x7f060000, dimen
-/// 0x7f070000 (48dp), layout 0x7f0b0000 -> res/layout/main.xml, and a
+/// 0x7f070000 (48dp), layout 0x7f0c0000 -> res/layout/main.xml, and a
 /// string array 0x7f030000 ["Fixture","Clicked!"]. The string type ships
 /// a qualified twin chunk so the default-config-wins rule is covered.
 fn buildArsc(gpa: std.mem.Allocator) ![]u8 {
@@ -1266,7 +1266,7 @@ fn buildArsc(gpa: std.mem.Allocator) ![]u8 {
     }.f;
     const wEntry = struct {
         fn f(l: *std.ArrayListUnmanaged(u8), g: std.mem.Allocator, key: u32, dtype: u8, data: u32) !void {
-            try writeU16List(l, g, 16);
+            try writeU16List(l, g, 8); // ResTable_entry header; the Res_value follows it
             try writeU16List(l, g, 0); // simple
             try writeU32List(l, g, key);
             try writeU16List(l, g, 8);
@@ -1390,10 +1390,10 @@ fn buildArsc(gpa: std.mem.Allocator) ![]u8 {
     try writeU16List(&e_a, gpa, 16); // entry size
     try writeU16List(&e_a, gpa, 1); // COMPLEX
     try writeU32List(&e_a, gpa, 6); // key: greetings
-    try writeU32List(&e_a, gpa, 0xFFFFFFFF); // parent: none
+    try writeU32List(&e_a, gpa, 0); // parent: none
     try writeU32List(&e_a, gpa, 2); // count
     for ([_]u32{ 0, 1 }) |gi| {
-        try writeU32List(&e_a, gpa, 0x01000000); // name: array index attr
+        try writeU32List(&e_a, gpa, 0x02000000 | gi); // name: Res_MAKEARRAY(index)
         try writeU16List(&e_a, gpa, 8);
         try e_a.append(gpa, 0);
         try e_a.append(gpa, 3);

@@ -9,17 +9,11 @@ pub fn build(b: *std.Build) void {
         .target = target,
         .optimize = optimize,
     });
-    const arsc_mod = b.createModule(.{
-        .root_source_file = b.path("src/arsc.zig"),
-        .target = target,
-        .optimize = optimize,
-    });
     const install_mod = b.createModule(.{
         .root_source_file = b.path("src/install.zig"),
         .target = target,
         .optimize = optimize,
     });
-    install_mod.addImport("arsc", arsc_mod);
     install_mod.addImport("registry", registry_mod);
     const dex_mod = b.createModule(.{
         .root_source_file = b.path("src/dex.zig"),
@@ -162,6 +156,7 @@ pub fn build(b: *std.Build) void {
     jni_mod.addImport("sqlite", sqlite_mod);
     jni_mod.addImport("audio", audio_mod);
     jni_mod.addImport("desktop", desktop_mod);
+    jni_mod.linkLibrary(androidfwLibrary(b, target, optimize));
     const bridge_exe = b.addExecutable(.{
         .name = "isakai-dbus-bridge",
         .root_module = bridge_mod,
@@ -183,13 +178,63 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
         .link_libc = true,
     });
+    shim_mod.addImport("android_log", b.createModule(.{
+        .root_source_file = b.path("src/native/android_log.zig"),
+        .target = target,
+        .optimize = optimize,
+        .link_libc = true,
+    }));
     const shim_lib = b.addLibrary(.{
         .linkage = .dynamic,
         .name = "isakai_bionic_shim",
         .root_module = shim_mod,
     });
+    // libm is only referenced for dladdr(): the shim learns where glibc's
+    // libm.so.6 lives and hands that dir to the bionic loader.
+    shim_mod.linkSystemLibrary("m", .{});
+    // AOSP framework resources (package 0x01) from ATL's pinned prebuilt
+    // framework-res.apk: libandroidfw resolves android: styles/attrs here.
+    const framework_res = b.dependency("atl_framework_res", .{}).path("res/framework-res/framework-res.apk");
+    b.getInstallStep().dependOn(&b.addInstallFile(framework_res, "framework/framework-res.apk").step);
     const shim_install = b.addInstallFile(shim_lib.getEmittedBin(), "framework/lib/libisakai_bionic_shim.so");
     b.getInstallStep().dependOn(&shim_install.step);
+    // N6: ATL Bionic Translation loader artifacts. N6 step 1 builds them
+    // independently from the pinned source (meson); the runtime consumes the
+    // outputs when present and keeps working without them (native loading
+    // simply stays unavailable, reported at the app's loadLibrary).
+    const bionic_dir = b.option([]const u8, "bionic-dir", "Directory with built bionic_translation libraries") orelse ".cache/n6-bionic-build";
+    const bionic_names = [_][]const u8{
+        "libdl_bio.so.0", "libc_bio.so.0", "libpthread_bio.so.0", "libstdc++_bio.so.0",
+    };
+    var have_bionic = true;
+    for (bionic_names) |name| {
+        var probe_buf: [4096]u8 = undefined;
+        const probe = std.fmt.bufPrint(&probe_buf, "{s}/{s}", .{ bionic_dir, name }) catch {
+            have_bionic = false;
+            break;
+        };
+        std.Io.Dir.cwd().access(b.graph.io, probe, .{}) catch {
+            have_bionic = false;
+            break;
+        };
+    }
+    if (have_bionic) {
+        b.getInstallStep().dependOn(&b.addInstallFile(
+            jni_lib.getEmittedBin(),
+            "framework/lib/bionic/libisakai_jni.so",
+        ).step);
+        for (bionic_names) |name| {
+            const src_path = std.fs.path.join(b.allocator, &.{ bionic_dir, name }) catch @panic("OOM");
+            const dest_path = std.fmt.allocPrint(b.allocator, "framework/lib/bionic/{s}", .{name}) catch @panic("OOM");
+            b.getInstallStep().dependOn(&b.addInstallFile(b.path(src_path), dest_path).step);
+        }
+        b.getInstallStep().dependOn(&b.addInstallFile(
+            b.path("src/native/bionic/cfg.d/bionic_translation.cfg"),
+            "framework/lib/bionic/xdg/bionic_translation/cfg.d/bionic_translation.cfg",
+        ).step);
+    } else {
+        std.log.warn("bionic_translation artifacts not found under {s}; native-app loading stays disabled", .{bionic_dir});
+    }
     // Framework: compile android.* + IsakaiMain with the host javac.
     const fw = b.addSystemCommand(&.{
         "javac", "--release", "17", "-d",
@@ -218,6 +263,7 @@ pub fn build(b: *std.Build) void {
     fw.addFileArg(b.path("framework/android/app/Activity.java"));
     fw.addFileArg(b.path("framework/android/app/ActivityManager.java"));
     fw.addFileArg(b.path("framework/android/app/AlarmManager.java"));
+    fw.addFileArg(b.path("framework/android/app/AlertDialog.java"));
     fw.addFileArg(b.path("framework/android/app/AppComponentFactory.java"));
     fw.addFileArg(b.path("framework/android/app/AppOpsManager.java"));
     fw.addFileArg(b.path("framework/android/app/Application.java"));
@@ -234,6 +280,7 @@ pub fn build(b: *std.Build) void {
     fw.addFileArg(b.path("framework/android/app/NotificationChannel.java"));
     fw.addFileArg(b.path("framework/android/app/NotificationManager.java"));
     fw.addFileArg(b.path("framework/android/app/PendingIntent.java"));
+    fw.addFileArg(b.path("framework/android/app/ProgressDialog.java"));
     fw.addFileArg(b.path("framework/android/app/SearchManager.java"));
     fw.addFileArg(b.path("framework/android/app/Service.java"));
     fw.addFileArg(b.path("framework/android/app/SharedElementCallback.java"));
@@ -288,9 +335,13 @@ pub fn build(b: *std.Build) void {
     fw.addFileArg(b.path("framework/android/content/pm/ShortcutManager.java"));
     fw.addFileArg(b.path("framework/android/content/pm/Signature.java"));
     fw.addFileArg(b.path("framework/android/content/res/AssetFileDescriptor.java"));
+    fw.addFileArg(b.path("framework/android/content/res/AndroidfwTable.java"));
     fw.addFileArg(b.path("framework/android/content/res/AssetManager.java"));
     fw.addFileArg(b.path("framework/android/content/res/ColorStateList.java"));
     fw.addFileArg(b.path("framework/android/content/res/Configuration.java"));
+    fw.addFileArg(b.path("framework/android/content/res/ResEngine.java"));
+    fw.addFileArg(b.path("framework/android/content/res/ResXmlParser.java"));
+    fw.addFileArg(b.path("framework/android/content/res/ResourceTable.java"));
     fw.addFileArg(b.path("framework/android/content/res/Resources.java"));
     fw.addFileArg(b.path("framework/android/content/res/SystemColors.java"));
     fw.addFileArg(b.path("framework/android/content/res/TypedArray.java"));
@@ -408,6 +459,8 @@ pub fn build(b: *std.Build) void {
     fw.addFileArg(b.path("framework/android/hardware/usb/UsbInterface.java"));
     fw.addFileArg(b.path("framework/android/hardware/usb/UsbManager.java"));
     fw.addFileArg(b.path("framework/android/icu/util/ULocale.java"));
+    fw.addFileArg(b.path("framework/android/inputmethodservice/Keyboard.java"));
+    fw.addFileArg(b.path("framework/android/inputmethodservice/KeyboardView.java"));
     fw.addFileArg(b.path("framework/android/location/Criteria.java"));
     fw.addFileArg(b.path("framework/android/location/Location.java"));
     fw.addFileArg(b.path("framework/android/location/LocationListener.java"));
@@ -437,6 +490,7 @@ pub fn build(b: *std.Build) void {
     fw.addFileArg(b.path("framework/android/os/Build.java"));
     fw.addFileArg(b.path("framework/android/os/Bundle.java"));
     fw.addFileArg(b.path("framework/android/os/CancellationSignal.java"));
+    fw.addFileArg(b.path("framework/android/os/CountDownTimer.java"));
     fw.addFileArg(b.path("framework/android/os/DropBoxManager.java"));
     fw.addFileArg(b.path("framework/android/os/Environment.java"));
     fw.addFileArg(b.path("framework/android/os/Handler.java"));
@@ -529,9 +583,11 @@ pub fn build(b: *std.Build) void {
     fw.addFileArg(b.path("framework/android/util/DisplayMetrics.java"));
     fw.addFileArg(b.path("framework/android/util/LayoutDirection.java"));
     fw.addFileArg(b.path("framework/android/util/Log.java"));
+    fw.addFileArg(b.path("framework/android/util/LogPrinter.java"));
     fw.addFileArg(b.path("framework/android/util/LongSparseArray.java"));
     fw.addFileArg(b.path("framework/android/util/Pair.java"));
     fw.addFileArg(b.path("framework/android/util/Property.java"));
+    fw.addFileArg(b.path("framework/android/util/Printer.java"));
     fw.addFileArg(b.path("framework/android/util/Size.java"));
     fw.addFileArg(b.path("framework/android/util/SizeF.java"));
     fw.addFileArg(b.path("framework/android/util/SparseArray.java"));
@@ -771,4 +827,82 @@ pub fn build(b: *std.Build) void {
     const run_step = b.step("run", "Run the isakai CLI");
     const run_cmd = b.addRunArtifact(exe);
     run_step.dependOn(&run_cmd.step);
+}
+
+/// libandroidfw and its AOSP host closure from the pinned ART Standalone
+/// tree (build.zig.zon), compiled with the upstream host flags. Upstream
+/// liblog is replaced by src/native/android_log.zig; PNG crunching,
+/// libcutils beyond tracing/native handles and ATL's C API are left out:
+/// src/native/res_engine.cpp is the only entry point.
+fn androidfwLibrary(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.builtin.OptimizeMode) *std.Build.Step.Compile {
+    const fw = b.dependency("aosp_libandroidfw", .{});
+    const base = b.dependency("aosp_libbase", .{});
+    const zip = b.dependency("aosp_libziparchive", .{});
+    const incfs = b.dependency("aosp_incfs", .{});
+    const core = b.dependency("aosp_system_core", .{});
+    const mod = b.createModule(.{
+        .root_source_file = b.path("src/native/android_log.zig"),
+        .target = target,
+        .optimize = optimize,
+        .link_libc = true,
+        .link_libcpp = true,
+        .pic = true,
+    });
+    for ([_]std.Build.LazyPath{
+        fw.path("libandroidfw/include"),
+        fw.path("libandroidfw/include_pathutils"),
+        base.path("libbase/include"),
+        zip.path("libziparchive/include"),
+        zip.path("libziparchive/incfs_support/include"),
+        incfs.path("incfs/util/include"),
+        core.path("system/core/include"),
+        core.path("system/core/libutils/include"),
+        core.path("system/core/libutils/binder/include"),
+        core.path("system/core/libcutils/include"),
+    }) |dir| mod.addIncludePath(dir);
+    const defines = [_][]const u8{
+        "-DANDROID",
+        "-D__STDC_FORMAT_MACROS",
+        "-D__STDC_CONSTANT_MACROS",
+        "-DHAVE_SYS_UIO_H=1",
+        "-DOS_PATH_SEPARATOR='/'",
+        "-D_FILE_OFFSET_BITS=64",
+        "-D_LARGEFILE64_SOURCE=1",
+        "-DZLIB_CONST",
+        "-DNDEBUG",
+    };
+    const cxx = defines ++ [_][]const u8{ "-std=gnu++23", "-w" };
+    mod.addCSourceFiles(.{ .root = fw.path("libandroidfw"), .flags = &cxx, .files = &.{
+        "ApkAssets.cpp",     "ApkParsing.cpp",       "Asset.cpp",          "AssetDir.cpp",
+        "AssetManager.cpp",  "AssetManager2.cpp",    "AssetsProvider.cpp", "AttributeResolution.cpp",
+        "BigBuffer.cpp",     "BigBufferStream.cpp",  "ChunkIterator.cpp",  "ConfigDescription.cpp",
+        "FileStream.cpp",    "Idmap.cpp",            "LoadedArsc.cpp",     "Locale.cpp",
+        "LocaleData.cpp",    "LocaleDataLookup.cpp", "misc.cpp",           "NinePatch.cpp",
+        "ObbFile.cpp",       "PathUtils.cpp",        "PosixUtils.cpp",     "PngChunkFilter.cpp",
+        "ResourceTimer.cpp", "ResourceTypes.cpp",    "ResourceUtils.cpp",  "StreamingZipInflater.cpp",
+        "StringPool.cpp",    "TypeWrappers.cpp",     "Util.cpp",           "ZipFileRO.cpp",
+        "ZipUtils.cpp",
+    } });
+    mod.addCSourceFiles(.{ .root = base.path("libbase"), .flags = &cxx, .files = &.{
+        "abi_compatibility.cpp", "chrono_utils.cpp",    "cmsg.cpp",             "errors_unix.cpp",
+        "file.cpp",              "hex.cpp",             "logging.cpp",          "mapped_file.cpp",
+        "parsebool.cpp",         "parsenetaddress.cpp", "posix_strerror_r.cpp", "process.cpp",
+        "stringprintf.cpp",      "strings.cpp",         "threads.cpp",
+    } });
+    mod.addCSourceFiles(.{ .root = zip.path("libziparchive"), .flags = &cxx, .files = &.{
+        "zip_archive.cc", "zip_archive_stream_entry.cc", "zip_cd_entry_map.cc", "zip_error.cc", "zip_writer.cc",
+    } });
+    mod.addCSourceFiles(.{ .root = incfs.path("incfs/util"), .flags = &cxx, .files = &.{"map_ptr.cpp"} });
+    mod.addCSourceFiles(.{ .root = core.path("system/core/libutils"), .flags = &cxx, .files = &.{
+        "FileMap.cpp",        "JenkinsHash.cpp",       "LightRefBase.cpp",        "Looper.cpp",          "NativeHandle.cpp",   "Printer.cpp",
+        "StopWatch.cpp",      "SystemClock.cpp",       "Threads.cpp",             "Timers.cpp",          "Tokenizer.cpp",      "misc.cpp",
+        "binder/Errors.cpp",  "binder/RefBase.cpp",    "binder/SharedBuffer.cpp", "binder/String16.cpp", "binder/String8.cpp", "binder/StrongPointer.cpp",
+        "binder/Unicode.cpp", "binder/VectorImpl.cpp",
+    } });
+    mod.addCSourceFiles(.{ .root = core.path("system/core/libcutils"), .flags = &(defines ++ [_][]const u8{ "-std=gnu11", "-w" }), .files = &.{
+        "native_handle.c", "trace-host.c",
+    } });
+    mod.addCSourceFile(.{ .file = b.path("src/native/res_engine.cpp"), .flags = &(defines ++ [_][]const u8{ "-std=gnu++23", "-Wall" }) });
+    mod.linkSystemLibrary("z", .{});
+    return b.addLibrary(.{ .linkage = .static, .name = "androidfw", .root_module = mod });
 }

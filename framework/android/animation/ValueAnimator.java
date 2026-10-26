@@ -15,6 +15,14 @@ public class ValueAnimator extends Animator {
         void onAnimationUpdate(ValueAnimator animator);
     }
 
+    /** AOSP hidden API: observes system duration-scale changes. */
+    public interface DurationScaleChangeListener {
+        void onChanged(float scale);
+    }
+
+    private static final java.util.concurrent.CopyOnWriteArrayList<DurationScaleChangeListener>
+            durationScaleListeners = new java.util.concurrent.CopyOnWriteArrayList<>();
+
     /** AOSP repeat modes. */
     public static final int RESTART = 1;
     public static final int REVERSE = 2;
@@ -70,7 +78,21 @@ public class ValueAnimator extends Animator {
     }
 
     public static void setDurationScale(float scale) {
+        if (durationScale == scale) return;
         durationScale = scale;
+        for (DurationScaleChangeListener listener : durationScaleListeners) {
+            listener.onChanged(scale);
+        }
+    }
+
+    public static void registerDurationScaleChangeListener(DurationScaleChangeListener listener) {
+        if (listener != null && !durationScaleListeners.contains(listener)) {
+            durationScaleListeners.add(listener);
+        }
+    }
+
+    public static void unregisterDurationScaleChangeListener(DurationScaleChangeListener listener) {
+        durationScaleListeners.remove(listener);
     }
 
     /** AOSP: false when animators are disabled system-wide. */

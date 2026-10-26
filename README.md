@@ -11,9 +11,10 @@ rendering, storage and desktop bridges exist, but real-app readiness still
 requires dispatch, navigation and app-specific compatibility work. Windows now
 remain open until closed; WebView has no rendering engine.
 
-The next delivery target is **three pinned utility apps completing useful
-visible tasks under default isolation**. The [progress folder](progress/README.md)
-is the single planning and progress source. Each `progress/<ID>.md` owns its
+The release gate covers pinned utility apps completing useful visible tasks
+under default isolation. Shared fixes must implement Android and Java behavior,
+not depend on a particular APK's obfuscated names or resource IDs. The
+[progress folder](progress/README.md) is the single planning and progress source. Each `progress/<ID>.md` owns its
 task status, acceptance criteria, blockers, verification evidence and code
 review. The index links to tasks without copying statuses. Technical guides
 describe implementation and usage. Verification is UI-only: launch pinned

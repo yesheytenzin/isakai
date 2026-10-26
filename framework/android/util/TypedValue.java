@@ -108,4 +108,31 @@ public class TypedValue {
     public float getFraction(float base, float parentBase) {
         return complexToFloat(data) * (((data >> COMPLEX_UNIT_SHIFT) & COMPLEX_UNIT_MASK) == COMPLEX_UNIT_FRACTION_PARENT ? parentBase : base);
     }
+
+    private static final String[] DIMENSION_UNIT_STRS = {"px", "dip", "sp", "pt", "in", "mm"};
+    private static final String[] FRACTION_UNIT_STRS = {"%", "%p"};
+
+    /** AOSP text form of a typed value, as binary XML attributes report it. */
+    public static String coerceToString(int type, int data) {
+        switch (type) {
+            case TYPE_NULL: return null;
+            case TYPE_REFERENCE: return "@" + data;
+            case TYPE_ATTRIBUTE: return "?" + data;
+            case TYPE_FLOAT: return Float.toString(Float.intBitsToFloat(data));
+            case TYPE_DIMENSION: {
+                int unit = (data >> COMPLEX_UNIT_SHIFT) & COMPLEX_UNIT_MASK;
+                return unit < DIMENSION_UNIT_STRS.length ? complexToFloat(data) + DIMENSION_UNIT_STRS[unit] : null;
+            }
+            case TYPE_FRACTION: {
+                int unit = (data >> COMPLEX_UNIT_SHIFT) & COMPLEX_UNIT_MASK;
+                return unit < FRACTION_UNIT_STRS.length ? complexToFloat(data) * 100 + FRACTION_UNIT_STRS[unit] : null;
+            }
+            case TYPE_INT_HEX: return "0x" + Integer.toHexString(data);
+            case TYPE_INT_BOOLEAN: return data != 0 ? "true" : "false";
+            default: break;
+        }
+        if (type >= TYPE_FIRST_COLOR_INT && type <= TYPE_LAST_COLOR_INT) return "#" + Integer.toHexString(data);
+        if (type >= TYPE_FIRST_INT && type <= TYPE_LAST_INT) return Integer.toString(data);
+        return null;
+    }
 }

@@ -56,6 +56,7 @@ public class WindowInsets {
     public WindowInsets consumeSystemWindowInsets() { return CONSUMED; }
     public WindowInsets consumeStableInsets() { return CONSUMED; }
     public WindowInsets consumeDisplayCutout() { return CONSUMED; }
+    public WindowInsets inset(int left, int top, int right, int bottom) { return this; }
 
     @Override
     public boolean equals(Object o) {

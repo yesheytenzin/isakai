@@ -100,16 +100,7 @@ pub fn upgrade(
 
     try install.stage(io, gpa, apk_path, code_dir);
     errdefer std.Io.Dir.cwd().deleteTree(io, code_dir) catch {};
-    // Post-stage re-hash, mirroring install: catches an APK swapped or
-    // truncated between inspect and stage.
-    {
-        const rehash = try install.sha256File(io, gpa, apk_path);
-        defer gpa.free(rehash);
-        if (!std.mem.eql(u8, rehash, digest)) {
-            std.Io.Dir.cwd().deleteTree(io, code_dir) catch {};
-            return error.SizeMismatch;
-        }
-    }
+    try install.verifyRetained(io, gpa, code_dir, digest);
 
     // Eager translate on the launch-time path (idempotent via its marker):
     // a broken build fails the upgrade, never the next launch. Failure

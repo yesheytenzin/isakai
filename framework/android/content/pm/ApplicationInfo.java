@@ -11,6 +11,7 @@ public class ApplicationInfo extends android.content.pm.PackageItemInfo {
     public String packageName;
     public String sourceDir;
     public String dataDir;
+    public String nativeLibraryDir;
     public int targetSdkVersion;
     public int minSdkVersion;
     public int flags;

@@ -18,6 +18,15 @@ public class ViewGroup extends View implements ViewParent {
     public static final int FOCUS_BLOCK_DESCENDANTS = 0x60000;
 
     private int descendantFocusability = FOCUS_BEFORE_DESCENDANTS;
+    private boolean touchscreenBlocksFocus;
+
+    public void setTouchscreenBlocksFocus(boolean blocksFocus) {
+        touchscreenBlocksFocus = blocksFocus;
+    }
+
+    public boolean getTouchscreenBlocksFocus() {
+        return touchscreenBlocksFocus;
+    }
 
     public void setDescendantFocusability(int focusability) {
         this.descendantFocusability = focusability;
@@ -157,7 +166,6 @@ public class ViewGroup extends View implements ViewParent {
     public void onViewRemoved(View child) {}
     private void prepareChild(View child) {
         if (child.getParent() != null) throw new IllegalStateException("View already has a parent");
-        installTranslatedOwners(child);
         LayoutParams params = child.getLayoutParams();
         if (params == null) params=generateDefaultLayoutParams();
         else if (!checkLayoutParams(params)) params=generateLayoutParams(params);
@@ -165,62 +173,6 @@ public class ViewGroup extends View implements ViewParent {
         if (params instanceof MarginLayoutParams)
             ((MarginLayoutParams) params).resolveLayoutDirection(getLayoutDirection());
         child.setParent(this);
-    }
-    private void installTranslatedOwners(View child) {
-        if (child == null) return;
-        if (getTag(0x7f09034f) != null) {
-            child.setTag(0x7f09034f, getTag(0x7f09034f));
-            child.setTag(0x7f090351, getTag(0x7f090351));
-            child.setTag(0x7f090052, getTag(0x7f090052));
-            return;
-        }
-        if (getParent() instanceof View
-                && ((View) getParent()).getTag(0x7f09034f) != null) {
-            setTag(0x7f09034f, ((View) getParent()).getTag(0x7f09034f));
-            setTag(0x7f090351, ((View) getParent()).getTag(0x7f090351));
-            setTag(0x7f090052, ((View) getParent()).getTag(0x7f090052));
-            child.setTag(0x7f09034f, getTag(0x7f09034f));
-            child.setTag(0x7f090351, getTag(0x7f090351));
-            child.setTag(0x7f090052, getTag(0x7f090052));
-            return;
-        }
-        try {
-            ClassLoader loader = child.getClass().getClassLoader();
-            Class<?> lifecycleOwner = Class.forName("androidx.lifecycle.v", false, loader);
-            Class<?> lifecycle = Class.forName("androidx.lifecycle.x", false, loader);
-            Class<?> savedOwner = Class.forName("l4.g", false, loader);
-            final Object[] lifecycleRef = new Object[1];
-            final Object[] savedStateRef = new Object[1];
-            Object owner = java.lang.reflect.Proxy.newProxyInstance(loader,
-                    new Class<?>[]{lifecycleOwner, savedOwner}, (proxy, method, args) -> {
-                        if ("k".equals(method.getName())) return lifecycleRef[0];
-                        if ("d".equals(method.getName())) {
-                            if (savedStateRef[0] == null) {
-                                Object registry = Class.forName("l4.e", false, loader)
-                                        .getConstructor().newInstance();
-                                registry.getClass().getField("d").setBoolean(registry, true);
-                                savedStateRef[0] = registry;
-                            }
-                            return savedStateRef[0];
-                        }
-                        return null;
-                    });
-            lifecycleRef[0] = lifecycle.getConstructor(lifecycleOwner).newInstance(owner);
-            setTag(0x7f09034f, owner);
-            child.setTag(0x7f09034f, owner);
-            setTag(0x7f090351, owner);
-            child.setTag(0x7f090351, owner);
-            Class<?> composeOwner = Class.forName("j0.g2", false, loader);
-            Class<?> coroutineContext = Class.forName("a9.i", false, loader);
-            Object context = Class.forName("a9.j", false, loader).getField("k").get(null);
-            Object compose = composeOwner.getConstructor(coroutineContext).newInstance(context);
-            setTag(0x7f090052, compose);
-            child.setTag(0x7f090052, compose);
-        } catch (ClassNotFoundException e) {
-            // Translated lifecycle support is optional for ordinary views.
-        } catch (ReflectiveOperationException e) {
-            System.err.println("isakai: unable to install translated lifecycle owner: " + e);
-        }
     }
     public void addView(View child) {
         if (child == null) throw new IllegalArgumentException("child is null");
@@ -264,6 +216,16 @@ public class ViewGroup extends View implements ViewParent {
 
     public void addView(View child, int width, int height) {
         addView(child, new LayoutParams(width, height));
+    }
+
+    public void updateViewLayout(View view, LayoutParams params) {
+        if (view == null || view.getParent() != this) {
+            throw new IllegalArgumentException("view is not a child");
+        }
+        if (params == null) throw new IllegalArgumentException("params are null");
+        view.setLayoutParams(params);
+        requestLayout();
+        invalidate();
     }
 
     protected boolean addViewInLayout(View child, int index, LayoutParams params) {
@@ -332,6 +294,19 @@ public class ViewGroup extends View implements ViewParent {
 
     public void setClipToPadding(boolean clip) {}
     public void setClipChildren(boolean clipChildren) {}
+
+    /** AOSP layout-bound modes; GridLayout reads this while measuring. */
+    public static final int LAYOUT_MODE_UNDEFINED = -1;
+    public static final int LAYOUT_MODE_CLIP_BOUNDS = 0;
+    public static final int LAYOUT_MODE_OPTICAL_BOUNDS = 1;
+    private int layoutMode = LAYOUT_MODE_UNDEFINED;
+    public int getLayoutMode() { return layoutMode; }
+    public void setLayoutMode(int mode) {
+        if (mode < 0) mode = LAYOUT_MODE_UNDEFINED;
+        if (mode == layoutMode) return;
+        layoutMode = mode;
+        requestLayout();
+    }
 
     /**
      * Record whether this group's drawable state merges its children's
@@ -726,18 +701,6 @@ public class ViewGroup extends View implements ViewParent {
     }
     protected void measureChildren(int widthSpec, int heightSpec) {
         for (View child : children) if (child.getVisibility() != GONE) {
-            LayoutParams params = child.getLayoutParams();
-            if (child.getClass().getName().startsWith("r1.")) {
-                if (params == null) {
-                    params = new LayoutParams(LayoutParams.MATCH_PARENT,
-                            LayoutParams.MATCH_PARENT);
-                    child.setLayoutParams(params);
-                } else if (params.width == LayoutParams.WRAP_CONTENT
-                        || params.height == LayoutParams.WRAP_CONTENT) {
-                    params.width = LayoutParams.MATCH_PARENT;
-                    params.height = LayoutParams.MATCH_PARENT;
-                }
-            }
             measureChild(child, widthSpec, heightSpec);
         }
     }

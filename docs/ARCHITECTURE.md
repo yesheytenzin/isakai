@@ -163,7 +163,8 @@ the owning [task file](../progress/README.md).
 | Mount namespaces and no-new-privileges | `src/uid_helper.zig` |
 | Seccomp and Landlock | `src/confine.zig`; ABI-negotiated filesystem rights, applied after privilege drop |
 | APK v2 signature verification | `src/apksig.zig`; upgrade signer checks in `src/upgrade.zig` |
-| Manifest and resource tables | `src/install.zig`, `src/arsc.zig`, Java resource classes |
+| Manifest parsing and retained `base.apk` | `src/install.zig` |
+| Resource tables, themes, binary XML and assets | AOSP libandroidfw (pinned in `build.zig.zon`) via `src/native/res_engine.cpp` and `src/bridge/resources.zig`; `framework/android/content/res/` (legacy staged-table parser behind `ISAKAI_RESOURCES=legacy`); framework resources from ATL's pinned `framework-res.apk` |
 | Wayland surfaces, SHM, frame/input/output events and clipboard | `src/bridge/window.zig` |
 | Keyboard keymaps | `src/bridge/xkb.zig`, system libxkbcommon |
 | JNI exports and direct buffers | `src/bridge/jni.zig` |

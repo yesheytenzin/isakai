@@ -3,15 +3,19 @@ package android.content;
 
 import android.content.pm.ActivityInfo;
 import android.content.pm.ApplicationInfo;
+import android.content.pm.ComponentInfo;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.content.pm.ProviderInfo;
 import android.content.pm.ServiceInfo;
+import android.content.res.XmlResourceParser;
+import android.util.TypedValue;
+import org.xmlpull.v1.XmlPullParser;
 
 /**
  * Single-package PackageManager: answers component/package queries for the
- * bound context's own package. Activity names and themes come from the staged
- * manifest when present; uninstalled host fixtures retain default records.
+ * bound context's own package. Activity, service and provider names come from
+ * the staged manifest; undeclared components are missing.
  * Cross-package queries miss, matching the install snapshot boundary.
  */
 public class IsakaiPackageManager extends PackageManager {
@@ -79,37 +83,106 @@ public class IsakaiPackageManager extends PackageManager {
     @Override
     public ServiceInfo getServiceInfo(ComponentName component, int flags)
             throws android.content.pm.PackageManager.NameNotFoundException {
-        if (!isOwnComponent(component)) {
-            throw new NameNotFoundException(
-                    component == null ? "null" : component.flattenToString());
-        }
         ServiceInfo si = new ServiceInfo();
-        si.packageName = pkg();
-        si.name = component.getClassName();
-        // Real Android populates metaData only under GET_META_DATA, and a
-        // component with no <meta-data> gets an empty (non-null) Bundle. This
-        // runtime does not model per-component manifest metadata, so report
-        // an empty one. AppCompat's AppLocalesMetadataHolderService probe
-        // only sets its cached opt-in flag when metaData is non-null (or on
-        // NameNotFoundException); a null here left it unset and NPE'd on
-        // unbox during attachBaseContext.
-        if ((flags & android.content.pm.PackageManager.GET_META_DATA) != 0) {
-            si.metaData = new android.os.Bundle();
-        }
+        readComponent(component, flags, "service", si);
         return si;
     }
 
     @Override
     public ProviderInfo getProviderInfo(ComponentName component, int flags)
             throws android.content.pm.PackageManager.NameNotFoundException {
+        ProviderInfo pi = new ProviderInfo();
+        readComponent(component, flags, "provider", pi);
+        return pi;
+    }
+
+    private void readComponent(ComponentName component, int flags, String tag, ComponentInfo info)
+            throws NameNotFoundException {
         if (!isOwnComponent(component)) {
             throw new NameNotFoundException(
                     component == null ? "null" : component.flattenToString());
         }
-        ProviderInfo pi = new ProviderInfo();
-        pi.packageName = pkg();
-        pi.name = component.getClassName();
-        return pi;
+        info.packageName = pkg();
+        info.name = qualifiedName(component.getClassName());
+        String codeDir = System.getProperty("isakai.codeDir", "");
+        if (codeDir.isEmpty() || java.nio.file.Files.notExists(
+                java.nio.file.Path.of(codeDir, "AndroidManifest.xml"))) {
+            throw new NameNotFoundException(info.name);
+        }
+        boolean found = false;
+        try (XmlResourceParser parser = context.getResources().getAssets()
+                .openXmlResourceParser("AndroidManifest.xml")) {
+            int manifestDepth = -1;
+            int applicationDepth = -1;
+            int componentDepth = -1;
+            while (parser.next() != XmlPullParser.END_DOCUMENT) {
+                int depth = parser.getDepth();
+                if (parser.getEventType() == XmlPullParser.END_TAG) {
+                    if (depth == componentDepth) componentDepth = -1;
+                    if (depth == applicationDepth) applicationDepth = -1;
+                    if (depth == manifestDepth) manifestDepth = -1;
+                    continue;
+                }
+                if (parser.getEventType() != XmlPullParser.START_TAG) continue;
+                if ("manifest".equals(parser.getName())) {
+                    manifestDepth = depth;
+                } else if (manifestDepth != -1 && depth == manifestDepth + 1
+                        && "application".equals(parser.getName())) {
+                    applicationDepth = depth;
+                } else if (applicationDepth != -1 && depth == applicationDepth + 1
+                        && tag.equals(parser.getName())
+                        && info.name.equals(qualifiedName(parser.getAttributeValue(ANDROID, "name")))) {
+                    found = true;
+                    componentDepth = depth;
+                } else if (componentDepth != -1 && depth == componentDepth + 1
+                        && "meta-data".equals(parser.getName()) && (flags & GET_META_DATA) != 0) {
+                    readMetaData(parser, info);
+                }
+            }
+        } catch (java.io.IOException | org.xmlpull.v1.XmlPullParserException failure) {
+            throw new IllegalStateException("Cannot read installed " + tag + " manifest", failure);
+        }
+        if (!found) throw new NameNotFoundException(info.name);
+        info.applicationInfo = getApplicationInfo(pkg(), flags);
+    }
+
+    private void readMetaData(XmlResourceParser parser, ComponentInfo info) {
+        String name = parser.getAttributeValue(ANDROID, "name");
+        if (name == null) return;
+        int resource = parser.getAttributeResourceValue(ANDROID, "resource", 0);
+        if (resource != 0) {
+            if (info.metaData == null) info.metaData = new android.os.Bundle();
+            info.metaData.putInt(name, resource);
+            return;
+        }
+        for (int i = 0; i < parser.getAttributeCount(); i++) {
+            if (!ANDROID.equals(parser.getAttributeNamespace(i))
+                    || !"value".equals(parser.getAttributeName(i))) continue;
+            int[] raw = parser.getAttributeRawValue(i);
+            TypedValue value = new TypedValue();
+            value.type = raw[0];
+            value.data = raw[1];
+            if (value.type == TypedValue.TYPE_REFERENCE) {
+                context.getResources().getValue(value.data, value, true);
+            } else if (value.type == TypedValue.TYPE_STRING) {
+                value.string = parser.getAttributeValue(i);
+            }
+            if (value.type != TypedValue.TYPE_STRING && value.type != TypedValue.TYPE_FLOAT
+                    && (value.type < TypedValue.TYPE_FIRST_INT || value.type > TypedValue.TYPE_LAST_INT)) {
+                return;
+            }
+            if (info.metaData == null) info.metaData = new android.os.Bundle();
+            if (value.type == TypedValue.TYPE_STRING) {
+                info.metaData.putString(name, value.string == null ? null : value.string.toString());
+            } else if (value.type == TypedValue.TYPE_FLOAT) {
+                info.metaData.putFloat(name, Float.intBitsToFloat(value.data));
+            } else if (value.type == TypedValue.TYPE_INT_BOOLEAN) {
+                info.metaData.putBoolean(name, value.data != 0);
+            } else {
+                info.metaData.putInt(name, value.data);
+            }
+            return;
+        }
     }
 
     @Override
@@ -130,6 +203,10 @@ public class IsakaiPackageManager extends PackageManager {
         ai.packageName = pkg();
         ai.dataDir = context.getDataDirString();
         ai.sourceDir = System.getProperty("isakai.codeDir");
+        // The installer stages only the selected ABI slice (lib/x86_64) and
+        // the launcher puts it on java.library.path, so this is the same dir
+        // where System.loadLibrary resolves app libraries.
+        if (ai.sourceDir != null) ai.nativeLibraryDir = ai.sourceDir + "/lib/x86_64";
         ai.targetSdkVersion = Integer.getInteger("isakai.targetSdk", 0);
         ai.minSdkVersion = Integer.getInteger("isakai.minSdk", 0);
         ai.flags = ApplicationInfo.FLAG_HAS_CODE;

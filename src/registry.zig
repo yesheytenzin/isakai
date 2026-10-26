@@ -265,6 +265,7 @@ pub const Registry = struct {
             }
             if (pkg.prev_apk) |p| pkg.prev_apk = try alloc.dupe(u8, p);
             pkg.arch = try alloc.dupe(u8, pkg.arch);
+            pkg.native_abi = try alloc.dupe(u8, pkg.native_abi);
             try self.packages.put(alloc, name, pkg);
         }
         return self;

@@ -11,56 +11,85 @@ import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import javax.xml.stream.XMLEventReader;
 import javax.xml.stream.XMLInputFactory;
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.events.Attribute;
 import javax.xml.stream.events.StartElement;
 import javax.xml.stream.events.XMLEvent;
-import org.xmlpull.v1.XmlPullParser;
 import org.xmlpull.v1.XmlPullParserException;
 
 /**
- * Resources: system DisplayMetrics plus configuration snapshots, backed by a
- * staged resource table rooted at the staged code dir ({@code -Disakai.codeDir}).
+ * Resources: system DisplayMetrics plus configuration snapshots over a
+ * {@link ResourceTable}. By default the table is AOSP libandroidfw over the
+ * retained {@code <codeDir>/base.apk} ({@link AndroidfwTable}); the current
+ * configuration and display metrics drive Android's best-match selection.
  *
- * <p>Host side ({@code src/install.zig} + {@code src/arsc.zig}) parses
- * {@code resources.arsc} at install time; this class loads the staged copy at
- * runtime: {@code <codeDir>/resources.arsc}. The table format is shared with
- * the Zig reader (string pool, packages, type chunks, entry index, Res_value);
- * this parser is intentionally narrow — default config wins, first present
- * qualified chunk is the fallback, bags are skipped, {@code @ref} chains
- * resolve with a depth cap. Anything unexpected throws
- * {@link NotFoundException} (fail-closed, never a guessed value).
+ * <p>{@code ISAKAI_RESOURCES=legacy}, or a code dir without base.apk,
+ * selects the original narrow Java parser of the staged resources.arsc
+ * ({@link Table}): default config wins, first qualified chunk is the
+ * fallback, {@code @ref} chains resolve with a depth cap.
  *
- * <p>When no staged table exists (system resources, unit tests), every id
- * lookup throws {@link NotFoundException} as before.
+ * <p>When no code dir exists (system resources), every id lookup throws
+ * {@link NotFoundException}.
  */
 public class Resources {
     private final DisplayMetrics metrics = new DisplayMetrics();
     private final Configuration configuration = new Configuration();
-    private final Table table;
+    private final ResourceTable table;
 
     public Resources() {
-        this.table = Table.loadStaged();
+        this.table = loadTable();
         // Headless default: portrait (real displays always report an
         // orientation; undefined breaks app branching).
         this.configuration.orientation = Configuration.ORIENTATION_PORTRAIT;
+        configureTable();
     }
 
     /** Copy constructor for system snapshots. */
     public Resources(DisplayMetrics seed) {
-        this.table = Table.loadStaged();
+        this.table = loadTable();
         setMetrics(seed.widthPixels, seed.heightPixels, seed.densityDpi,
                 seed.density, seed.scaledDensity, seed.xdpi, seed.ydpi);
     }
 
-    /** Test hook: wrap an explicit table (null = no table). */
-    Resources(Table table) {
-        this.table = table;
+    /**
+     * Resources over the same archives as {@code assets} with their own
+     * configuration (AOSP's public constructor). Each instance selects
+     * independently, as a configuration context needs.
+     */
+    public Resources(AssetManager assets, DisplayMetrics seed, Configuration config) {
+        this.table = assets == null ? loadTable() : assets.newTable();
+        if (config != null) this.configuration.setTo(config);
+        if (seed != null) {
+            setMetrics(seed.widthPixels, seed.heightPixels, seed.densityDpi,
+                    seed.density, seed.scaledDensity, seed.xdpi, seed.ydpi);
+        } else {
+            configureTable();
+        }
+    }
+
+    private static ResourceTable loadTable() {
+        String dir = System.getProperty("isakai.codeDir", "");
+        if (dir == null || dir.isEmpty()) return null;
+        if (!"legacy".equals(System.getenv("ISAKAI_RESOURCES"))) {
+            try {
+                File framework = ResEngine.frameworkArchive();
+                ResEngine engine = ResEngine.open(framework, new File(dir, "base.apk"));
+                if (engine != null) return new AndroidfwTable(engine);
+                System.err.println("isakai: resources: no readable " + framework + " and "
+                        + new File(dir, "base.apk") + "; using the staged resources.arsc parser");
+            } catch (LinkageError e) {
+                System.err.println("isakai: resources: libandroidfw unavailable (" + e
+                        + "); using the staged resources.arsc parser");
+            }
+        }
+        return Table.loadStaged();
+    }
+
+    private void configureTable() {
+        if (table != null) table.configure(configuration, metrics);
     }
 
     public DisplayMetrics getDisplayMetrics() {
@@ -76,6 +105,7 @@ public class Resources {
         metrics.scaledDensity = scaled;
         metrics.xdpi = xdpi;
         metrics.ydpi = ydpi;
+        configureTable();
     }
 
     public Configuration getConfiguration() {
@@ -87,38 +117,57 @@ public class Resources {
         if (dm != null) {
             setMetrics(dm.widthPixels, dm.heightPixels, dm.densityDpi,
                     dm.density, dm.scaledDensity, dm.xdpi, dm.ydpi);
+        } else {
+            configureTable();
         }
     }
 
     public AssetManager getAssets() {
-        return new AssetManager();
+        return table == null ? new AssetManager() : table.assets();
     }
 
     private static NotFoundException missing(int id) {
         return new NotFoundException("no resource table: 0x" + Integer.toHexString(id));
     }
 
-    private Table.Entry resolve(int id) {
-        Integer systemColor=SystemColors.color(id);
-        if(systemColor!=null) {
-            Table.Entry entry=new Table.Entry();entry.dataType=TypedValue.TYPE_INT_COLOR_ARGB8;entry.data=systemColor;return entry;
-        }
-        if (table == null) throw missing(id);
-        Table.Entry e = table.lookup(id);
-        if (e == null) throw missing(id);
-        return e;
+    private static TypedValue colorValue(int color) {
+        TypedValue v = new TypedValue();
+        v.type = TypedValue.TYPE_INT_COLOR_ARGB8;
+        v.data = color;
+        return v;
     }
 
-    private Table.Entry resolveType(int id, int firstType, int lastType) {
-        Table.Entry e = resolve(id);
-        if (e.dataType < firstType || e.dataType > lastType) throw missing(id);
-        return e;
+    private TypedValue resolve(int id) {
+        Integer systemColor = SystemColors.color(id);
+        if (systemColor != null) return colorValue(systemColor);
+        if (table == null) throw missing(id);
+        TypedValue v = table.value(id, true);
+        if (v == null) throw missing(id);
+        return v;
+    }
+
+    private TypedValue resolveType(int id, int firstType, int lastType) {
+        TypedValue v = resolve(id);
+        if (v.type < firstType || v.type > lastType) throw missing(id);
+        return v;
+    }
+
+    private TypedValue resolveFile(int id) {
+        TypedValue v = resolve(id);
+        if (v.type != TypedValue.TYPE_STRING || v.string == null) throw missing(id);
+        return v;
     }
 
     public String getString(int id) {
-        Table.Entry e = resolve(id);
-        if (e.dataType != TypedValue.TYPE_STRING || e.string == null) throw missing(id);
-        return e.string;
+        return resolveFile(id).string.toString();
+    }
+
+    public String getString(int id, Object... formatArgs) {
+        String raw = getString(id);
+        if (formatArgs == null) throw new NullPointerException("formatArgs");
+        java.util.Locale locale = configuration.locale;
+        return String.format(locale != null ? locale : java.util.Locale.getDefault(),
+                raw, formatArgs);
     }
 
     public CharSequence getText(int id) {
@@ -127,30 +176,23 @@ public class Resources {
 
     public String[] getStringArray(int id) {
         if (table == null) throw missing(id);
-        String[] arr = table.lookupStringArray(id);
+        String[] arr = table.stringArray(id);
         if (arr == null) throw missing(id);
         return arr;
     }
 
     public int[] getIntArray(int id) {
         if (table == null) throw missing(id);
-        int[] arr = table.lookupIntArray(id);
+        int[] arr = table.intArray(id);
         if (arr == null) throw missing(id);
         return arr;
     }
 
-    /**
-     * Raw staged bytes for a file-backed resource. AOSP throws for a missing
-     * raw resource; Isakai fails closed with {@link NotFoundException}.
-     */
+    /** Raw bytes of a file-backed resource; a missing one throws NotFoundException. */
     public InputStream openRawResource(int id) {
-        if (table == null) throw missing(id);
-        Table.Entry e = resolve(id);
-        if (e.dataType != TypedValue.TYPE_STRING || e.string == null) throw missing(id);
-        File f = table.stagedFile(e.string);
-        if (f == null) throw missing(id);
+        TypedValue v = resolveFile(id);
         try {
-            return new FileInputStream(f);
+            return table.openFile(v);
         } catch (IOException ex) {
             throw missing(id);
         }
@@ -164,36 +206,30 @@ public class Resources {
     }
 
     public boolean getBoolean(int id) {
-        Table.Entry e = resolveType(id, TypedValue.TYPE_INT_BOOLEAN, TypedValue.TYPE_INT_BOOLEAN);
-        return e.data != 0;
+        return resolveType(id, TypedValue.TYPE_INT_BOOLEAN, TypedValue.TYPE_INT_BOOLEAN).data != 0;
     }
 
     public int getInteger(int id) {
-        Table.Entry e = resolveType(id, TypedValue.TYPE_FIRST_INT, TypedValue.TYPE_LAST_INT);
-        return e.data;
+        return resolveType(id, TypedValue.TYPE_FIRST_INT, TypedValue.TYPE_LAST_INT).data;
     }
 
     public float getDimension(int id) {
-        Table.Entry e = resolveType(id, TypedValue.TYPE_DIMENSION, TypedValue.TYPE_DIMENSION);
-        return TypedValue.complexToDimension(e.data, metrics);
+        TypedValue v = resolveType(id, TypedValue.TYPE_DIMENSION, TypedValue.TYPE_DIMENSION);
+        return TypedValue.complexToDimension(v.data, metrics);
     }
 
     public int getDimensionPixelSize(int id) {
-        Table.Entry e = resolveType(id, TypedValue.TYPE_DIMENSION, TypedValue.TYPE_DIMENSION);
-        return TypedValue.complexToDimensionPixelSize(e.data, metrics);
+        TypedValue v = resolveType(id, TypedValue.TYPE_DIMENSION, TypedValue.TYPE_DIMENSION);
+        return TypedValue.complexToDimensionPixelSize(v.data, metrics);
     }
 
     public int getDimensionPixelOffset(int id) {
-        Table.Entry e = resolveType(id, TypedValue.TYPE_DIMENSION, TypedValue.TYPE_DIMENSION);
-        return TypedValue.complexToDimensionPixelOffset(e.data, metrics);
+        TypedValue v = resolveType(id, TypedValue.TYPE_DIMENSION, TypedValue.TYPE_DIMENSION);
+        return TypedValue.complexToDimensionPixelOffset(v.data, metrics);
     }
 
     public float getFraction(int id, int base, int pbase) {
-        Table.Entry e = resolveType(id, TypedValue.TYPE_FRACTION, TypedValue.TYPE_FRACTION);
-        TypedValue v = new TypedValue();
-        v.type = e.dataType;
-        v.data = e.data;
-        return v.getFraction(base, pbase);
+        return resolveType(id, TypedValue.TYPE_FRACTION, TypedValue.TYPE_FRACTION).getFraction(base, pbase);
     }
 
     public int getColor(int id,Theme theme) { return getColor(id); }
@@ -201,69 +237,69 @@ public class Resources {
     public Drawable getDrawable(int id,Theme theme) { return getDrawable(id); }
 
     public int getColor(int id) {
-        Table.Entry e = resolveType(id, TypedValue.TYPE_FIRST_COLOR_INT, TypedValue.TYPE_LAST_COLOR_INT);
-        return e.data;
+        TypedValue v = resolve(id);
+        if (v.type >= TypedValue.TYPE_FIRST_COLOR_INT && v.type <= TypedValue.TYPE_LAST_COLOR_INT) return v.data;
+        if (v.type == TypedValue.TYPE_STRING) return getColorStateList(id).getDefaultColor();
+        throw missing(id);
     }
 
     public ColorStateList getColorStateList(int id) {
         // A color int backs a single-color list; otherwise the entry names a
-        // staged XML file (res/*.xml) parsed as a <selector>.
-        Table.Entry e = resolve(id);
-        if (e.dataType >= TypedValue.TYPE_FIRST_COLOR_INT && e.dataType <= TypedValue.TYPE_LAST_COLOR_INT) {
-            return ColorStateList.valueOf(e.data);
+        // compiled res/color XML file parsed as a <selector>.
+        TypedValue v = resolve(id);
+        if (v.type >= TypedValue.TYPE_FIRST_COLOR_INT && v.type <= TypedValue.TYPE_LAST_COLOR_INT) {
+            return ColorStateList.valueOf(v.data);
         }
-        if (e.dataType == TypedValue.TYPE_STRING && e.string != null) {
-            File f = table.stagedFile(e.string);
-            if (f == null) throw missing(id);
-            try (InputStream in = new FileInputStream(f)) {
-                XmlPullParser parser = android.util.Xml.newPullParser();
-                parser.setInput(in, "UTF-8");
-                return ColorStateList.createFromXml(this, parser);
-            } catch (IOException | XmlPullParserException ex) {
-                throw missing(id);
-            }
+        if (v.type != TypedValue.TYPE_STRING || v.string == null) throw missing(id);
+        try (XmlResourceParser parser = table.openXml(v)) {
+            return ColorStateList.createFromXml(this, parser);
+        } catch (IOException | XmlPullParserException ex) {
+            throw missing(id);
         }
-        throw missing(id);
     }
 
     public Drawable getDrawable(int id) {
-        Table.Entry e = resolve(id);
-        if (e.dataType >= TypedValue.TYPE_FIRST_COLOR_INT && e.dataType <= TypedValue.TYPE_LAST_COLOR_INT) {
-            return new android.graphics.drawable.ColorDrawable(e.data);
+        TypedValue v = resolve(id);
+        if (v.type >= TypedValue.TYPE_FIRST_COLOR_INT && v.type <= TypedValue.TYPE_LAST_COLOR_INT) {
+            return new android.graphics.drawable.ColorDrawable(v.data);
         }
-        if (e.dataType == TypedValue.TYPE_STRING && e.string != null) {
-            File f = table.stagedFile(e.string);
-            if (f == null) throw missing(id);
-            String path = f.getPath();
-            String lower = path.toLowerCase(java.util.Locale.ROOT);
-            if (lower.endsWith(".xml")) {
-                // Binary-aware: staged res XML is compiled binary XML.
-                try (XmlResourceParser parser = openXml(id)) {
-                    Drawable d = Drawable.createFromXml(this, parser);
-                    if (d != null) return d;
-                } catch (RuntimeException ex) {
-                    // Fall through to the bitmap path, then fail closed.
-                }
+        if (v.type != TypedValue.TYPE_STRING || v.string == null) throw missing(id);
+        String path = v.string.toString();
+        if (path.toLowerCase(java.util.Locale.ROOT).endsWith(".xml")) {
+            try (XmlResourceParser parser = table.openXml(v)) {
+                Drawable d = Drawable.createFromXml(this, parser);
+                if (d != null) return d;
+            } catch (RuntimeException ex) {
+                // Fall through to the bitmap path, then fail closed.
             }
-            android.graphics.Bitmap bitmap = null;
-            try (InputStream in = new FileInputStream(f)) {
-                bitmap = android.graphics.BitmapFactory.decodeStream(in);
-            } catch (IOException | RuntimeException ex) {
-                bitmap = null;
-            }
-            if (bitmap != null) return new android.graphics.drawable.BitmapDrawable(this, bitmap);
-            throw missing(id);
         }
-        if (e.dataType == TypedValue.TYPE_REFERENCE) throw missing(id);
+        android.graphics.Bitmap bitmap;
+        try (InputStream in = table.openFile(v)) {
+            bitmap = android.graphics.BitmapFactory.decodeStream(in);
+        } catch (IOException | RuntimeException ex) {
+            bitmap = null;
+        }
+        if (bitmap != null) return new android.graphics.drawable.BitmapDrawable(this, bitmap);
         throw missing(id);
+    }
+
+    private static void copy(TypedValue from, TypedValue to) {
+        to.type = from.type;
+        to.data = from.data;
+        to.string = from.string;
+        to.resourceId = from.resourceId;
+        to.assetCookie = from.assetCookie;
+        to.changingConfigurations = from.changingConfigurations;
+        to.density = from.density;
     }
 
     public void getValue(int id, TypedValue outValue, boolean resolveRefs) {
         if (outValue == null) throw new NullPointerException("outValue");
-        if (table == null) throw missing(id);
-        Table.Entry e = resolveRefs ? resolve(id) : table.lookupRaw(id);
-        if (e == null) throw missing(id);
-        e.fill(outValue, id);
+        Integer systemColor = SystemColors.color(id);
+        TypedValue v = systemColor != null ? colorValue(systemColor)
+                : table == null ? null : table.value(id, resolveRefs);
+        if (v == null) throw missing(id);
+        copy(v, outValue);
     }
 
     public void getValue(String name, TypedValue outValue, boolean resolveRefs) {
@@ -274,18 +310,9 @@ public class Resources {
         getValue(id, outValue, resolveRefs);
     }
 
-    /**
-     * Typed value for an attribute id (android.R.attr / app attr). Non-null
-     * only when the id names a value entry; the bag/map form of style
-     * entries is not addressable this way (fail-closed null).
-     */
+    /** Resolved table value for an attribute or resource id; null when absent. */
     TypedValue attributeValue(int id) {
-        if (table == null) return null;
-        Table.Entry e = table.lookup(id);
-        if (e == null) return null;
-        TypedValue v = new TypedValue();
-        e.fill(v, id);
-        return v;
+        return table == null ? null : table.value(id, true);
     }
 
     public XmlResourceParser getXml(int id) {
@@ -301,17 +328,7 @@ public class Resources {
     }
 
     private XmlResourceParser openXml(int id) {
-        if (table == null) throw missing(id);
-        Table.Entry e = resolve(id);
-        if (e.dataType != TypedValue.TYPE_STRING || e.string == null) throw missing(id);
-        File f = table.stagedFile(e.string);
-        if (f == null) throw missing(id);
-        try {
-            byte[] bytes = Files.readAllBytes(f.toPath());
-            return decodeBinaryXml(bytes, f.getPath());
-        } catch (IOException ex) {
-            throw missing(id);
-        }
+        return table.openXml(resolveFile(id));
     }
 
     /**
@@ -1016,32 +1033,30 @@ public class Resources {
         }
     }
 
-    public String getResourceName(int id) {
+    private String nameOf(int id) {
         if (table == null) throw missing(id);
         String n = table.resourceName(id);
-        if (n == null) throw missing(id);
+        if (n == null || n.indexOf(':') < 0 || n.indexOf('/') < 0) throw missing(id);
         return n;
+    }
+
+    public String getResourceName(int id) {
+        return nameOf(id);
     }
 
     public String getResourceEntryName(int id) {
-        if (table == null) throw missing(id);
-        String n = table.entryName(id);
-        if (n == null) throw missing(id);
-        return n;
+        String n = nameOf(id);
+        return n.substring(n.indexOf('/') + 1);
     }
 
     public String getResourceTypeName(int id) {
-        if (table == null) throw missing(id);
-        String n = table.typeName(id);
-        if (n == null) throw missing(id);
-        return n;
+        String n = nameOf(id);
+        return n.substring(n.indexOf(':') + 1, n.indexOf('/'));
     }
 
     public String getResourcePackageName(int id) {
-        if (table == null) throw missing(id);
-        String n = table.packageName(id);
-        if (n == null) throw missing(id);
-        return n;
+        String n = nameOf(id);
+        return n.substring(0, n.indexOf(':'));
     }
 
     public int getIdentifier(String name, String defType, String defPackage) {
@@ -1050,7 +1065,7 @@ public class Resources {
     }
 
     public TypedArray obtainAttributes(android.util.AttributeSet set, int[] attrs) {
-        return new TypedArray(this, set, attrs);
+        return table == null ? TypedArray.fromTag(this, set, attrs) : table.obtainAttributes(this, set, attrs);
     }
 
     private static final Resources SYSTEM = new Resources();
@@ -1067,18 +1082,73 @@ public class Resources {
         return new Theme(this);
     }
 
-    /** Theme handle: style overlays resolve first, table values second. */
+    /** Theme handle over the table's theme implementation. */
     public static class Theme {
         private final Resources resources;
-        private final java.util.LinkedHashMap<Integer, Table.Entry> overlay =
-                new java.util.LinkedHashMap<>();
+        private final ResourceTable.ThemeImpl impl;
 
         Theme(Resources resources) {
             this.resources = resources;
+            this.impl = resources.table == null ? new LegacyTheme(null) : resources.table.newTheme();
         }
 
         public void applyStyle(int resId, boolean force) {
-            if (resources == null || resources.table == null || resId == 0) return;
+            if (resId != 0) impl.applyStyle(resId, force);
+        }
+
+        public void setTo(Theme other) {
+            impl.setTo(other == null ? null : other.impl);
+        }
+
+        /**
+         * Re-apply the theme's style stack for the current configuration
+         * (AppCompat calls this from its attach/night-mode path). Applied
+         * styles are re-resolved on lookup, so there is nothing to recompute.
+         */
+        public void rebase() {}
+
+        public TypedArray obtainStyledAttributes(int[] attrs) {
+            return impl.obtainStyledAttributes(resources, null, attrs, 0, 0);
+        }
+
+        public TypedArray obtainStyledAttributes(int resid, int[] attrs) {
+            return impl.obtainStyledAttributes(resources, null, attrs, 0, resid);
+        }
+
+        public TypedArray obtainStyledAttributes(android.util.AttributeSet set, int[] attrs, int defStyleAttr, int defStyleRes) {
+            return impl.obtainStyledAttributes(resources, set, attrs, defStyleAttr, defStyleRes);
+        }
+
+        public boolean resolveAttribute(int resid, TypedValue outValue, boolean resolveRefs) {
+            if (outValue == null || resid == 0) return false;
+            return impl.resolveAttribute(resid, outValue, resolveRefs);
+        }
+
+        public int getChangingConfigurations() {
+            return impl.getChangingConfigurations();
+        }
+
+        public Resources getResources() {
+            return resources;
+        }
+    }
+
+    /**
+     * Legacy-engine theme: applied style bags merged into an attribute
+     * overlay. Style overlays resolve first, table values second.
+     */
+    static final class LegacyTheme implements ResourceTable.ThemeImpl {
+        private final Table table;
+        private final java.util.LinkedHashMap<Integer, Table.Entry> overlay =
+                new java.util.LinkedHashMap<>();
+
+        LegacyTheme(Table table) {
+            this.table = table;
+        }
+
+        @Override
+        public void applyStyle(int resId, boolean force) {
+            if (table == null || resId == 0) return;
             java.util.LinkedHashMap<Integer, Table.Entry> merged = new java.util.LinkedHashMap<>();
             collectStyle(resId, merged, 0);
             if (force) {
@@ -1092,8 +1162,8 @@ public class Resources {
 
         /** Merge parent-first so child items win; cycle/depth capped. */
         private void collectStyle(int styleId, java.util.LinkedHashMap<Integer, Table.Entry> out, int depth) {
-            if (depth > 16 || resources == null || resources.table == null) return;
-            Table.Bag bag = resources.table.readBag(styleId);
+            if (depth > 16 || table == null) return;
+            Table.Bag bag = table.readBag(styleId);
             if (bag == null) return;
             int parent = bag.parent;
             if (parent == 0) {
@@ -1107,40 +1177,25 @@ public class Resources {
 
         /** Implicit parent: strip the last '.'-separated style name segment. */
         private int implicitParent(int styleId) {
-            String name;
-            try {
-                name = resources.getResourceEntryName(styleId);
-            } catch (RuntimeException e) {
-                return 0;
-            }
+            String full = table.resourceName(styleId);
+            if (full == null) return 0;
+            int colon = full.indexOf(':');
+            int slash = full.indexOf('/');
+            if (colon < 0 || slash < 0) return 0;
+            String name = full.substring(slash + 1);
             int dot = name.lastIndexOf('.');
             if (dot <= 0) return 0;
-            String pkg;
-            try {
-                String full = resources.getResourceName(styleId);
-                int colon = full.indexOf(':');
-                pkg = colon < 0 ? null : full.substring(0, colon);
-            } catch (RuntimeException e) {
-                pkg = null;
-            }
-            return resources.table.styleIdByName(pkg, name.substring(0, dot));
+            return table.styleIdByName(full.substring(0, colon), name.substring(0, dot));
         }
 
-        public void setTo(Theme other) {
+        @Override
+        public void setTo(ResourceTable.ThemeImpl other) {
             overlay.clear();
-            if (other != null) overlay.putAll(other.overlay);
+            if (other instanceof LegacyTheme) overlay.putAll(((LegacyTheme) other).overlay);
         }
 
-        /**
-         * Re-apply the theme's style stack for the current configuration
-         * (AppCompat calls this from its attach/night-mode path). This
-         * runtime raises no configuration changes and the overlay already
-         * holds every applied style, so there is nothing to recompute.
-         */
-        public void rebase() {}
-
-        /** Theme-first attribute lookup for styled arrays. */
-        TypedValue themeValue(int attrId) {
+        @Override
+        public TypedValue attribute(int attrId) {
             Table.Entry e = overlay.get(attrId);
             if (e == null) return null;
             TypedValue v = new TypedValue();
@@ -1148,50 +1203,37 @@ public class Resources {
             return v;
         }
 
-        public TypedArray obtainStyledAttributes(int[] attrs) {
-            return new TypedArray(resources, this, null, attrs);
+        private TypedValue tableValue(int id) {
+            return table == null ? null : table.value(id, true);
         }
 
-        public TypedArray obtainStyledAttributes(int resid, int[] attrs) {
-            Theme t = new Theme(resources);
-            t.applyStyle(resid, true);
-            t.overlay.putAll(overlay);
-            Theme merged = new Theme(resources);
-            merged.overlay.putAll(t.overlay);
-            return new TypedArray(resources, merged, null, attrs);
-        }
-
-        public TypedArray obtainStyledAttributes(android.util.AttributeSet set, int[] attrs, int defStyleAttr, int defStyleRes) {
-            if (System.getProperty("isakai.diagAttrs") != null && defStyleAttr == 2130968618) {
-                TypedValue _v = themeValue(defStyleAttr);
-                System.err.println("DIAG theme defStyleAttr present=" + (_v != null) + " overlaySize=" + overlay.size());
-            }
-            if ((defStyleAttr != 0 || defStyleRes != 0) && resources != null && resources.table != null) {
+        @Override
+        public TypedArray obtainStyledAttributes(Resources resources, android.util.AttributeSet set, int[] attrs,
+                int defStyleAttr, int defStyleRes) {
+            if ((defStyleAttr != 0 || defStyleRes != 0) && table != null) {
                 // defStyleAttr/defStyleRes layer under the tag literals.
-                Theme t = new Theme(resources);
+                LegacyTheme t = new LegacyTheme(table);
                 if (defStyleAttr != 0) {
-                    TypedValue v = themeValue(defStyleAttr);
-                    if (v == null) v = resources.attributeValue(defStyleAttr);
+                    TypedValue v = attribute(defStyleAttr);
+                    if (v == null) v = tableValue(defStyleAttr);
                     if (v != null && v.resourceId != 0) t.applyStyle(v.resourceId, true);
                     else if (v != null && v.type == TypedValue.TYPE_REFERENCE) t.applyStyle(v.data, true);
                 }
                 if (defStyleRes != 0) t.applyStyle(defStyleRes, true);
                 t.overlay.putAll(overlay);
-                Theme merged = new Theme(resources);
-                merged.overlay.putAll(t.overlay);
-                return new TypedArray(resources, merged, set, attrs);
+                return new TypedArray(resources, t, set, attrs);
             }
             return new TypedArray(resources, this, set, attrs);
         }
 
+        @Override
         public boolean resolveAttribute(int resid, TypedValue outValue, boolean resolveRefs) {
-            if (outValue == null || resources == null || resid == 0) return false;
             // Theme overlay first (applied styles), then the raw table.
             // Follows ?attr/ chains through the theme (cap 8, fail-closed).
             int id = resid;
             for (int depth = 0; depth < 8; depth++) {
-                TypedValue v = themeValue(id);
-                if (v == null) v = resources.attributeValue(id);
+                TypedValue v = attribute(id);
+                if (v == null) v = tableValue(id);
                 if (v == null) return false;
                 if (!resolveRefs || v.type != TypedValue.TYPE_ATTRIBUTE || v.data == 0 || v.data == id) {
                     outValue.type = v.type;
@@ -1212,9 +1254,9 @@ public class Resources {
             return false;
         }
 
-
-        public Resources getResources() {
-            return resources;
+        @Override
+        public int getChangingConfigurations() {
+            return 0;
         }
     }
 
@@ -1225,11 +1267,11 @@ public class Resources {
     }
 
     /**
-     * Parsed resources.arsc: global string pool, packages (type/key names),
-     * type chunks with config blobs, entry index. Mirrors src/arsc.zig so
-     * host and runtime agree on every covered path.
+     * Legacy engine: parsed staged resources.arsc (global string pool,
+     * packages with type/key names, type chunks with config blobs, entry
+     * index) with no configuration selection.
      */
-    static final class Table {
+    static final class Table implements ResourceTable {
         final byte[] bytes;
         final String[] globals;
         final List<Pkg> packages = new ArrayList<>();
@@ -1484,6 +1526,61 @@ public class Resources {
 
         Entry lookup(int id) {
             return lookupDepth(id, 0);
+        }
+
+        @Override
+        public TypedValue value(int id, boolean resolveRefs) {
+            Entry e = resolveRefs ? lookup(id) : lookupRaw(id);
+            if (e == null) return null;
+            TypedValue v = new TypedValue();
+            e.fill(v, id);
+            return v;
+        }
+
+        @Override
+        public String[] stringArray(int id) {
+            return lookupStringArray(id);
+        }
+
+        @Override
+        public int[] intArray(int id) {
+            return lookupIntArray(id);
+        }
+
+        @Override
+        public XmlResourceParser openXml(TypedValue file) {
+            File f = stagedFile(file.string == null ? null : file.string.toString());
+            if (f == null) throw new NotFoundException("missing xml: " + file.string);
+            try {
+                return decodeBinaryXml(Files.readAllBytes(f.toPath()), f.getPath());
+            } catch (IOException ex) {
+                throw new NotFoundException("unreadable xml: " + f.getPath());
+            }
+        }
+
+        @Override
+        public InputStream openFile(TypedValue file) throws IOException {
+            File f = stagedFile(file.string == null ? null : file.string.toString());
+            if (f == null) throw new java.io.FileNotFoundException(String.valueOf(file.string));
+            return new FileInputStream(f);
+        }
+
+        @Override
+        public ThemeImpl newTheme() {
+            return new LegacyTheme(this);
+        }
+
+        @Override
+        public void configure(Configuration config, DisplayMetrics metrics) {}
+
+        @Override
+        public TypedArray obtainAttributes(Resources resources, android.util.AttributeSet set, int[] attrs) {
+            return TypedArray.fromTag(resources, set, attrs);
+        }
+
+        @Override
+        public AssetManager assets() {
+            return new AssetManager();
         }
 
         Entry lookupRaw(int id) {
@@ -1795,7 +1892,8 @@ public class Resources {
             return null;
         }
 
-        String resourceName(int id) {
+        @Override
+        public String resourceName(int id) {
             String pkg = packageName(id);
             String type = typeName(id);
             String entry = entryName(id);
@@ -1829,7 +1927,8 @@ public class Resources {
             return null;
         }
 
-        int identifier(String name, String defType, String defPackage) {
+        @Override
+        public int identifier(String name, String defType, String defPackage) {
             if (name == null) return 0;
             String ref = name.startsWith("@") ? name.substring(1) : name;
             if (ref.startsWith("+")) ref = ref.substring(1);

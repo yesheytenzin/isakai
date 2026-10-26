@@ -23,6 +23,17 @@ public final class AnimatorInflater {
         return loadAnimator(resources, null, id);
     }
 
+    /**
+     * State-list animators are recorded by {@link StateListAnimator} but not
+     * played back yet, so the resource is validated only by loading.
+     * shortcut: no state matching/playback; parse items when playback lands.
+     */
+    public static StateListAnimator loadStateListAnimator(Context context, int id) {
+        if (context == null) throw new NullPointerException("context");
+        context.getResources().getAnimation(id).close();
+        return new StateListAnimator();
+    }
+
     public static Animator loadAnimator(Resources resources, Resources.Theme theme, int id) {
         if (resources == null) throw new NullPointerException("resources");
         XmlResourceParser parser = resources.getAnimation(id);

@@ -28,8 +28,6 @@ public class ParcelFileDescriptor implements Closeable {
     private final int fd;
     private boolean closed;
 
-    private static int nextFd = 100;
-
     public ParcelFileDescriptor(FileDescriptor descriptor, int fd) {
         this.descriptor = descriptor == null ? new FileDescriptor() : descriptor;
         this.file = null;
@@ -37,18 +35,15 @@ public class ParcelFileDescriptor implements Closeable {
         this.fd = fd;
     }
 
-    private ParcelFileDescriptor(RandomAccessFile file, int mode, int fd) throws IOException {
+    private ParcelFileDescriptor(RandomAccessFile file, int mode) throws IOException {
         this.file = file;
         this.descriptor = file.getFD();
         this.mode = mode;
-        this.fd = fd;
+        this.fd = -1;
     }
 
     public ParcelFileDescriptor(ParcelFileDescriptor src) {
-        this.file = src == null ? null : src.file;
-        this.descriptor = src == null || src.descriptor == null ? new FileDescriptor() : src.descriptor;
-        this.mode = src == null ? MODE_READ_ONLY : src.mode;
-        this.fd = src == null ? -1 : src.fd;
+        throw new UnsupportedOperationException("descriptor ownership transfer is not supported");
     }
 
     public FileDescriptor getFileDescriptor() {
@@ -56,6 +51,7 @@ public class ParcelFileDescriptor implements Closeable {
     }
 
     public int getFd() {
+        if (fd < 0) throw new UnsupportedOperationException("numeric file descriptor is unavailable");
         return fd;
     }
 
@@ -123,11 +119,7 @@ public class ParcelFileDescriptor implements Closeable {
         try {
             if ((mode & MODE_TRUNCATE) != 0 && write) raf.setLength(0);
             if ((mode & MODE_APPEND) != 0) raf.seek(raf.length());
-            int fd;
-            synchronized (ParcelFileDescriptor.class) {
-                fd = nextFd++;
-            }
-            return new ParcelFileDescriptor(raf, mode, fd);
+            return new ParcelFileDescriptor(raf, mode);
         } catch (IOException | RuntimeException e) {
             try {
                 raf.close();
@@ -156,16 +148,15 @@ public class ParcelFileDescriptor implements Closeable {
     }
 
     public static ParcelFileDescriptor adoptFd(int fd) {
-        return new ParcelFileDescriptor(new FileDescriptor(), fd);
+        throw new UnsupportedOperationException("native file descriptor adoption is not supported");
     }
 
     public static ParcelFileDescriptor dup(FileDescriptor fd) throws IOException {
-        if (fd == null) throw new IOException("null fd");
-        return new ParcelFileDescriptor(fd, -1);
+        throw new IOException("native file descriptor duplication is not supported");
     }
 
     public ParcelFileDescriptor dup() throws IOException {
         checkError();
-        return new ParcelFileDescriptor(this);
+        throw new IOException("native file descriptor duplication is not supported");
     }
 }

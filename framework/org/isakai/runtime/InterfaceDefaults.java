@@ -15,16 +15,8 @@ package org.isakai.runtime;
 public final class InterfaceDefaults {
     private InterfaceDefaults() {}
 
-    /** JDK Map.getOrDefault default: get, else the default value. */
     public static <K, V> V mapGetOrDefault(java.util.Map<K, V> self, Object key, V defaultValue) {
-        V v;
-        try {
-            @SuppressWarnings("unchecked")
-            K k = (K) key;
-            v = self.get(k);
-        } catch (ClassCastException e) {
-            return defaultValue;
-        }
-        return v != null ? v : defaultValue;
+        V value = self.get(key);
+        return value != null || self.containsKey(key) ? value : defaultValue;
     }
 }

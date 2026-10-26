@@ -36,6 +36,17 @@ This JSON block is the only authored APK-pin manifest. Fetch and verification to
     "license": "GPL-3.0",
     "license_url": "https://github.com/SimpleMobileTools/Simple-Notes/blob/master/LICENSE",
     "artifact": ".cache/isakai/apks/notes-fdroid-release.apk"
+  },
+  {
+    "name": "Simon Tatham's Puzzles",
+    "role": "native-candidate",
+    "version": "149 (2025-09-12-1919-23762278-fdroid)",
+    "package": "name.boyle.chris.sgtpuzzles",
+    "source_url": "https://f-droid.org/repo/name.boyle.chris.sgtpuzzles_149.apk",
+    "sha256": "6b36d5537984523c57984a784156eb853a92c940fded286483687484f3d652e4",
+    "license": "MIT",
+    "license_url": "https://github.com/chrisboyle/sgtpuzzles/blob/main/LICENCE",
+    "artifact": ".cache/isakai/apks/sgtpuzzles_149.apk"
   }
 ]
 ```
@@ -43,3 +54,9 @@ This JSON block is the only authored APK-pin manifest. Fetch and verification to
 ## Acceptance and verification
 
 See [C1](C1.md) for pinning requirements and [C7](C7.md#app-specific-acceptance) for useful flows, failures and retained evidence.
+
+Indices 0–2 are the M1 three-app acceptance set (C7). Index 3, Simon Tatham's
+Puzzles (`role: native-candidate`), is the same-ISA native target for
+[N6](N6.md)/[N5](N5.md): a clean x86_64 NDK app whose `lib/x86_64/libpuzzles.so`
+is a genuine JNI library (`JNI_OnLoad` + 37 `Java_*` natives, native→Java 2D
+Canvas callbacks, no EGL). It is not part of the C7 gate.

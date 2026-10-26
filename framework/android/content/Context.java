@@ -32,6 +32,7 @@ public abstract class Context {
     public static final int MODE_WORLD_READABLE = 1;
     public static final int MODE_WORLD_WRITEABLE = 2;
     public static final int MODE_APPEND = 32768;
+    public static final int BIND_AUTO_CREATE = 1;
 
     /** Service name for notifications; Application.getSystemService override lands with desktop. */
     public static final String NOTIFICATION_SERVICE = "notification";
@@ -289,6 +290,10 @@ public abstract class Context {
         return getResources().getString(resId);
     }
 
+    public String getString(int resId, Object... formatArgs) {
+        return getResources().getString(resId, formatArgs);
+    }
+
     public android.os.Looper getMainLooper() {
         return android.os.Looper.getMainLooper();
     }
@@ -302,18 +307,26 @@ public abstract class Context {
     }
 
     /**
-     * Config-override context. AppCompat's {@code attachBaseContext} wraps the
-     * base context through here to carry its night-mode configuration. The
-     * desktop runtime raises no configuration changes and ships a single
-     * resource set, so the override selects nothing; the wrapper exists so
-     * AppCompat's attach path resolves instead of hitting NoSuchMethodError,
-     * and it delegates every lookup back to this context.
+     * Config-override context: resources over the same archives selected for
+     * this context's configuration updated from {@code overrideConfiguration}
+     * (AppCompat carries its night mode this way). Everything else delegates
+     * to this context.
      */
     public android.content.Context createConfigurationContext(android.content.res.Configuration overrideConfiguration) {
         if (overrideConfiguration == null) {
             throw new IllegalArgumentException("overrideConfiguration must not be null");
         }
-        return new ContextWrapper(this);
+        android.content.res.Resources base = getResources();
+        android.content.res.Configuration config = base.getConfiguration();
+        config.updateFrom(overrideConfiguration);
+        android.content.res.Resources resources =
+                new android.content.res.Resources(base.getAssets(), base.getDisplayMetrics(), config);
+        return new ContextWrapper(this) {
+            @Override
+            public android.content.res.Resources getResources() {
+                return resources;
+            }
+        };
     }
 
     /**
@@ -358,8 +371,11 @@ public abstract class Context {
     }
 
 
+    private final android.content.ContentResolver contentResolver =
+            new android.content.ContentResolver() {};
+
     public android.content.ContentResolver getContentResolver() {
-        return null;
+        return contentResolver;
     }
 
     public ClassLoader getClassLoader() {
@@ -410,6 +426,18 @@ public abstract class Context {
     public void startActivity(android.content.Intent intent, android.os.Bundle options) {
         startActivity(intent);
     }
+
+    public void startActivities(android.content.Intent[] intents, android.os.Bundle options) {
+        if (intents == null) return;
+        for (android.content.Intent intent : intents) startActivity(intent, options);
+    }
+
+    public boolean bindService(Intent intent, ServiceConnection connection, int flags) {
+        return false;
+    }
+
+    public void unbindService(ServiceConnection connection) {}
+
     /** Copy a stream; shared by prefs backup/restore paths. */
     protected static void copyStream(InputStream in, OutputStream out) throws IOException {
         byte[] buf = new byte[8192];

@@ -27,8 +27,11 @@ KEY_PLUS = (560, 650)
 KEY_EQUALS = (560, 750)
 KEY_DECIMAL = (240, 750)
 KEY_CLEAR = (400, 750)
-# Toolbar settings icon (measured: SettingsActivity starts from this tap).
-SETTINGS_ITEM = (592, 16)
+# Toolbar settings icon. Tap 580 opens SettingsActivity (taps at 560 and 592
+# opened the converter and About activities, so toolbar hitboxes sit apart from
+# the drawn glyphs). The settings list itself renders blank (open C8 defect);
+# the preference flip below is asserted through the app's persisted state.
+SETTINGS_ITEM = (580, 16)
 # Settings list: drawn rows currently sit ~60px above their interactive hit
 # rows. (320,440) is the measured interactive position of "Use comma as a
 # decimal mark", and the preference flip below proves the tap reached that
@@ -172,10 +175,10 @@ def run(run_app, comp):
     pref_before = read_pref_bool(run_app.work, package, PREFS_FILE, PREF_KEY)
     comp.click_window(*SETTINGS_ITEM)
     time.sleep(2.5)
+    comp.shot('03-settings')
     if 'SettingsActivity' not in run_app.read_log():
         raise SwayError('settings tap did not start SettingsActivity')
     steps['settings_opened'] = True
-    comp.shot('03-settings')
     comp.click_window(*SETTINGS_DECIMAL_ROW)
     pref_after = wait_for_pref(run_app.work, package, not pref_before)
     steps['decimal_pref'] = [pref_before, pref_after]

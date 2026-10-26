@@ -35,15 +35,20 @@ public class HeadlessWindow extends Window {
 
     @Override
     public void setContentView(View view) {
+        setContentView(view, new ViewGroup.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT));
+    }
+
+    @Override
+    public void setContentView(View view, ViewGroup.LayoutParams params) {
         this.content = view;
         if (owner != null) owner.setContentViewFromWindow(decorContent);
         // PhoneWindow parity: the content view lives inside the decor
         // content holder, so Window.findViewById sees app views.
         decorContent.removeAllViews();
         if (view != null) {
-            view.setLayoutParams(new ViewGroup.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT,
-                    ViewGroup.LayoutParams.MATCH_PARENT));
+            if (params != null) view.setLayoutParams(params);
             decorContent.addView(view);
         }
     }

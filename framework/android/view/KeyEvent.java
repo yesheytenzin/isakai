@@ -368,6 +368,14 @@ public class KeyEvent extends InputEvent {
         return metaState;
     }
 
+    public final boolean isShiftPressed() {
+        return (metaState & META_SHIFT_MASK) != 0;
+    }
+
+    public final boolean isAltPressed() {
+        return (metaState & META_ALT_MASK) != 0;
+    }
+
     public final int getFlags() {
         return flags;
     }

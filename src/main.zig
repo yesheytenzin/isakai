@@ -230,6 +230,7 @@ fn cmdLaunch(
     err_writer: *std.Io.Writer,
     work: []const u8,
     selector: []const u8,
+    intent_data: []const u8,
 ) !u8 {
     const io = init.io;
     const gpa = init.gpa;
@@ -248,7 +249,7 @@ fn cmdLaunch(
             fw = "/usr/share/isakai/framework";
         };
     }
-    const result = launch.launch(io, gpa, init.environ_map, exe, work, selector, fw) catch |err| {
+    const result = launch.launch(io, gpa, init.environ_map, exe, work, selector, fw, intent_data) catch |err| {
         try err_writer.print("launch failed: {t}\n", .{err});
         return 1;
     };
@@ -314,10 +315,10 @@ fn cmdUidHelperRun(
     }
     const names = [_][]const u8{
         "--code-dir", "--java",      "--framework",      "--windowed",   "--app-class", "--activity-class",
-        "--title",    "--app-theme", "--activity-theme", "--target-sdk", "--min-sdk",
+        "--title",    "--app-theme", "--activity-theme", "--target-sdk", "--min-sdk",   "--intent-data",
     };
     if (rest.len != cursor + names.len * 2) {
-        try err_writer.writeAll("usage: isakai uid-helper run-jvm <package> <uid> <data-dir> <work> [socket flags] --code-dir D --java J --framework F --windowed 0|1 --app-class C --activity-class C --title T --app-theme N --activity-theme N --target-sdk N --min-sdk N\n");
+        try err_writer.writeAll("usage: isakai uid-helper run-jvm <package> <uid> <data-dir> <work> [socket flags] --code-dir D --java J --framework F --windowed 0|1 --app-class C --activity-class C --title T --app-theme N --activity-theme N --target-sdk N --min-sdk N --intent-data URI\n");
         return 2;
     }
     var values: [names.len][:0]const u8 = undefined;
@@ -354,6 +355,7 @@ fn cmdUidHelperRun(
         .activity_theme = values[8],
         .target_sdk = values[9],
         .min_sdk = values[10],
+        .intent_data = values[11],
         .wayland_sock = wayland_sock,
         .bridge_dir = bridge_dir,
     }, confinement_disabled, err_writer);
@@ -475,10 +477,26 @@ pub fn main(init: std.process.Init) !u8 {
         },
         .launch => {
             if (rest.len < 1) {
-                try err_writer.writeAll("usage: isakai launch <package>\n");
+                try err_writer.writeAll("usage: isakai launch <package> [--data URI]\n");
                 return 2;
             }
-            return cmdLaunch(init, out, err_writer, work_dir, rest[0]);
+            var intent_data: []const u8 = "";
+            var arg_index: usize = 1;
+            while (arg_index < rest.len) {
+                if (std.mem.eql(u8, rest[arg_index], "--data")) {
+                    if (arg_index + 1 >= rest.len) {
+                        try err_writer.writeAll("usage: isakai launch <package> [--data URI]\n");
+                        return 2;
+                    }
+                    intent_data = rest[arg_index + 1];
+                    arg_index += 2;
+                } else {
+                    try err_writer.print("error: unknown launch argument '{s}'\n", .{rest[arg_index]});
+                    try err_writer.writeAll("usage: isakai launch <package> [--data URI]\n");
+                    return 2;
+                }
+            }
+            return cmdLaunch(init, out, err_writer, work_dir, rest[0], intent_data);
         },
         .uid_helper => {
             if (rest.len < 1) {

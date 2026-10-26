@@ -3,6 +3,7 @@ package android.content.pm;
 
 /** Activity manifest record. */
 public class ActivityInfo extends ComponentInfo {
+    public static final int SCREEN_ORIENTATION_UNSPECIFIED = -1;
     public static final int CONFIG_MCC = 0x0001;
     public static final int CONFIG_MNC = 0x0002;
     public static final int CONFIG_LOCALE = 0x0004;

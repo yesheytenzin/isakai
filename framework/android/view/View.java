@@ -57,6 +57,7 @@ public class View {
     protected int computeVerticalScrollRange() { return getHeight(); }
     private int systemUiVisibility;
     public int getSystemUiVisibility() { return systemUiVisibility; }
+    public int getWindowSystemUiVisibility() { return systemUiVisibility; }
     public void setSystemUiVisibility(int flags) {
         systemUiVisibility=flags;
         if(flags!=0)org.isakai.runtime.Capabilities.unavailable("android.view.View.androidSystemBars");
@@ -163,8 +164,11 @@ public class View {
     private int bottom;
     protected int backgroundColor = Color.WHITE;
     private android.graphics.drawable.Drawable background;
+    private android.graphics.drawable.Drawable foreground;
 
     private int id = NO_ID;
+    private final android.view.autofill.AutofillId autofillId =
+            new android.view.autofill.AutofillId(generateViewId());
     private Object tag;
     private java.util.HashMap<Integer, Object> keyedTags;
     private int visibility = VISIBLE;
@@ -504,6 +508,14 @@ public class View {
         return background;
     }
 
+    public void setForeground(android.graphics.drawable.Drawable foreground) {
+        this.foreground = foreground;
+    }
+
+    public android.graphics.drawable.Drawable getForeground() {
+        return foreground;
+    }
+
     public void setBackgroundResource(int resId) {
         setBackground(new android.graphics.drawable.ColorDrawable(0));
     }
@@ -582,8 +594,8 @@ public class View {
     public void setMinimumHeight(int value) { minimumHeight=Math.max(0,value);requestLayout(); }
     public int getMinimumWidth() { return minimumWidth; }
     public int getMinimumHeight() { return minimumHeight; }
-    protected int getSuggestedMinimumWidth() { return Math.max(minimumWidth,background==null?0:background.getMinimumWidth()); }
-    protected int getSuggestedMinimumHeight() { return Math.max(minimumHeight,background==null?0:background.getMinimumHeight()); }
+    public int getSuggestedMinimumWidth() { return Math.max(minimumWidth,background==null?0:background.getMinimumWidth()); }
+    public int getSuggestedMinimumHeight() { return Math.max(minimumHeight,background==null?0:background.getMinimumHeight()); }
     protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
         setMeasuredDimension(getDefaultSize(getSuggestedMinimumWidth(),widthMeasureSpec),
                 getDefaultSize(getSuggestedMinimumHeight(),heightMeasureSpec));
@@ -1013,6 +1025,10 @@ public class View {
     public void setFocusableInTouchMode(boolean focusable) {
         this.focusable = focusable;
     }
+
+    private boolean keyboardNavigationCluster;
+    public void setKeyboardNavigationCluster(boolean cluster) { keyboardNavigationCluster = cluster; }
+    public boolean isKeyboardNavigationCluster() { return keyboardNavigationCluster; }
 
     public boolean isFocused() {
         return focused;
@@ -1619,6 +1635,8 @@ public class View {
         return false;
     }
 
+    public void setAccessibilityPaneTitle(CharSequence title) {}
+
     public void setAccessibilityLiveRegion(int mode) {
         this.accessibilityLiveRegion = mode;
     }
@@ -1640,7 +1658,7 @@ public class View {
     }
 
     public android.view.autofill.AutofillId getAutofillId() {
-        return null;
+        return autofillId;
     }
 
     public void setForceDarkAllowed(boolean allowed) {}

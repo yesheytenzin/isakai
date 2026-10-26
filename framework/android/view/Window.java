@@ -36,6 +36,7 @@ public abstract class Window {
     }
 
     public abstract void setContentView(View view);
+    public abstract void setContentView(View view, ViewGroup.LayoutParams params);
     public abstract void addContentView(View view, ViewGroup.LayoutParams params);
     public abstract View getDecorView();
     public View peekDecorView() { return getDecorView(); }

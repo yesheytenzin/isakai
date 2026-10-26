@@ -1,6 +1,32 @@
 .{
     .name = .isakai,
     .version = "0.0.1",
+    .dependencies = .{
+        .aosp_libandroidfw = .{
+            .url = "https://gitlab.com/android_translation_layer/art_standalone/-/archive/66a5d9079b159e9c5819bfeef4a6fff6a5f32719/art_standalone-66a5d9079b159e9c5819bfeef4a6fff6a5f32719.tar.gz?path=libandroidfw",
+            .hash = "N-V-__8AAJq3LQBOFNVVRy0nI5tQtSIkdlemYgtOKt9iqC83",
+        },
+        .aosp_libbase = .{
+            .url = "https://gitlab.com/android_translation_layer/art_standalone/-/archive/66a5d9079b159e9c5819bfeef4a6fff6a5f32719/art_standalone-66a5d9079b159e9c5819bfeef4a6fff6a5f32719.tar.gz?path=libbase",
+            .hash = "N-V-__8AAKVtBwB6plbXFq4d0bBHK9l_mAgL2R95nQPpebgR",
+        },
+        .aosp_libziparchive = .{
+            .url = "https://gitlab.com/android_translation_layer/art_standalone/-/archive/66a5d9079b159e9c5819bfeef4a6fff6a5f32719/art_standalone-66a5d9079b159e9c5819bfeef4a6fff6a5f32719.tar.gz?path=libziparchive",
+            .hash = "N-V-__8AAPebYQDPq46lkLUvxJUqHlFLAyog52d_ATcmLOv6",
+        },
+        .aosp_incfs = .{
+            .url = "https://gitlab.com/android_translation_layer/art_standalone/-/archive/66a5d9079b159e9c5819bfeef4a6fff6a5f32719/art_standalone-66a5d9079b159e9c5819bfeef4a6fff6a5f32719.tar.gz?path=incfs",
+            .hash = "N-V-__8AAKlUAABhNriciDiZp_CntCVV6nVmmXIzauSe4Ic3",
+        },
+        .aosp_system_core = .{
+            .url = "https://gitlab.com/android_translation_layer/art_standalone/-/archive/66a5d9079b159e9c5819bfeef4a6fff6a5f32719/art_standalone-66a5d9079b159e9c5819bfeef4a6fff6a5f32719.tar.gz?path=system/core",
+            .hash = "N-V-__8AADCJLQCyctjMhQSjYrUrlM5fiGc9b4KHy1BteGAk",
+        },
+        .atl_framework_res = .{
+            .url = "https://gitlab.com/android_translation_layer/android_translation_layer/-/archive/07c34abad5d29864998ed7c7cfc6c80d0765b9df/android_translation_layer-07c34abad5d29864998ed7c7cfc6c80d0765b9df.tar.gz?path=res/framework-res/framework-res.apk",
+            .hash = "N-V-__8AAMmgPQBV9065uEPOgvgeFH07MiJRYhvYIqN0MQwU",
+        },
+    },
     .minimum_zig_version = "0.17.0",
     .paths = .{""},
     .fingerprint = 0xafdb529313ab41d4,

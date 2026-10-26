@@ -27,6 +27,10 @@ public class Configuration implements Comparable<Configuration> {
     public static final int UI_MODE_NIGHT_YES = 0x20;
     public static final int UI_MODE_NIGHT_MASK = 0x30;
 
+    public static final int HARDKEYBOARDHIDDEN_UNDEFINED = 0;
+    public static final int HARDKEYBOARDHIDDEN_NO = 1;
+    public static final int HARDKEYBOARDHIDDEN_YES = 2;
+
     public float fontScale = 1.0f;
     public int mcc;
     public int mnc;
@@ -34,6 +38,7 @@ public class Configuration implements Comparable<Configuration> {
     public int touchscreen;
     public int keyboard;
     public int keyboardHidden;
+    public int hardKeyboardHidden;
     public int navigation;
     public int navigationHidden;
     public int orientation;
@@ -61,6 +66,7 @@ public class Configuration implements Comparable<Configuration> {
         touchscreen = o.touchscreen;
         keyboard = o.keyboard;
         keyboardHidden = o.keyboardHidden;
+        hardKeyboardHidden = o.hardKeyboardHidden;
         navigation = o.navigation;
         navigationHidden = o.navigationHidden;
         orientation = o.orientation;
@@ -95,6 +101,40 @@ public class Configuration implements Comparable<Configuration> {
         return 0;
     }
 
+    /**
+     * Copy every field {@code delta} defines (AOSP updateFrom: zero, null
+     * and the undefined uiMode halves leave this configuration's value).
+     * Returns the changed fields as {@link #diff} bits.
+     */
+    public int updateFrom(Configuration delta) {
+        if (delta == null) return 0;
+        Configuration before = new Configuration(this);
+        if (delta.fontScale > 0) fontScale = delta.fontScale;
+        if (delta.mcc != 0) mcc = delta.mcc;
+        if (delta.mnc != 0) mnc = delta.mnc;
+        if (delta.locale != null) locale = (Locale) delta.locale.clone();
+        if (delta.touchscreen != 0) touchscreen = delta.touchscreen;
+        if (delta.keyboard != 0) keyboard = delta.keyboard;
+        if (delta.keyboardHidden != 0) keyboardHidden = delta.keyboardHidden;
+        if (delta.hardKeyboardHidden != HARDKEYBOARDHIDDEN_UNDEFINED) {
+            hardKeyboardHidden = delta.hardKeyboardHidden;
+        }
+        if (delta.navigation != 0) navigation = delta.navigation;
+        if (delta.navigationHidden != 0) navigationHidden = delta.navigationHidden;
+        if (delta.orientation != ORIENTATION_UNDEFINED) orientation = delta.orientation;
+        if (delta.screenLayout != 0) screenLayout = delta.screenLayout;
+        if ((delta.uiMode & 0x0f) != UI_MODE_TYPE_UNDEFINED) uiMode = (uiMode & ~0x0f) | (delta.uiMode & 0x0f);
+        if ((delta.uiMode & UI_MODE_NIGHT_MASK) != UI_MODE_NIGHT_UNDEFINED) {
+            uiMode = (uiMode & ~UI_MODE_NIGHT_MASK) | (delta.uiMode & UI_MODE_NIGHT_MASK);
+        }
+        if (delta.screenWidthDp != 0) screenWidthDp = delta.screenWidthDp;
+        if (delta.screenHeightDp != 0) screenHeightDp = delta.screenHeightDp;
+        if (delta.smallestScreenWidthDp != 0) smallestScreenWidthDp = delta.smallestScreenWidthDp;
+        if (delta.densityDpi != 0) densityDpi = delta.densityDpi;
+        if (delta.colorMode != 0) colorMode = delta.colorMode;
+        return before.diff(this);
+    }
+
     public int diff(Configuration other) {
         if (other == null) return -1;
         int changed = 0;
@@ -104,7 +144,7 @@ public class Configuration implements Comparable<Configuration> {
         if (locale == null ? other.locale != null : !locale.equals(other.locale)) changed |= 0x0004;
         if (touchscreen != other.touchscreen) changed |= 0x0008;
         if (keyboard != other.keyboard) changed |= 0x0010;
-        if (keyboardHidden != other.keyboardHidden) changed |= 0x0020;
+        if (keyboardHidden != other.keyboardHidden || hardKeyboardHidden != other.hardKeyboardHidden) changed |= 0x0020;
         if (navigation != other.navigation) changed |= 0x0040;
         if (navigationHidden != other.navigationHidden) changed |= 0x0080;
         if (orientation != other.orientation) changed |= 0x0100;

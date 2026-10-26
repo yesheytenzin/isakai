@@ -21,6 +21,21 @@ public class IsakaiMain {
         }
     }
 
+    /**
+     * Window title from the launcher: a literal label, or {@code @<id>} for a
+     * label resource resolved here for the current configuration; the
+     * package when absent or unresolvable.
+     */
+    private static String windowTitle(String arg, String pkg) {
+        if (arg == null || arg.isEmpty()) return pkg;
+        if (!arg.startsWith("@")) return arg;
+        try {
+            return android.content.res.Resources.getSystem().getString(Integer.parseInt(arg.substring(1)));
+        } catch (NumberFormatException | android.content.res.Resources.NotFoundException e) {
+            return pkg;
+        }
+    }
+
     public static void main(String[] args) throws Exception {
         if (args.length < 1) {
             System.err.println("usage: IsakaiMain <data-dir> [app-class] [activity-class] [package] [title]");
@@ -58,9 +73,14 @@ public class IsakaiMain {
             int appTheme = args.length > 5 ? parseThemeId(args[5]) : 0;
             int actTheme = args.length > 6 ? parseThemeId(args[6]) : 0;
             act.attachTheme(appTheme, actTheme);
+            if (args.length > 9 && !args[9].isEmpty()) {
+                act.setIntent(new android.content.Intent(
+                        android.content.Intent.ACTION_VIEW,
+                        android.net.Uri.parse(args[9])));
+            }
             boolean windowed = Boolean.getBoolean("isakai.windowed");
             String pkg = args.length > 3 && args[3] != null && !args[3].isEmpty() ? args[3] : act.getClass().getPackage().getName();
-            String title = args.length > 4 && args[4] != null && !args[4].isEmpty() ? args[4] : pkg;
+            String title = windowTitle(args.length > 4 ? args[4] : null, pkg);
             if (windowed) {
                 System.out.println("isakai: activity " + act.getClass().getName() + " runWindowed");
                 act.runWindowed(title, pkg);

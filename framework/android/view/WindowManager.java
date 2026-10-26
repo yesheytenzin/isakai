@@ -36,4 +36,13 @@ public interface WindowManager extends ViewManager {
             return 0;
         }
     }
+
+    /** Thrown when a window is added against a token that is no longer valid. */
+    class BadTokenException extends RuntimeException {
+        public BadTokenException() {}
+
+        public BadTokenException(String name) {
+            super(name);
+        }
+    }
 }

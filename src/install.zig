@@ -6,7 +6,6 @@
 const std = @import("std");
 const registry = @import("registry");
 const apksig = @import("apksig");
-const arsc = @import("arsc");
 const uid_helper = @import("uid_helper");
 
 pub const max_apk: u64 = 256 * 1024 * 1024;
@@ -23,8 +22,8 @@ pub const Manifest = struct {
     launcher: ?[]const u8 = null,
     /// Resolved labels when android:label is a literal string. When the
     /// label is a `@…` resource reference, the raw id is kept in the
-    /// matching `*_label_id` and resolved later against resources.arsc
-    /// (install/launch), with the package as the final fallback.
+    /// matching `*_label_id` and resolved by the runtime's resource engine
+    /// (see `manifestTitle`), with the package as the final fallback.
     app_label: ?[]const u8 = null,
     launcher_label: ?[]const u8 = null,
     app_label_id: ?u32 = null,
@@ -39,16 +38,21 @@ pub const Manifest = struct {
 
 /// Literal label filter: returns the value unless it looks like a
 /// `@…` resource reference. References are not lost: the manifest parser
-/// captures their ids (`*_label_id`) for later arsc resolution.
+/// captures their ids (`*_label_id`) for the runtime to resolve.
 pub fn literalLabel(v: []const u8) ?[]const u8 {
     if (v.len == 0 or v[0] == '@') return null;
     return v;
 }
 
-/// Resolved window title: launcher label, else app label, else package.
-pub fn manifestTitle(m: *const Manifest) []const u8 {
+/// Window title argument for the runtime: the launcher label, else the app
+/// label, else the package. A label given as a resource reference is passed
+/// as `@<id>` (literals never start with '@', see `literalLabel`) and the
+/// runtime resolves it with its resource engine for the current locale.
+pub fn manifestTitle(buf: []u8, m: *const Manifest) []const u8 {
     if (m.launcher_label) |l| return l;
+    if (m.launcher_label_id) |id| return std.fmt.bufPrint(buf, "@{d}", .{id}) catch m.package;
     if (m.app_label) |l| return l;
+    if (m.app_label_id) |id| return std.fmt.bufPrint(buf, "@{d}", .{id}) catch m.package;
     return m.package;
 }
 
@@ -453,7 +457,7 @@ pub fn parseManifest(gpa: std.mem.Allocator, data: []const u8) ApkError!Manifest
                     const typ = chunk[a + 15];
                     const value = try u32At(chunk, a + 16);
                     // Resource references (TYPE_REFERENCE with no raw
-                    // string) carry the id for later arsc resolution.
+                    // string) carry the id for the runtime to resolve.
                     // OpenCalc labels arrive exactly this way; so do themes.
                     if (typ == 1 and raw == std.math.maxInt(u32) and std.mem.eql(u8, ns, android_ns) and
                         (std.mem.eql(u8, key, "label") or std.mem.eql(u8, key, "theme")))
@@ -669,43 +673,6 @@ pub fn freeManifest(gpa: std.mem.Allocator, m: *Manifest) void {
     m.* = .{ .package = "" };
 }
 
-/// Resolve any `@…` label ids against a parsed resources table. Literal
-/// labels (already in `app_label`/`launcher_label`) win; ids fill the
-/// gaps; the package stays the final fallback via `manifestTitle`.
-/// Missing table entries are not an error — the id fields simply stay
-/// set and `manifestTitle` falls back to the package.
-pub fn resolveLabels(gpa: std.mem.Allocator, m: *Manifest, t: *const arsc.Table) !void {
-    if (m.app_label == null) {
-        if (m.app_label_id) |id| {
-            if (t.lookupString(id)) |s| {
-                m.app_label = try gpa.dupe(u8, s);
-            }
-        }
-    }
-    if (m.launcher_label == null) {
-        if (m.launcher_label_id) |id| {
-            if (t.lookupString(id)) |s| {
-                m.launcher_label = try gpa.dupe(u8, s);
-            }
-        }
-    }
-}
-
-/// Load `<code_dir>/resources.arsc` and resolve manifest label ids in
-/// place. Returns false (not an error) when the table is absent or
-/// unparsable: real apps ship one, but a missing/corrupt table must
-/// never break install/launch — the package fallback still titles.
-pub fn resolveStagedLabels(io: std.Io, gpa: std.mem.Allocator, code_dir: []const u8, m: *Manifest) !bool {
-    const path = try std.fmt.allocPrint(gpa, "{s}/resources.arsc", .{code_dir});
-    defer gpa.free(path);
-    const bytes = std.Io.Dir.cwd().readFileAlloc(io, path, gpa, .limited(arsc.max_arsc)) catch return false;
-    defer gpa.free(bytes);
-    var t = arsc.Table.parse(gpa, bytes) catch return false;
-    defer t.deinit();
-    try resolveLabels(gpa, m, &t);
-    return true;
-}
-
 /// Full inspection: bounds, required entries, ABI gate, manifest parse.
 pub fn inspect(
     io: std.Io,
@@ -806,7 +773,7 @@ fn wantEntry(name: []const u8) bool {
     // java.library.path includes just lib/x86_64, so other ABIs stay inert on
     // an x86_64 host, but preserving them lets the native ARM64 host (N7) and
     // the foreign-ISA backends (N8/N9) find the arm64-v8a/armeabi-v7a/x86
-    // payload without re-fetching the APK (which install does not retain).
+    // payload already extracted beside the retained base.apk.
     // The install still requires an x86_64 slice to run today, and the slice
     // selected for execution is recorded as the registry's native_abi.
     if (std.mem.startsWith(u8, name, "lib/") and std.mem.endsWith(u8, name, ".so")) return true;
@@ -815,35 +782,50 @@ fn wantEntry(name: []const u8) bool {
     return false;
 }
 
-/// Extract wanted entries into a fresh staging directory. Refuses if the
-/// destination exists; removes it again on failure.
+/// The verified original archive inside a code dir. The resource engine
+/// (libandroidfw) reads resources and assets from it; native asset fds
+/// carry offsets into it.
+pub const retained_apk = "base.apk";
+
+/// Copy the APK to `<dest>/base.apk` (read-only) and extract wanted entries
+/// from that copy into a fresh staging directory, so everything staged comes
+/// from the retained bytes. Callers check the copy against the digest that
+/// names `dest`. Refuses if the destination exists; removes it again on
+/// failure.
 pub fn stage(
     io: std.Io,
     gpa: std.mem.Allocator,
     apk_path: []const u8,
     dest: []const u8,
 ) anyerror!void {
-    // Re-inspect for bounds before touching the filesystem.
-    var m = try inspect(io, gpa, apk_path);
-    defer freeManifest(gpa, &m);
-
     std.Io.Dir.cwd().createDir(io, dest, .fromMode(0o755)) catch |err| switch (err) {
         error.PathAlreadyExists => return error.StagingExists,
         else => return err,
     };
     errdefer std.Io.Dir.cwd().deleteTree(io, dest) catch {};
 
+    const retained = try std.fmt.allocPrint(gpa, "{s}/" ++ retained_apk, .{dest});
+    defer gpa.free(retained);
+    try std.Io.Dir.cwd().copyFile(apk_path, std.Io.Dir.cwd(), retained, io, .{
+        .permissions = .fromMode(0o444),
+        .replace = false,
+    });
+
+    // Re-inspect for bounds before extracting.
+    var m = try inspect(io, gpa, retained);
+    defer freeManifest(gpa, &m);
+
     var entries: std.ArrayListUnmanaged(ZipEntry) = .empty;
     defer {
         for (entries.items) |e| gpa.free(e.name);
         entries.deinit(gpa);
     }
-    try listEntries(io, gpa, apk_path, &entries);
+    try listEntries(io, gpa, retained, &entries);
     for (entries.items) |e| {
         if (std.mem.endsWith(u8, e.name, "/")) continue;
         if (!wantEntry(e.name)) continue;
         {
-            const bytes = try readEntry(io, gpa, apk_path, e.name, max_entry);
+            const bytes = try readEntry(io, gpa, retained, e.name, max_entry);
             defer gpa.free(bytes);
             const out_path = try std.fmt.allocPrint(gpa, "{s}/{s}", .{ dest, e.name });
             defer gpa.free(out_path);
@@ -857,8 +839,26 @@ pub fn stage(
             try fw.interface.writeAll(bytes);
             try fw.interface.flush();
             try f.sync(io);
-            try std.Io.Dir.cwd().setFilePermissions(io, out_path, .fromMode(0o644), .{});
+            // Android extracts the selected native-library slice with the
+            // executable bit set (apps and the app's generator subprocess
+            // check it); everything else stays read-only data.
+            const native_lib = std.mem.startsWith(u8, e.name, "lib/x86_64/") and std.mem.endsWith(u8, e.name, ".so");
+            try std.Io.Dir.cwd().setFilePermissions(io, out_path, .fromMode(if (native_lib) 0o555 else 0o644), .{});
         }
+    }
+}
+
+/// Post-stage check: the code dir is named after the APK digest, and the
+/// retained copy every staged entry came from must hash to it (catches an
+/// APK swapped between hashing and staging, and a partial copy).
+pub fn verifyRetained(io: std.Io, gpa: std.mem.Allocator, code_dir: []const u8, digest: []const u8) !void {
+    const retained = try std.fmt.allocPrint(gpa, "{s}/" ++ retained_apk, .{code_dir});
+    defer gpa.free(retained);
+    const rehash = try sha256File(io, gpa, retained);
+    defer gpa.free(rehash);
+    if (!std.mem.eql(u8, rehash, digest)) {
+        std.Io.Dir.cwd().deleteTree(io, code_dir) catch {};
+        return error.SizeMismatch;
     }
 }
 
@@ -939,17 +939,7 @@ fn installInner(
 
     try stage(io, gpa, apk_path, code_dir);
     errdefer std.Io.Dir.cwd().deleteTree(io, code_dir) catch {};
-    // Post-stage re-hash: the staged code dir names the APK digest; verify
-    // the source APK still hashes to it (catches a swapped/replaced APK
-    // between inspect and stage, and a partial stage write).
-    {
-        const rehash = try sha256File(io, gpa, apk_path);
-        defer gpa.free(rehash);
-        if (!std.mem.eql(u8, rehash, digest)) {
-            std.Io.Dir.cwd().deleteTree(io, code_dir) catch {};
-            return error.SizeMismatch;
-        }
-    }
+    try verifyRetained(io, gpa, code_dir, digest);
 
     // Privileged step: create the app user + chown the data dir.
     // Skipped when ISAKAI_NO_PRIVILEGE=1 (dev/test without auth).

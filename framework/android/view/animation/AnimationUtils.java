@@ -39,28 +39,49 @@ public final class AnimationUtils {
         }
     }
 
-    /** Instantiate the interpolator named by the parser's current start tag. */
+    private static final int ATTR_FACTOR = 0x010101d3;
+    private static final int ATTR_CONTROL_X1 = 0x010103fc;
+    private static final int ATTR_CONTROL_Y1 = 0x010103fd;
+    private static final int ATTR_CONTROL_X2 = 0x010103fe;
+    private static final int ATTR_CONTROL_Y2 = 0x010103ff;
+
+    /**
+     * Instantiate the interpolator named by the parser's current start tag.
+     * Attributes resolve through {@link Resources#obtainAttributes}, as in
+     * AOSP, so references and any numeric type read as floats.
+     */
     public static Interpolator createInterpolatorFromXml(Resources res, XmlPullParser parser) {
         AttributeSet attrs = (AttributeSet) parser;
         String tag = parser.getName();
-        String android = "http://schemas.android.com/apk/res/android";
         if ("linearInterpolator".equals(tag)) {
             return new LinearInterpolator();
         } else if ("accelerateInterpolator".equals(tag)) {
-            return new AccelerateInterpolator(
-                    attrs.getAttributeFloatValue(android, "factor", 1.0f));
+            return new AccelerateInterpolator(factor(res, attrs));
         } else if ("decelerateInterpolator".equals(tag)) {
-            return new DecelerateInterpolator(
-                    attrs.getAttributeFloatValue(android, "factor", 1.0f));
+            return new DecelerateInterpolator(factor(res, attrs));
         } else if ("accelerateDecelerateInterpolator".equals(tag)) {
             return new AccelerateDecelerateInterpolator();
         } else if ("pathInterpolator".equals(tag)) {
-            return new PathInterpolator(
-                    attrs.getAttributeFloatValue(android, "controlX1", 0.0f),
-                    attrs.getAttributeFloatValue(android, "controlY1", 0.0f),
-                    attrs.getAttributeFloatValue(android, "controlX2", 1.0f),
-                    attrs.getAttributeFloatValue(android, "controlY2", 1.0f));
+            android.content.res.TypedArray a = res.obtainAttributes(attrs,
+                    new int[] {ATTR_CONTROL_X1, ATTR_CONTROL_Y1, ATTR_CONTROL_X2, ATTR_CONTROL_Y2});
+            float x1 = a.getFloat(0, 0.0f);
+            float y1 = a.getFloat(1, 0.0f);
+            boolean cubic = a.hasValue(2) || a.hasValue(3);
+            float x2 = a.getFloat(2, 1.0f);
+            float y2 = a.getFloat(3, 1.0f);
+            a.recycle();
+            if (cubic) return new PathInterpolator(x1, y1, x2, y2);
+            // Quadratic curve through (x1, y1), raised to the equivalent cubic.
+            return new PathInterpolator(2 * x1 / 3, 2 * y1 / 3,
+                    (1 + 2 * x1) / 3, (1 + 2 * y1) / 3);
         }
         throw new Resources.NotFoundException("unsupported interpolator: " + tag);
+    }
+
+    private static float factor(Resources res, AttributeSet attrs) {
+        android.content.res.TypedArray a = res.obtainAttributes(attrs, new int[] {ATTR_FACTOR});
+        float factor = a.getFloat(0, 1.0f);
+        a.recycle();
+        return factor;
     }
 }

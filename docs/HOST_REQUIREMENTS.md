@@ -60,6 +60,13 @@ Linked by `build.zig` into `libisakai_jni.so`:
 | `libpulse-simple` | `src/bridge/audio.zig` | PulseAudio playback for `SoundPool` |
 | ICU development headers/libraries (`libicu-dev` / `icu`) | `src/bridge/sqlite_collation.c` | Android UNICODE collation using host ICU |
 | `libsqlite3` | `src/bridge/sqlite.zig` | `SQLiteDatabase` backend |
+| `zlib` | AOSP libandroidfw (static, `src/native/res_engine.cpp`) | APK entry inflation for resources and assets |
+
+The resource engine compiles AOSP libandroidfw and its host closure
+(libbase, libutils, libziparchive, incfs-utils) from the sources pinned in
+`build.zig.zon`, statically, with Zig's bundled libc++. `zig build` fetches
+them once into `zig-pkg/` and installs ATL's pinned `framework-res.apk`
+(AOSP framework resources) as `framework/framework-res.apk`.
 
 Optional runtime dependencies: `ffmpeg`/`ffprobe` for partial local-file audio
 decode and frame extraction. Missing tools produce exceptions or null results.
@@ -98,8 +105,9 @@ Native shim: `src/native/bionic_shim.zig` builds `framework/lib/libisakai_bionic
 Ballparks, not minimums:
 
 - Toolchain + checkout: Zig (~100 MB) + JDK 17+ (~300 MB).
-- Per installed app: staged APK contents + translated `classes/` —
-  single-digit MB for typical apps.
+- Per installed app: the retained read-only `base.apk`, staged APK
+  contents and translated `classes/` — single-digit to low double-digit MB
+  for typical apps.
 - Runtime: one host JVM per running app (~100–200 MB RSS) plus two
   Wayland SHM buffers (width × height × 4 bytes each, remade on resize).
 
@@ -127,4 +135,5 @@ All `ISAKAI_*` names read anywhere in `src/` + JNI (`grep -rho
 | `ISAKAI_FAKE_SENSORS` | test | unset | `1` opts into synthetic accelerometer/light readings; no host provider is wired |
 | `ISAKAI_FAKE_LOCATION` | test | unset | `1` opts into synthetic location readings; no host provider is wired |
 | `ISAKAI_WEBVIEW` | user | unset | `0`/`false` = disable `WebView.loadUrl` (M6c, fail-closed via onReceivedError) |
+| `ISAKAI_RESOURCES` | user (comparison) | unset | `legacy` = resolve resources with the staged-table Java parser instead of libandroidfw; unprivileged launches only (the privileged child gets a fixed environment) |
 | `JAVA_HOME` | user | unset | first JVM candidate (`$JAVA_HOME/bin/java`) |

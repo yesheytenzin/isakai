@@ -5,40 +5,78 @@ import android.util.AttributeSet;
 import android.util.TypedValue;
 
 /**
- * Styled-attribute array backed by the {@link Resources} table: each slot
- * resolves its attr id through the resource table, with the caller default
- * on any miss (fail-closed, never a guessed value).
+ * Styled-attribute array. With libandroidfw the slots are AOSP ApplyStyle /
+ * RetrieveAttributes output, already resolved through tag, style, defaults
+ * and theme ({@link #fromStyle}). The legacy engine resolves each attr id
+ * here: tag literal, then theme, then table, with the caller default on any
+ * miss (fail-closed, never a guessed value).
  */
 public class TypedArray {
     private final Resources resources;
-    private final Resources.Theme theme;
+    /** Legacy ?attr chain resolution; null when the slots are final values. */
+    private final ResourceTable.ThemeImpl theme;
     private final AttributeSet set;
-    private final int[] attrs;
     private final TypedValue[] values;
     private boolean recycled;
 
-    TypedArray(Resources resources) {
-        this(resources, null, null);
-    }
-
-    public TypedArray(Resources resources, AttributeSet set, int[] attrs) {
-        this(resources, null, set, attrs);
-    }
-
-    public TypedArray(Resources resources, Resources.Theme theme, AttributeSet set, int[] attrs) {
+    TypedArray(Resources resources, ResourceTable.ThemeImpl theme, AttributeSet set, int[] attrs) {
         this.resources = resources;
         this.theme = theme;
         this.set = set;
-        this.attrs = attrs == null ? null : attrs.clone();
-        if (this.attrs != null) {
-            this.values = new TypedValue[this.attrs.length];
-            for (int i = 0; i < this.attrs.length; i++) {
-                this.values[i] = lookup(this.attrs[i]);
-            }
-        } else {
-            this.values = new TypedValue[0];
-        }
+        int[] ids = attrs == null ? new int[0] : attrs;
+        this.values = new TypedValue[ids.length];
+        for (int i = 0; i < ids.length; i++) this.values[i] = lookup(ids[i]);
     }
+
+    private TypedArray(Resources resources, TypedValue[] values) {
+        this.resources = resources;
+        this.theme = null;
+        this.set = null;
+        this.values = values;
+    }
+
+    /** Tag literals only (an AttributeSet outside any XML block). */
+    static TypedArray fromTag(Resources resources, AttributeSet set, int[] attrs) {
+        return new TypedArray(resources, null, set, attrs);
+    }
+
+    /**
+     * AOSP STYLE_* records for {@code count} attrs. Strings come from the
+     * XML block's pool for cookie -1 and from the table pool otherwise.
+     */
+    static TypedArray fromStyle(Resources resources, ResEngine engine, ResEngine.XmlBlock xml,
+            int[] data, int count) {
+        TypedValue[] values = new TypedValue[count];
+        for (int i = 0; i < count; i++) {
+            int at = i * ResEngine.STYLE_NUM_ENTRIES;
+            int type = data[at + ResEngine.STYLE_TYPE];
+            if (type == TypedValue.TYPE_NULL) continue;
+            TypedValue v = new TypedValue();
+            v.type = type;
+            v.data = data[at + ResEngine.STYLE_DATA];
+            v.assetCookie = data[at + ResEngine.STYLE_ASSET_COOKIE];
+            v.resourceId = data[at + ResEngine.STYLE_RESOURCE_ID];
+            v.changingConfigurations = data[at + ResEngine.STYLE_CHANGING_CONFIGURATIONS];
+            v.density = data[at + ResEngine.STYLE_DENSITY];
+            if (type == TypedValue.TYPE_STRING) {
+                v.string = v.assetCookie < 0 ? (xml == null ? null : xml.string(v.data))
+                        : engine.poolString(v.assetCookie, v.data);
+            }
+            values[i] = v;
+        }
+        return new TypedArray(resources, values);
+    }
+
+    /** Overlay tag literals from a non-binary AttributeSet onto styled slots. */
+    TypedArray withTagValues(AttributeSet tag, int[] attrs) {
+        TypedArray literal = new TypedArray(resources, null, tag, attrs);
+        TypedValue[] merged = values.clone();
+        for (int i = 0; i < merged.length; i++) {
+            if (literal.values[i] != null) merged[i] = literal.values[i];
+        }
+        return new TypedArray(resources, merged);
+    }
+
     private TypedValue lookup(int attrId) {
         if (attrId != 0 && set != null) {
             // Tag literal wins: match by recorded binary-XML attr id and
@@ -50,7 +88,7 @@ public class TypedArray {
             }
         }
         if (theme != null) {
-            TypedValue t = theme.themeValue(attrId);
+            TypedValue t = theme.attribute(attrId);
             if (t != null) return t;
         }
         if (resources == null) return null;
@@ -110,7 +148,7 @@ public class TypedArray {
         if (theme == null) return v;
         int id = v.data;
         for (int depth = 0; depth < 8; depth++) {
-            TypedValue t = theme.themeValue(id);
+            TypedValue t = theme.attribute(id);
             if (t == null && resources != null) t = resources.attributeValue(id);
             if (t == null) return v;
             if (t.type != TypedValue.TYPE_ATTRIBUTE || t.data == 0 || t.data == id) return t;
@@ -183,6 +221,14 @@ public class TypedArray {
         TypedValue v = resolved(index);
         if (v == null) return defValue;
         if (v.type >= TypedValue.TYPE_FIRST_COLOR_INT && v.type <= TypedValue.TYPE_LAST_COLOR_INT) return v.data;
+        if (v.type == TypedValue.TYPE_STRING && v.resourceId != 0 && resources != null) {
+            // A color state list file: its default color, as on Android.
+            try {
+                return resources.getColorStateList(v.resourceId).getDefaultColor();
+            } catch (Resources.NotFoundException e) {
+                return defValue;
+            }
+        }
         if (v.type == TypedValue.TYPE_STRING && v.string != null) {
             try {
                 return ColorStateList.resolveColor(resources, v.string.toString().trim(), null);

@@ -147,6 +147,18 @@ public final class Uri {
         return h < 0 ? null : value.substring(h + 1);
     }
 
+    /** The part after the scheme (and including a hierarchical '//'), minus the fragment. */
+    public String getSchemeSpecificPart() {
+        int c = value.indexOf(':');
+        String ssp = c < 0 ? value : value.substring(c + 1);
+        int h = ssp.indexOf('#');
+        return h < 0 ? ssp : ssp.substring(0, h);
+    }
+
+    public String getEncodedSchemeSpecificPart() {
+        return getSchemeSpecificPart();
+    }
+
     public boolean isHierarchical() {
         int c = value.indexOf(':');
         return c < 0 || value.startsWith("/", c + 1);

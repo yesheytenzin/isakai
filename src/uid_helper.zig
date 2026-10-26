@@ -497,6 +497,7 @@ pub const JvmRequest = struct {
     activity_theme: [:0]const u8,
     target_sdk: [:0]const u8,
     min_sdk: [:0]const u8,
+    intent_data: [:0]const u8,
     wayland_sock: ?[]const u8,
     bridge_dir: ?[]const u8,
 };
@@ -513,6 +514,10 @@ pub fn runJvm(gpa: std.mem.Allocator, request: JvmRequest, confinement_disabled:
             try err_writer.writeAll("uid-helper run-jvm: invalid numeric field\n");
             return 2;
         };
+    }
+    if (request.intent_data.len > 4096 or std.mem.indexOfScalar(u8, request.intent_data, 0) != null) {
+        try err_writer.writeAll("uid-helper run-jvm: invalid intent data\n");
+        return 2;
     }
     if (!std.mem.startsWith(u8, request.java, "/usr/lib/jvm/")) {
         try err_writer.writeAll("uid-helper run-jvm: java is outside the trusted runtime roots\n");
@@ -544,15 +549,16 @@ pub fn runJvm(gpa: std.mem.Allocator, request: JvmRequest, confinement_disabled:
     defer gpa.free(data_z);
     const package_z = try gpa.dupeSentinel(u8, request.package, 0);
     defer gpa.free(package_z);
-    const argv: [18][:0]const u8 = .{
+    const argv: [19][:0]const u8 = .{
         request.java,                                                                  "--enable-native-access=ALL-UNNAMED", lib_path,
         if (request.windowed) "-Disakai.windowed=true" else "-Disakai.windowed=false", code_prop,                            temp_prop,
         "-cp",                                                                         cp,                                   "org.isakai.runtime.IsakaiMain",
         data_z,                                                                        request.app_class,                    request.activity_class,
         package_z,                                                                     request.title,                        request.app_theme,
         request.activity_theme,                                                        request.target_sdk,                   request.min_sdk,
+        request.intent_data,
     };
-    return runPrepared(request.package, request.uid, request.data_dir, request.work, &argv, request.wayland_sock, request.bridge_dir, request.framework, confinement_disabled, err_writer);
+    return runPrepared(request.package, request.uid, request.data_dir, request.work, request.code_dir, &argv, request.wayland_sock, request.bridge_dir, request.framework, confinement_disabled, err_writer);
 }
 
 fn trustedCodeDir(work: []const u8, package: []const u8, path: []const u8) bool {
@@ -598,6 +604,7 @@ fn runPrepared(
     uid: u32,
     data_dir: []const u8,
     work: []const u8,
+    code_dir: []const u8,
     cmd: []const [:0]const u8,
     wayland_sock: ?[]const u8,
     bridge_dir: ?[]const u8,
@@ -686,7 +693,7 @@ fn runPrepared(
     if (pid == 0) {
         // Child: mount setup, drop privileges, confine, set env, exec. Async-signal-safe
         // only; on any failure _exit(127) — never return to the caller.
-        childMain(uid, data_dir, work, package, cmd, wayland_sock, bridge_dir, framework_dir, confinement_disabled);
+        childMain(uid, data_dir, work, package, code_dir, cmd, wayland_sock, bridge_dir, framework_dir, confinement_disabled);
     }
     // Parent: wait and translate status.
     while (true) {
@@ -788,7 +795,7 @@ pub fn validBridgeEndpointDir(dir: []const u8, app_uid: u32) bool {
     return true;
 }
 
-fn childMain(uid: u32, data_dir: []const u8, work: []const u8, package: []const u8, cmd: []const [:0]const u8, wayland_sock: ?[]const u8, bridge_dir: ?[]const u8, framework_dir: ?[]const u8, confinement_disabled: bool) noreturn {
+fn childMain(uid: u32, data_dir: []const u8, work: []const u8, package: []const u8, code_dir: []const u8, cmd: []const [:0]const u8, wayland_sock: ?[]const u8, bridge_dir: ?[]const u8, framework_dir: ?[]const u8, confinement_disabled: bool) noreturn {
     const linux = std.os.linux;
     // 0. Close every fd >= 3 (no descriptor leaks into the app). Prefer
     // close_range(3, ~0, 0); fall back to a bounded loop when ENOSYS.
@@ -878,11 +885,13 @@ fn childMain(uid: u32, data_dir: []const u8, work: []const u8, package: []const 
     // lives in framework/lib — only inject when the framework was passed
     // (privileged runs with a real framework dir).
     var preload_buf: [4352]u8 = undefined;
+    var bionic_path_buf: [4352]u8 = undefined;
     var has_preload = false;
     if (framework_dir) |f| {
         _ = std.fmt.bufPrint(&preload_buf, "LD_PRELOAD={s}/lib/libisakai_bionic_shim.so\x00", .{f}) catch linux.exit(127);
         has_preload = true;
     }
+    _ = std.fmt.bufPrint(&bionic_path_buf, "BIONIC_LD_LIBRARY_PATH={s}/lib/x86_64\x00", .{code_dir}) catch linux.exit(127);
     const env_base: [6]?[*:0]const u8 = .{
         @ptrCast(&tmpdir_buf),
         @ptrCast(&rundir_buf),
@@ -891,9 +900,11 @@ fn childMain(uid: u32, data_dir: []const u8, work: []const u8, package: []const 
         @ptrCast(&bridge_buf),
         @ptrCast(&stage_buf),
     };
-    var envp_buf: [9]?[*:0]const u8 = .{ null, null, null, null, null, null, null, null, null };
+    var envp_buf: [10]?[*:0]const u8 = .{ null, null, null, null, null, null, null, null, null, null };
     for (env_base, 0..) |e, i| envp_buf[i] = e;
     var nenv: usize = env_base.len;
+    envp_buf[nenv] = @ptrCast(&bionic_path_buf);
+    nenv += 1;
     if (wayland_base != null) {
         envp_buf[nenv] = @ptrCast(&wdisplay_buf);
         nenv += 1;

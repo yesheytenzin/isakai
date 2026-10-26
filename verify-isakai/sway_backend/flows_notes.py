@@ -15,6 +15,9 @@ from .vinput import isolated_env
 
 EDITOR = (40, 110)
 PLUS = (600, 15)
+# Editor toolbar: search, folder, plus, undo as 48dp framework ActionButtons
+# (framework-res, N5); the folder opens the note picker.
+FOLDER = (488, 15)
 MARKER = "Isakai 日本語 – note"
 
 
@@ -125,7 +128,7 @@ def run(run_app, comp):
     # The folder button opens the note picker and saves the current note
     # before leaving the editor.
     picker_log_start = len(run_app.read_log())
-    comp.click_window(536, 15)
+    comp.click_window(*FOLDER)
     _wait_for_root(run_app, picker_log_start, dialog=True)
     time.sleep(1.0)
     comp.shot("04-note-picker")
@@ -160,7 +163,7 @@ def run(run_app, comp):
     comp.type_text("X")
     time.sleep(3.0)
     comp.shot("06-reopened-edited")
-    comp.click_window(536, 15)
+    comp.click_window(*FOLDER)
     time.sleep(1.5)
     expected_reopened = (saved[0], saved[1], MARKER + "X")
     deadline = time.monotonic() + 3

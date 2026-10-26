@@ -713,8 +713,9 @@ export fn Java_org_isakai_bridge_IsakaiDesktop_nGetActionKey(
     return jniNewStringUtf(env, fns, z);
 }
 
-// Storage force-link: reference the sqlite bridge so its IsakaiSQLite
-// natives land in libisakai_jni.so (no cross-calls; pure symbol anchoring).
+// Force-link: reference the sqlite and resource bridges so their natives
+// land in libisakai_jni.so (no cross-calls; pure symbol anchoring).
 comptime {
+    _ = @import("resources.zig");
     _ = sqlite_mod.sqlite_linked;
 }

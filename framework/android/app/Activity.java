@@ -25,10 +25,16 @@ public class Activity extends android.view.ContextThemeWrapper implements androi
     private View contentView;
     private volatile boolean backPressed;
     private boolean windowFocused;
+    private int requestedOrientation = android.content.pm.ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED;
     /** Result code for a successful startActivityForResult round-trip. */
     public static final int RESULT_OK = -1;
     /** Result code for a cancelled startActivityForResult round-trip. */
     public static final int RESULT_CANCELED = 0;
+    public static final int DEFAULT_KEYS_DISABLE = 0;
+    public static final int DEFAULT_KEYS_DIALER = 1;
+    public static final int DEFAULT_KEYS_SHORTCUT = 2;
+    public static final int DEFAULT_KEYS_SEARCH_LOCAL = 3;
+    public static final int DEFAULT_KEYS_SEARCH_GLOBAL = 4;
     // Pending file-picker: request/handle from startActivityForResult, resolved by pollDesktopResults.
     private int pendingFileRequestCode = -1;
     private long pendingFileReq = 0;
@@ -90,11 +96,15 @@ public class Activity extends android.view.ContextThemeWrapper implements androi
         localLifecycleCallbacks.remove(callback);
     }
 
+    /**
+     * The base context's resources, as on Android: an app's
+     * attachBaseContext override (AppCompat night mode) reaches inflation;
+     * without one the base is the Application.
+     */
     @Override
     public android.content.res.Resources getResources() {
-        return application == null
-                ? android.content.res.Resources.getSystem()
-                : application.getResources();
+        android.content.Context base = getBaseContext();
+        return base == null ? android.content.res.Resources.getSystem() : base.getResources();
     }
 
     /**
@@ -394,150 +404,12 @@ public class Activity extends android.view.ContextThemeWrapper implements androi
     }
 
     public void setContentView(View view) {
-        this.contentView = view;
-        installViewTreeLifecycleOwner(view);
+        getWindow().setContentView(view);
     }
 
     public void setContentView(View view, android.view.ViewGroup.LayoutParams params) {
         if (view == null) throw new IllegalArgumentException("view == null");
-        if (params != null) view.setLayoutParams(params);
-        this.contentView = view;
-        installViewTreeLifecycleOwner(view);
-    }
-
-    /**
-     * ComposeView looks up the AndroidX lifecycle owner through the generated
-     * view-tree tag before it attaches. The app's translated AndroidX classes
-     * provide the owner implementation, so install it without coupling the
-     * framework API to an app-private type.
-     */
-    private void installViewTreeLifecycleOwner(View view) {
-        if (view == null) return;
-        try {
-            ClassLoader loader = application.getClass().getClassLoader();
-            Class<?> lifecycleOwner = Class.forName("androidx.lifecycle.v", false, loader);
-            Class<?> savedOwner = Class.forName("l4.g", false, loader);
-            Class<?> lifecycle = Class.forName("androidx.lifecycle.x", false, loader);
-            final Object[] lifecycleRef = new Object[1];
-            final Object[] savedStateRef = new Object[1];
-            Object owner = java.lang.reflect.Proxy.newProxyInstance(loader,
-                    new Class<?>[]{lifecycleOwner, savedOwner}, (proxy, method, args) -> {
-                        if ("k".equals(method.getName())) return lifecycleRef[0];
-                        if ("d".equals(method.getName())) {
-                            // Stable per-owner registry: rememberSaveable
-                            // consumes and registers on the same instance.
-                            if (savedStateRef[0] == null) {
-                                Object registry = Class.forName("l4.e", false, loader)
-                                        .getConstructor().newInstance();
-                                // SavedStateRegistry.isRestored: a fabricated
-                                // registry must look restored or Compose's
-                                // consumeRestoredStateForKey throws "only
-                                // after super.onCreate".
-                                registry.getClass().getField("d").setBoolean(registry, true);
-                                savedStateRef[0] = registry;
-                            }
-                            return savedStateRef[0];
-                        }
-                        return null;
-                    });
-            lifecycleRef[0] = lifecycle.getConstructor(lifecycleOwner).newInstance(owner);
-                    view.setTag(0x7f09034f, owner);
-            // Compose consumes view-tree restored state during its first
-            // composition, which is only legal after performRestore. When the
-            // activity is itself a SavedStateRegistryOwner (ComponentActivity
-            // is), tag it: its registry is the restored one and rememberSaveable
-            // state round-trips through the same instance.
-            view.setTag(0x7f090351, savedOwner.isInstance(this) ? this : owner);
-            // Composition-context tag intentionally NOT installed: a bare
-            // recomposer here would hijack findViewTreeCompositionContext
-            // into a never-launched parent. Leaving it absent forces the
-            // LifecycleAware window recomposer, which this runtime drives
-            // through the view-tree lifecycle events above.
-            propagateViewTreeOwners(view);
-            // Retain the translated registry plus its event entry point so
-            // the activity lifecycle below can drive it. Discovery is by
-            // shape (single enum parameter carrying the ON_* names), never
-            // by obfuscated method name; anything unrecognized stays silent
-            // and composition for that app remains undriven, not crashed.
-            retainViewTreeLifecycle(lifecycleRef[0]);
-            catchUpViewTreeLifecycle();
-        } catch (ClassNotFoundException e) {
-            // Ordinary apps do not ship translated Compose lifecycle classes.
-        } catch (ReflectiveOperationException e) {
-            System.err.println("isakai: unable to install translated lifecycle owner: " + e);
-        }
-    }
-
-    private static final String[] LIFECYCLE_EVENT_ORDER = {
-        "ON_CREATE", "ON_START", "ON_RESUME", "ON_PAUSE", "ON_STOP", "ON_DESTROY"
-    };
-
-    private Object viewTreeLifecycle;
-    private java.lang.reflect.Method viewTreeEventMethod;
-    private Object[] viewTreeEventValues;
-    private int viewTreeEventIndex = -1;
-
-    private void retainViewTreeLifecycle(Object lifecycle) {
-        viewTreeLifecycle = null;
-        viewTreeEventMethod = null;
-        viewTreeEventValues = null;
-        viewTreeEventIndex = -1;
-        if (lifecycle == null) return;
-        for (java.lang.reflect.Method m : lifecycle.getClass().getMethods()) {
-            if (m.getParameterCount() != 1) continue;
-            Class<?> param = m.getParameterTypes()[0];
-            if (!param.isEnum()) continue;
-            try {
-                Object[] values = new Object[LIFECYCLE_EVENT_ORDER.length];
-                for (int i = 0; i < values.length; i++) {
-                    values[i] = Enum.valueOf(param.asSubclass(Enum.class), LIFECYCLE_EVENT_ORDER[i]);
-                }
-                viewTreeLifecycle = lifecycle;
-                viewTreeEventMethod = m;
-                viewTreeEventValues = values;
-                return;
-            } catch (Throwable t) {
-                // Not the lifecycle Event enum (or unreadable, including
-                // linkage errors from foreign bytecode); keep looking.
-                // Any failure here leaves composition undriven, never crashed.
-            }
-        }
-    }
-
-    private void sendViewTreeEvent(int index) {
-        if (viewTreeLifecycle == null || viewTreeEventMethod == null) return;
-        try {
-            if (index > viewTreeEventIndex) {
-                for (int i = viewTreeEventIndex + 1; i <= index; i++) {
-                    viewTreeEventMethod.invoke(viewTreeLifecycle, viewTreeEventValues[i]);
-                }
-            } else {
-                // Restart-style transition (e.g. start after stop): the
-                // single event alone is the legal move.
-                viewTreeEventMethod.invoke(viewTreeLifecycle, viewTreeEventValues[index]);
-            }
-            viewTreeEventIndex = index;
-        } catch (ReflectiveOperationException e) {
-            System.err.println("isakai: view-tree lifecycle dispatch failed: " + e);
-            viewTreeLifecycle = null;
-        }
-    }
-
-    private void catchUpViewTreeLifecycle() {
-        if (lifecycleState < 0) return;
-        sendViewTreeEvent(Math.min(lifecycleState, 2));
-    }
-
-    private static void propagateViewTreeOwners(View view) {
-        if (!(view instanceof android.view.ViewGroup)) return;
-        android.view.ViewGroup group = (android.view.ViewGroup) view;
-        for (int i = 0; i < group.getChildCount(); i++) {
-            View child = group.getChildAt(i);
-            child.setTag(0x7f09034f, view.getTag(0x7f09034f));
-            child.setTag(0x7f090351, view.getTag(0x7f090351));
-            child.setTag(0x7f090052, view.getTag(0x7f090052));
-            propagateViewTreeOwners(child);
-        }
+        getWindow().setContentView(view, params);
     }
 
     void setContentViewFromWindow(View view) { this.contentView = view; }
@@ -565,7 +437,6 @@ public class Activity extends android.view.ContextThemeWrapper implements androi
         dispatchLifecycle(callback -> callback.onActivityPreCreated(this,null));
         onCreate();
         lifecycleState=0;
-        sendViewTreeEvent(0);
         dispatchLifecycle(callback -> callback.onActivityCreated(this,null));
         dispatchLifecycle(callback -> callback.onActivityPostCreated(this,null));
     }
@@ -574,7 +445,6 @@ public class Activity extends android.view.ContextThemeWrapper implements androi
         dispatchLifecycle(callback -> callback.onActivityPreStarted(this));
         onStart();
         lifecycleState=1;
-        sendViewTreeEvent(1);
         dispatchLifecycle(callback -> callback.onActivityStarted(this));
         dispatchLifecycle(callback -> callback.onActivityPostStarted(this));
     }
@@ -583,7 +453,6 @@ public class Activity extends android.view.ContextThemeWrapper implements androi
         dispatchLifecycle(callback -> callback.onActivityPreResumed(this));
         onResume();
         lifecycleState=2;
-        sendViewTreeEvent(2);
         onPostResume();
         dispatchLifecycle(callback -> callback.onActivityResumed(this));
         dispatchLifecycle(callback -> callback.onActivityPostResumed(this));
@@ -593,7 +462,6 @@ public class Activity extends android.view.ContextThemeWrapper implements androi
         dispatchLifecycle(callback -> callback.onActivityPrePaused(this));
         onPause();
         lifecycleState=1;
-        sendViewTreeEvent(3);
         dispatchLifecycle(callback -> callback.onActivityPaused(this));
         dispatchLifecycle(callback -> callback.onActivityPostPaused(this));
     }
@@ -603,7 +471,6 @@ public class Activity extends android.view.ContextThemeWrapper implements androi
         dispatchLifecycle(callback -> callback.onActivityPreStopped(this));
         onStop();
         lifecycleState=0;
-        sendViewTreeEvent(4);
         dispatchLifecycle(callback -> callback.onActivityStopped(this));
         dispatchLifecycle(callback -> callback.onActivityPostStopped(this));
     }
@@ -613,8 +480,6 @@ public class Activity extends android.view.ContextThemeWrapper implements androi
         dispatchLifecycle(callback -> callback.onActivityPreDestroyed(this));
         onDestroy();
         lifecycleState=-2;
-        sendViewTreeEvent(5);
-        viewTreeLifecycle = null;
         dispatchLifecycle(callback -> callback.onActivityDestroyed(this));
         dispatchLifecycle(callback -> callback.onActivityPostDestroyed(this));
         localLifecycleCallbacks.clear();
@@ -670,6 +535,11 @@ public class Activity extends android.view.ContextThemeWrapper implements androi
         final java.util.ArrayList<Activity> stack = new java.util.ArrayList<>();
         final java.util.Queue<Runnable> pending = new java.util.concurrent.ConcurrentLinkedQueue<>();
         Activity top() { return stack.get(stack.size() - 1); }
+        boolean contains(android.content.ComponentName dest) {
+            for (Activity activity : stack)
+                if (activity.getClass().getName().equals(dest.getClassName())) return true;
+            return false;
+        }
         void launch(Activity caller, Intent intent, int code) {
             Intent deliveredIntent = new Intent(intent);
             android.content.ComponentName component = intent.getComponent();
@@ -685,7 +555,10 @@ public class Activity extends android.view.ContextThemeWrapper implements androi
                 next = Class.forName(name).asSubclass(Activity.class).getDeclaredConstructor().newInstance();
             } catch (ReflectiveOperationException | ClassCastException
                     | android.content.pm.PackageManager.NameNotFoundException e) {
-                throw new android.content.ActivityNotFoundException("Cannot resolve " + component.getClassName());
+                android.content.ActivityNotFoundException notFound =
+                    new android.content.ActivityNotFoundException("Cannot resolve " + component.getClassName());
+                notFound.initCause(e);
+                throw notFound;
             }
             pending.add(() -> {
                 Activity old = top();
@@ -882,6 +755,20 @@ public class Activity extends android.view.ContextThemeWrapper implements androi
             navigator.window.setTitle(title==null?"":title.toString());
     }
     public void setTitle(int resource) { setTitle(getResources().getText(resource)); }
+
+    public void setRequestedOrientation(int orientation) {
+        requestedOrientation = orientation;
+    }
+
+    public int getRequestedOrientation() {
+        return requestedOrientation;
+    }
+
+    public void setDefaultKeyMode(int mode) {}
+
+    public Intent getParentActivityIntent() { return null; }
+
+    public void overridePendingTransition(int enterAnim, int exitAnim) {}
     public void setTaskDescription(ActivityManager.TaskDescription description) {
         if(description==null)throw new NullPointerException("description");
         if(description.getLabel()!=null)setTitle(description.getLabel());
@@ -893,8 +780,22 @@ public class Activity extends android.view.ContextThemeWrapper implements androi
         return null;
     }
 
+    /**
+     * Navigate to a declared parent activity: finish this activity when the
+     * parent is already on the task's back stack, otherwise launch it first.
+     * Puzzles' no-saved-state launch relies on this to reach its chooser.
+     */
     public boolean navigateUpTo(Intent upIntent) {
-        return false;
+        if (upIntent == null || navigator == null) return false;
+        android.content.ComponentName dest = upIntent.getComponent();
+        if (dest == null) return false;
+        if (navigator.contains(dest)) {
+            finish();
+            return true;
+        }
+        startActivity(upIntent);
+        finish();
+        return true;
     }
 
     public void closeOptionsMenu() {}
@@ -1100,7 +1001,6 @@ public class Activity extends android.view.ContextThemeWrapper implements androi
             clipboardManager = new ClipboardManager(window);
             try {
                 windowFocused = true;
-                active.installViewTreeLifecycleOwner(root);
                 root.dispatchHostAttached();
                 int width = 640;
                 int height = 480;
@@ -1124,7 +1024,6 @@ public class Activity extends android.view.ContextThemeWrapper implements androi
                         System.err.println("isakai: new root " + root.getClass().getName()
                                 + " bounds=" + root.getLeft() + "," + root.getTop()
                                 + "," + root.getWidth() + "x" + root.getHeight());
-                        active.installViewTreeLifecycleOwner(root);
                         root.dispatchHostAttached();
                         active.clipboardManager = clipboardManager;
                         window.setTitle(active.title==null?title:active.title.toString());

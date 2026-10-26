@@ -414,8 +414,9 @@ pub fn buildJvmArgv(
     act_theme: []const u8,
     target_sdk: []const u8,
     min_sdk: []const u8,
+    intent_data: []const u8,
 ) ![][]const u8 {
-    const argv = try gpa.alloc([]const u8, 18);
+    const argv = try gpa.alloc([]const u8, 19);
     argv[0] = java;
     argv[1] = "--enable-native-access=ALL-UNNAMED";
     argv[2] = lib_path;
@@ -434,6 +435,7 @@ pub fn buildJvmArgv(
     argv[15] = act_theme;
     argv[16] = target_sdk;
     argv[17] = min_sdk;
+    argv[18] = intent_data;
     return argv;
 }
 
@@ -622,6 +624,8 @@ const HelperJvmFields = struct {
     activity_theme: []const u8,
     target_sdk: []const u8,
     min_sdk: []const u8,
+    /// Optional VIEW intent data URI (empty = plain launcher intent).
+    intent_data: []const u8,
 };
 
 pub fn helperRunHead(
@@ -658,6 +662,7 @@ pub fn helperRunHead(
         "--activity-theme", fields.activity_theme,
         "--target-sdk",     fields.target_sdk,
         "--min-sdk",        fields.min_sdk,
+        "--intent-data",    fields.intent_data,
     });
     return argv;
 }
@@ -808,6 +813,7 @@ pub fn launch(
     work: []const u8,
     selector: []const u8,
     framework_dir: []const u8,
+    intent_data: []const u8,
 ) anyerror!RunResult {
     // Check-and-mark-starting under the exclusive lock; the lock is NOT
     // held across the child run (that would serialize launches and queries).
@@ -879,11 +885,8 @@ pub fn launch(
     }
     const app_arg = m.application orelse "-";
     const act_arg = m.launcher orelse "-";
-    // Real apps carry `@string` label refs: resolve them from the staged
-    // resources.arsc so the toplevel titles correctly; literals (fixture)
-    // and missing tables fall through to manifestTitle unchanged.
-    _ = install.resolveStagedLabels(io, gpa, pkg.apk, &m) catch false;
-    const title_arg = install.manifestTitle(&m);
+    var title_buf: [16]u8 = undefined;
+    const title_arg = install.manifestTitle(&title_buf, &m);
     const app_theme_arg = try std.fmt.allocPrint(gpa, "{d}", .{m.app_theme});
     defer gpa.free(app_theme_arg);
     const act_theme_arg = try std.fmt.allocPrint(gpa, "{d}", .{m.activity_theme});
@@ -917,7 +920,7 @@ pub fn launch(
     );
     defer gpa.free(lib_path);
     const windowed_prop = if (windowed) "-Disakai.windowed=true" else "-Disakai.windowed=false";
-    const jvm_argv = try buildJvmArgv(gpa, java, lib_path, windowed_prop, cp, pkg.data_dir, app_arg, act_arg, pkg.name, title_arg, pkg.apk, app_theme_arg, act_theme_arg, target_sdk_arg, min_sdk_arg);
+    const jvm_argv = try buildJvmArgv(gpa, java, lib_path, windowed_prop, cp, pkg.data_dir, app_arg, act_arg, pkg.name, title_arg, pkg.apk, app_theme_arg, act_theme_arg, target_sdk_arg, min_sdk_arg, intent_data);
     defer gpa.free(jvm_argv);
     defer gpa.free(jvm_argv[4]);
     defer gpa.free(jvm_argv[5]);
@@ -972,6 +975,20 @@ pub fn launch(
     // Privileged children get a minimal env from runAs anyway.
     var child_env = try cloneSandboxEnv(gpa, env, bridge_dir, stage_dir);
     defer child_env.deinit();
+    // N6: the ATL loader resolves an app's own dependencies from
+    // BIONIC_LD_LIBRARY_PATH; add the staged ABI slice (the shim appends
+    // its own bionic/glibc dirs at first use).
+    {
+        const app_lib_dir = try std.fmt.allocPrint(gpa, "{s}/lib/x86_64", .{pkg.apk});
+        defer gpa.free(app_lib_dir);
+        if (child_env.get("BIONIC_LD_LIBRARY_PATH")) |prev| {
+            const merged = try std.fmt.allocPrint(gpa, "{s}:{s}", .{ prev, app_lib_dir });
+            defer gpa.free(merged);
+            try child_env.put("BIONIC_LD_LIBRARY_PATH", merged);
+        } else {
+            try child_env.put("BIONIC_LD_LIBRARY_PATH", app_lib_dir);
+        }
+    }
     // M6a: LD_PRELOAD the bionic shim so NDK app .so files that call
     // bionic-only symbols (__android_log_*, property_*) resolve. The
     // shim lives in framework/lib; only inject when it exists (dev
@@ -1011,6 +1028,7 @@ pub fn launch(
             .activity_theme = act_theme_arg,
             .target_sdk = target_sdk_arg,
             .min_sdk = min_sdk_arg,
+            .intent_data = intent_data,
         }, wayland_sock, framework_dir) catch |err| {
             rollbackToInstalled(&reg, io, gpa, work, pkg);
             lock.release();
