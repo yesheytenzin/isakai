@@ -1,0 +1,65 @@
+---
+id: "N16"
+status: "pending"
+phase: "RELEASE_MATRIX"
+priority: "P1"
+size: "M"
+updated: "2026-10-14"
+owner: "unassigned"
+next: "no action until scheduled; start per acceptance criteria when the phase opens"
+---
+
+# N16: Publish exact compatibility and performance evidence by backend
+
+## Dependencies
+
+- [N1](N1-evidence-reproducibility.md)
+- [N2](N2-abi-selection.md)
+
+## Code and documentation
+
+- [progress/N16.md](../progress/N16-compatibility-evidence.md)
+- [docs/SUPPORTED_APIS.md](../docs/SUPPORTED_APIS.md)
+- [README.md](../README.md)
+- [tools/compat-report.py](../tools/compat-report.py)
+- [verify-isakai/sway-flow.py](../verify-isakai/sway-flow.py)
+- [verify-isakai/sway_backend/flows_opencalc.py](../verify-isakai/sway_backend/flows_opencalc.py)
+- [verify-isakai/sway_backend/flows_calculator.py](../verify-isakai/sway_backend/flows_calculator.py)
+- [verify-isakai/sway_backend/flows_notes.py](../verify-isakai/sway_backend/flows_notes.py)
+
+## Implementation
+
+1. Maintain a versioned utility/JNI/C++threaded/native-assets/ARM-only corpus with byte-identical inputs and reference Android runs.
+2. Separate install, ELF inventory, loader, JNI, launch and completed workflow results; include host/APK ISA, bitness and backend identity.
+3. Record cold/warm launch, translation cache, RSS/PSS, idle CPU, frame/input latency, fd/thread counts, size and cleanup with each accepted flow.
+4. Keep all live completion status/evidence in progress/; publish a generated or reviewed capability view without creating a second tracker.
+5. Reconcile historical OpenCalc PASS records with the current clean-state pass and warm-state Syntax/copy failure; never preserve a support claim solely because an older helper returned success.
+
+## Acceptance
+
+- Every support claim links to immutable provenance, actual asserted actions, screenshots and exit/cleanup evidence.
+- Current three-app gate and each future architecture gate remain independently visible.
+- Performance budgets are calibrated from comparable useful tasks, not assumed upstream speedups.
+
+## Stop condition
+
+No universal compatibility percentage or performance claim without defined corpus, denominator and comparable measured runs.
+
+## Effort estimate
+
+Planning estimate: 3–7 engineer-days initial corpus/report format; recurring per-release evidence work.
+
+## Reuse sources
+
+- [https://developer.android.com/ndk/guides/abis](https://developer.android.com/ndk/guides/abis)
+- [https://source.android.com/docs/compatibility/overview](https://source.android.com/docs/compatibility/overview)
+- [https://developer.android.com/google/play/integrity/verdicts](https://developer.android.com/google/play/integrity/verdicts)
+
+## Verification evidence
+
+Not recorded.
+
+
+## Code review
+
+Not recorded.

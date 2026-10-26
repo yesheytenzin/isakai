@@ -704,7 +704,7 @@ pub fn inspect(
     // Android/Bionic libraries. Any other ABI
     // (arm64-v8a, armeabi-v7a, x86, mips...) still has no execution path:
     // reject loudly rather than installing an app that dies at launch
-    // (ARM execution is deferred, see progress/F3.md).
+    // (ARM execution is deferred, see progress/F3-arm-native-proof.md).
     if (native and !x86) return error.NativeUnsupported;
     for (entries.items) |e| {
         if (!std.mem.startsWith(u8, e.name, "lib/x86_64/") or !std.mem.endsWith(u8, e.name, ".so")) continue;

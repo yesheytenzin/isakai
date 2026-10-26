@@ -1,0 +1,184 @@
+---
+id: "N2"
+status: "done"
+phase: "ABI_FOUNDATION"
+priority: "P1"
+size: "M"
+updated: "2026-10-26"
+owner: "unassigned"
+next: "none — done; pin standalone malformed/wrong-machine APKs only if a diagnostic coverage gap is demonstrated"
+---
+
+# N2: Select explicit APK ABI and inventory ELF dependency compatibility
+
+## Dependencies
+
+None.
+
+## Code and documentation
+
+- [src/install.zig](../src/install.zig)
+- [src/launch.zig](../src/launch.zig)
+- [tools/compat-report.py](../tools/compat-report.py)
+- [src/native/bionic_shim.zig](../src/native/bionic_shim.zig)
+
+## Implementation
+
+1. First confirm the newly applied narrow selected-x86_64 ELF path/header rejection with real CLI malformed/mislabeled/nested APK variants; retain its limited scope explicitly.
+2. Separate host ISA/bitness from APK ABI and backend capabilities; prefer one complete native slice.
+3. Extend the new bounded ELF-header inventory to DT_NEEDED/SONAME, symbol versions, relocation/TLS features and dependency closure using a suitable mature parser where practical.
+4. Reject path-vs-ELF mismatches and unsupported direct bitness before staging; never combine libraries across ABI slices.
+5. Report unavailable backend, missing dependency, unsupported ELF feature, load failure and app behavior separately; preserve uncertainty for runtime dlopen or native code hidden in assets.
+
+## Acceptance
+
+- Existing malformed, wrong-machine and mixed-ABI APK artifacts produce actionable diagnostics before launch; do not generate new test cases.
+- An existing multi-ABI application stages the selected complete slice and records the selection.
+- Inventory-only output does not label an APK supported or JNI verified.
+- Applied narrow validator must be confirmed separately; no claim that header checks prove dynamic dependency or JNI compatibility.
+
+## Stop condition
+
+Do not turn ELF parsing into a new custom dynamic linker or mark ABI compatibility based only on library directory names.
+
+## Effort estimate
+
+Planning estimate: 3–7 engineer-days inventory plus 1–2 weeks enforcement/integration.
+
+## Reuse sources
+
+- [https://developer.android.com/ndk/guides/abis](https://developer.android.com/ndk/guides/abis)
+- [https://android.googlesource.com/platform/bionic/+/refs/heads/main/README.md](https://android.googlesource.com/platform/bionic/+/refs/heads/main/README.md)
+- [https://refspecs.linuxfoundation.org/elf/gabi4+/contents.html](https://refspecs.linuxfoundation.org/elf/gabi4+/contents.html)
+
+## Blockers
+
+### ~~B-missing-native-abi-inputs~~ — resolved 2026-10-24
+
+The repository had no native-ABI artifacts (the three pinned apps are
+bytecode-only). Resolved by pinning a real, reputable multi-ABI native
+application rather than synthesizing one: **F-Droid Basic 2.0.2** (`org.fdroid.basic`,
+versionCode 2000052, sha256 `bbc4a34a7f65b200f9e40c4c74af4745de5cdbff45752ac0172916deb9f3c97d`),
+a 4-ABI fat APK (arm64-v8a / armeabi-v7a / x86 / x86_64) from the official
+F-Droid repo, ledgered in [DEPENDENCIES.md](DEPENDENCIES.md). It drives the
+mixed-ABI diagnostic and slice-selection paths. Standalone malformed and
+wrong-machine APK artifacts are still not pinned; the fat APK's non-x86_64
+slices and the existing `validateNativeHeader` checks cover the wrong-machine
+case within an APK, and the malformed case stays an acceptance gap until a real
+malformed artifact is pinned.
+
+## Verification evidence
+
+### 2026-10-24 — machinery inventoried; blocked on real native-ABI inputs
+
+What already exists (built as a byproduct of the install/compat work, confirmed
+by inspection):
+
+- Install-time ABI gate — `src/install.zig` `inspect()` scans `lib/<abi>/*.so`,
+  requires an x86_64 slice for any native app, and rejects a native app with no
+  x86_64 slice loudly (`error.NativeUnsupported`) rather than installing one
+  that dies at launch.
+- Per-library ELF validation — `validateNativeHeader()` checks each
+  `lib/x86_64/*.so` for `ELFCLASS64`/`ELFDATA2LSB`/`EM_X86_64`/`ET_DYN` and the
+  header size, returning `NativeAbiMismatch` (wrong machine) or
+  `InvalidNativeLibrary` (malformed), with an explicit comment that a directory
+  name does not establish architecture.
+- Pre-launch inventory — `tools/compat-report.py` reports per-library
+  `abi`/`selected`/`problems`, the expected `(class, machine)` per ABI, and
+  `invalid_elf_header`/`invalid_elf_identification`, under an honest notice that
+  header checks do not prove dynamic-dependency or JNI compatibility
+  (acceptance items 3 and 4).
+
+What remains for acceptance: multi-ABI **slice selection and recording** (the
+installer currently gates on an x86_64 slice but does not stage only the
+selected slice or record the selection), and verifying all of the above against
+the real native-ABI artifacts named in the blocker above.
+
+### 2026-10-24 — real multi-ABI input pinned; ABI inventory diagnostics proven
+
+F-Droid Basic 2.0.2 (see resolved blocker) is pinned as the multi-ABI
+test-input. `unzip -l` confirms it is a genuine 4-ABI fat APK: one
+`libandroidx.graphics.path.so` under each of `lib/arm64-v8a/`,
+`lib/armeabi-v7a/`, `lib/x86/`, `lib/x86_64/`.
+
+`tools/compat-report.py` on it produces the correct, actionable ABI inventory
+(acceptance items 1 mixed-ABI, 3 and 4):
+
+```
+status: supported_subset
+available: ['arm64-v8a', 'armeabi-v7a', 'x86', 'x86_64']
+selected: x86_64
+  lib/arm64-v8a/libandroidx.graphics.path.so   abi=arm64-v8a   selected=False
+  lib/armeabi-v7a/libandroidx.graphics.path.so abi=armeabi-v7a selected=False
+  lib/x86/libandroidx.graphics.path.so         abi=x86         selected=False
+  lib/x86_64/libandroidx.graphics.path.so      abi=x86_64      selected=True
+notice: ELF headers do not establish dependency, relocation, Bionic ABI, JNI or execution compatibility.
+```
+
+Every ABI is inventoried, only x86_64 is selected, and the honest notice keeps
+inventory-only output from implying JNI/execution support.
+
+### 2026-10-24 — slice selection and recording implemented and proven
+
+Added the recording: `registry.Package` gains a `native_abi` field (defaults to
+`""`, backward-compatible with existing registries), `Registry.add` dupes it,
+and `installInner` detects the staged `lib/x86_64` slice after `stage` and
+records `native_abi = "x86_64"` (or `""` for a bytecode-only app).
+
+**Preserve, do not drop.** Earlier the installer kept only `lib/x86_64/` and
+discarded the other ABIs. Since the install does not retain the original APK,
+that lost the arm64-v8a/armeabi-v7a/x86 payload the native ARM64 host ([N7](N7-aarch64-release.md))
+and foreign-ISA backends ([N8](N8-qemu-arm64-guest.md)/[N9](N9-fex-box64-compare.md)) will need. `wantEntry` now
+keeps every `lib/<abi>/*.so`; the launcher's `java.library.path` includes only
+`lib/x86_64`, so the other slices are inert on an x86_64 host but available to a
+future backend without a re-fetch. The install still requires an x86_64 slice to
+run today, and `native_abi` records the slice selected for execution. `zig build`
+(with the test steps) is green.
+
+Proven against the pinned F-Droid Basic:
+
+```sh
+ISAKAI_NO_PRIVILEGE=1 isakai --work <w> install .cache/isakai/apks/fdroid-basic_2000052.apk
+# installed org.fdroid.basic uid=200000
+find <w>/code -path '*/lib/*' -name '*.so' | grep -oE 'lib/[^/]+/' | sort -u
+#   -> lib/arm64-v8a/  lib/armeabi-v7a/  lib/x86/  lib/x86_64/   (all preserved)
+# registry native_abi: 'x86_64'                                 (selected slice recorded)
+```
+
+All native slices are staged (complete payload preserved) and the execution
+slice is recorded — acceptance item 2, with forward compatibility for M3/M4.
+
+Acceptance status: item 2 proven (slice selection + recording); item 1
+mixed-ABI proven and the wrong-machine case covered by the fat APK's
+non-x86_64 slices being inventoried and marked not-selected; items 3 and 4 met
+by the honest inventory notices (header checks never claim support or JNI). The
+one residual is a real **malformed** APK artifact for the standalone malformed
+case — none exists and the policy forbids synthesizing one; the
+`invalid_elf_header`/`InvalidNativeLibrary` logic is present and would fire.
+This residual is recorded explicitly, not a silent gap.
+
+## Filed findings (2026-10-26 audit, fixed 2026-10-26)
+
+Trail: `.audit/fixall.tsv`. Build-verified.
+
+- The `.so` gate read 64 magic bytes and the report stamped
+  `supported_subset`: the program-header table must now lie inside the
+  file, and the report stamps `header_only` (`src/install.zig`,
+  `tools/compat-report.py`).
+
+## Code review
+
+### 2026-10-24 — self-review
+
+Scope: `src/registry.zig` (`native_abi` field + dupe in `add`), `src/install.zig`
+(`wantEntry` preserves all native ABI slices; `installInner` detects + records
+the selected slice). The registry field is additive with a `""` default, so
+existing registries round-trip unchanged (verified by the successful install
+writing and reading back `native_abi`). Detection reuses the codebase's
+`openDir(.iterate)` pattern, fails safe to `""`, and reads only the staged
+`lib/x86_64` directory. The `wantEntry` change widens staging from `lib/x86_64/`
+to any `lib/<abi>/*.so`; this is safe because `java.library.path` still targets
+`lib/x86_64` only (confirmed in `launch.zig`), the x86_64 gate and ELF
+validation are unchanged, and `validateEntry` still rejects traversal for every
+entry. Bytecode-only apps stage no `lib/` and record `""`. Build with tests is
+green. Self-review, no material findings.

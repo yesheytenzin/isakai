@@ -1,6 +1,6 @@
 # Pinned Android applications
 
-This JSON block is the only authored APK-pin manifest. Fetch and verification tools read it through `tools/pinned_apps.py`; keep its order stable because the observer uses app indices. Task status and app acceptance evidence belong to [C7](C7.md), not this manifest.
+This JSON block is the only authored APK-pin manifest. Fetch and verification tools read it through `tools/pinned_apps.py`; keep its order stable because the observer uses app indices. Task status and app acceptance evidence belong to [C7](C7-acceptance-gate.md), not this manifest.
 
 ```json
 [
@@ -53,10 +53,10 @@ This JSON block is the only authored APK-pin manifest. Fetch and verification to
 
 ## Acceptance and verification
 
-See [C1](C1.md) for pinning requirements and [C7](C7.md#app-specific-acceptance) for useful flows, failures and retained evidence.
+See [C1](C1-target-apps.md) for pinning requirements and [C7](C7-acceptance-gate.md#app-specific-acceptance) for useful flows, failures and retained evidence.
 
 Indices 0–2 are the M1 three-app acceptance set (C7). Index 3, Simon Tatham's
 Puzzles (`role: native-candidate`), is the same-ISA native target for
-[N6](N6.md)/[N5](N5.md): a clean x86_64 NDK app whose `lib/x86_64/libpuzzles.so`
+[N6](N6-bionic-jni.md)/[N5](N5-resource-engine.md): a clean x86_64 NDK app whose `lib/x86_64/libpuzzles.so`
 is a genuine JNI library (`JNI_OnLoad` + 37 `Java_*` natives, native→Java 2D
 Canvas callbacks, no EGL). It is not part of the C7 gate.

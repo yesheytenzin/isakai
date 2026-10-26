@@ -1,0 +1,98 @@
+---
+id: "R1"
+status: "done"
+phase: "RUNTIME"
+priority: "P0"
+size: "S"
+updated: "2026-10-14"
+owner: "unassigned"
+next: "none — done; reopen only if a regression invalidates acceptance"
+---
+
+# R1: Remove the production window timeout
+
+## Dependencies
+
+None.
+
+## Code and documentation
+
+- [framework/android/app/Activity.java](../framework/android/app/Activity.java)
+
+## Acceptance
+
+A window remains responsive beyond 30 seconds; close/back exits cleanly, runs lifecycle cleanup once, and leaves no window or child process.
+
+## Verification evidence
+
+### 2026-10-11 — passed
+
+Removed production deadline; volatile close/back flag preserves early finish. Privileged fixture remained responsive for 31 seconds, rendered typed RUNTIME, closed via compositor and Escape, cleaned lifecycle once and recorded exit zero.
+
+**Revision:** working tree based on 9364ad8b41f210f0cef1e07f086b6d8eefb1bcfc
+
+**Environment:** Linux x86_64, Zig 0.17, OpenJDK27, Hyprland0.56.2; privileged helper with confinement enabled
+
+Artifacts:
+
+- `/tmp/isakai-e2e-8tu52egf/`
+- `/tmp/isakai-privileged.log`
+
+### 2026-10-12 — partial
+
+Fresh same-UID Wayland launches now exit 0 and render all three pinned apps with current framework code. OpenCalc renders its calculator keypad and display cursor; Calculator renders its full keypad; Notes renders a populated note card/editor surface. These are launch/render observations only; calculate/copy, settings persistence, Unicode edit/restart, and back-flow acceptance remain open.
+
+Artifacts:
+
+- [.cache/isakai/evidence/com.darkempire78.opencalculator.png](../.cache/isakai/evidence/com.darkempire78.opencalculator.png)
+- [.cache/isakai/evidence/com.simplemobiletools.calculator.png](../.cache/isakai/evidence/com.simplemobiletools.calculator.png)
+- [.cache/isakai/evidence/com.simplemobiletools.notes.pro.png](../.cache/isakai/evidence/com.simplemobiletools.notes.pro.png)
+
+Command:
+
+```sh
+python3 verify-isakai/observe-app.py 0/1/2 --work .cache/isakai/recheck/<app>
+```
+
+### 2026-10-12 — partial
+
+Real compositor-driven OpenCalc input now reaches a visible evaluated result: wtype enters 2+2, a ydotool click on the equals control produces visible result 4, and the window closes cleanly. Copy and resize are still unverified; Calculator and Notes complete persistence flows remain open.
+
+Artifacts:
+
+- [.cache/isakai/evidence/opencalc-click-drive3.log](../.cache/isakai/evidence/opencalc-click-drive3.log)
+- [.cache/isakai/evidence/opencalc-click-drive3.png](../.cache/isakai/evidence/opencalc-click-drive3.png)
+
+### 2026-10-14 — re-verified after adjacent C3 fixes
+
+Adjacent `Activity.java` changes (concurrent navigation queue, `runOnUiThread` null-looper guard) preserve the R1 loop: no timeout was introduced, `backPressed` still gates `window.run(100)`, and cleanup still runs once via `Navigator.advance`/`navigator.destroy`. `zig build` (framework `javac`) passes. No new window-lifetime run is claimed here.
+
+
+## Code review
+
+**Reviewer:** automated review
+**Scope:** `framework/android/app/Activity.java` — `runWindowed`, `Navigator`, `backPressed` flag
+
+### Change confirmed
+The production deadline was never present in the current tree. The file was introduced at commit `da9717e` with `volatile boolean backPressed` already in place; the `backPressed` check gates `window.run(100)` from iteration one. No idle-block or hard-timeout mechanism exists in the loop.
+
+### Findings
+
+| # | Severity | Finding | Resolution |
+|---|----------|---------|------------|
+| 1 | — | `volatile boolean backPressed` correctly declared; written by `onKeyDown` on the dispatch thread, read by the loop — safe cross-thread signaling. | None needed |
+| 2 | — | Loop exit order (`backPressed` check before `window.run(100)`) avoids a blocking native call when exit is already requested; ≤100 ms latency in the worst case. | None needed |
+| 3 | — | `Navigator.advance()` correctly tears down popped activities (`performPause/Stop/Destroy`) before the previous activity resumes. | None needed |
+| 4 | — | `navigator.destroy()` in outer finally correctly sweeps the remaining activity stack on external close. | None needed |
+| 5 | — | Suppressed-exception chaining on both finally blocks: inner suppresses `dispatchHostDetached` under existing primary failure; outer does the same for `navigator.destroy`. One suppressed exception is preserved; no resources leaked. | None needed |
+| 6 | Minor | `propagateViewTreeOwners()` (added turn-2 session, not strictly R1) correctly propagates Compose lifecycle owner tags into child views via `setTag`. | Accepted as correct infrastructure |
+| 7 | Minor | Two debug `System.err.println` calls for activity navigation and root-change logging are diagnostic and appropriate for troubleshooting. | Accepted as diagnostic |
+
+### Validation
+- `backPressed` is `volatile` → no stale reads across threads.
+- `window.run(100)` is only called when `backPressed` is false → no artificial idle blocking.
+- All cleanup paths (`Navigator.advance` for back nav, `navigator.destroy` for external close) call `performDestroy` exactly once per activity.
+- Exception suppression preserves the primary failure and does not silently swallow resources.
+- No duplicate implementations, avoidable allocations, or missing cleanup found.
+
+**Result:** No material findings. Implementation is correct and minimal.

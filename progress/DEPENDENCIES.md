@@ -1,6 +1,6 @@
 # Dependency and reuse ledger
 
-Owned by [N4](N4.md). Every component Isakai builds, imports, ships, tests
+Owned by [N4](N4-upstream-pins.md). Every component Isakai builds, imports, ships, tests
 against, or inspects for reuse is listed here with an immutable pin, its
 license/terms, and its integration status. Hashes live in the authoritative
 lock files linked below; this ledger adds the terms, obligations, ownership and
@@ -35,7 +35,7 @@ Pinned by sha256 in lock files; the build/bootstrap fails closed on a checksum m
 Isakai's own compositor helpers (`verify-isakai/compositor/*.c`) and the DEX→JVM
 translator (`src/translate.zig`) are first-party, not vendored.
 
-## Built — resource engine ([N5](N5.md))
+## Built — resource engine ([N5](N5-resource-engine.md))
 
 Pinned by Zig package content hash in [build.zig.zon](../build.zig.zon); `zig
 build` fetches each GitLab path archive once into `zig-pkg/` and fails closed
@@ -65,12 +65,12 @@ Driven as verification fixtures, pinned by sha256 in [APPS.md](APPS.md); never r
 | OpenCalc (`com.darkempire78.opencalculator`) | v3.2.1 | GPL-3.0 | test-input (pinned in [APPS.md](APPS.md)) |
 | Simple Calculator (`com.simplemobiletools.calculator`) | 5.12.0 | GPL-3.0 | test-input (pinned in [APPS.md](APPS.md)) |
 | Simple Notes (`com.simplemobiletools.notes.pro`) | 6.17.0 | GPL-3.0 | test-input (pinned in [APPS.md](APPS.md)) |
-| F-Droid Basic (`org.fdroid.basic`) | 2.0.2 (versionCode 2000052) | GPL-3.0 | test-input for [N2](N2.md): a real 4-ABI (arm64-v8a/armeabi-v7a/x86/x86_64) native APK. sha256 `bbc4a34a7f65b200f9e40c4c74af4745de5cdbff45752ac0172916deb9f3c97d`, from the official F-Droid repo (`https://f-droid.org/repo/org.fdroid.basic_2000052.apk`). Not a target app; drives the ABI-selection and ELF-inventory paths. |
+| F-Droid Basic (`org.fdroid.basic`) | 2.0.2 (versionCode 2000052) | GPL-3.0 | test-input for [N2](N2-abi-selection.md): a real 4-ABI (arm64-v8a/armeabi-v7a/x86/x86_64) native APK. sha256 `bbc4a34a7f65b200f9e40c4c74af4745de5cdbff45752ac0172916deb9f3c97d`, from the official F-Droid repo (`https://f-droid.org/repo/org.fdroid.basic_2000052.apk`). Not a target app; drives the ABI-selection and ELF-inventory paths. |
 
 ## Experimental Bionic integration
 
 Bionic Translation `6253dec7f24a57a94039a088cb436d880e92e3be` has a standalone
-Meson build and development loader/JNI integration recorded in [N6](N6.md).
+Meson build and development loader/JNI integration recorded in [N6](N6-bionic-jni.md).
 `build.zig` can copy externally built artifacts from `-Dbionic-dir` or its
 local cache default. This is not a reproducible source-built dependency in
 `build.zig.zon`, and a matching checkout alone does not establish artifact

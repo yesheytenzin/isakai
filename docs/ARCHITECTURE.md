@@ -97,7 +97,7 @@ abstract/native/interface flags, and annotations-adjacent attributes
 are preserved so translated classes verify and link.
 
 Translator output is proven through real pinned-app UI flows recorded in
-[task evidence](../progress/C6.md): install a pinned APK, launch it as a real
+[task evidence](../progress/C6-translator-framework-failures.md): install a pinned APK, launch it as a real
 window, drive the visible task, and compare expected vs observed behavior
 with screenshots and logs.
 

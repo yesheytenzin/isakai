@@ -1,0 +1,135 @@
+---
+id: "R4"
+status: "done"
+phase: "RUNTIME"
+priority: "P0"
+size: "M"
+updated: "2026-10-24"
+owner: "unassigned"
+next: "none — done; privileged-harness residual is owned by N1"
+---
+
+# R4: Make privileged E2E failures authoritative
+
+## Dependencies
+
+- [R1](R1-window-timeout.md)
+- [R2](R2-confinement-proof.md)
+- [R3](R3-packaging-install.md)
+
+## Code and documentation
+
+- [tools/e2e-privileged.sh](../tools/e2e-privileged.sh)
+- [verify-isakai](../verify-isakai)
+- [tools/fixture-apk.zig](../tools/fixture-apk.zig)
+
+## Acceptance
+
+A deliberately broken launch or isolation check makes the job fail; the valid install/window/input/close/uninstall flow passes and cleans up.
+
+## Blockers
+
+- [B-current-privileged-harness](N1-evidence-reproducibility.md#blockers) — owned by N1.
+
+## Verification evidence
+
+### 2026-10-11 — passed
+
+Replaced log-only smoke with real privileged app-side isolation and Hyprland window/input/close/back gate. Full privileged flow passed via pkexec-authorized root test driver and sudo helper; test users/data removed and socket ACL restored. Injected launch exit42 with success-shaped logs fails and cleans up. Missing local sudo returns77, required mode1; privileged entry rejects --unprivileged with2. Does not verify installed interactive per-action polkit dialogs. Post-run process/account inspection found no test UIDs or isakai accounts remaining.
+
+**Revision:** working tree based on 9364ad8b41f210f0cef1e07f086b6d8eefb1bcfc
+
+**Environment:** Linux x86_64, Zig 0.17, OpenJDK27, Hyprland0.56.2; privileged helper with confinement enabled
+
+Artifacts:
+
+- `/tmp/isakai-privileged.log`
+- `/tmp/isakai-harness-failure.log`
+
+### 2026-10-14 — gate broken, reopened as blocked
+
+Re-review against the current tree finds the privileged gate deterministically broken: `verify-isakai/window-flow.py:149` compiles `verify-isakai/RuntimeProbe.java`, which does not exist in the repository. The privileged path therefore fails before any window/input/close/uninstall step. Exit-code, rejection (`--unprivileged` rejected with 2), skip-vs-required (77 vs 1), failure-is-error and cleanup logic in `window-flow.py`/`tools/e2e-privileged.sh` remain correct by inspection, and `tools/fixture-apk.zig` still matches its caller — but the 2026-10-11 pass claim is stale and acceptance does not currently hold.
+
+Next action (owned by N1): remove the harness dependency on the deleted `RuntimeProbe.java` using existing runtime/application diagnostics and observable isolation state; per N1 no replacement test case or fixture file is to be authored. This task stays `blocked` on [B-current-privileged-harness](N1-evidence-reproducibility.md#blockers) until default-confined acceptance is observable and recorded here.
+
+
+### 2026-10-24 — passed (blocker resolved, authority reverified)
+
+The `B-current-privileged-harness` blocker is resolved: the gate no longer
+references the deleted `RuntimeProbe.java` and runs end to end through the
+pkexec elevation this host supports (see [N1](N1-evidence-reproducibility.md) and
+[C7](C7-acceptance-gate.md#2026-10-23--required-host-gate-rerun-on-the-hardened-harness)).
+Both halves of the acceptance now hold on the current harness.
+
+- Valid flow passes and cleans up. `python3 verify-isakai/window-flow.py
+  --required --elevate pkexec` →
+  `PASS: privileged install/isolation/window/lifetime/close/back/uninstall`,
+  exit 0; fixture accounts and data removed, socket ACL restored (durable
+  evidence `.cache/i/gate1023`, recorded under C7's 2026-10-23 section).
+- A deliberately broken isolation check makes the job fail and clean up.
+  Injection: one line forced `ISAKAI_NO_PRIVILEGE=1` so the app launches
+  **unconfined** while the gate's confinement assertions were left unchanged.
+  The unmodified gate failed closed: `FAIL: no app JVM runs as the confined
+  uid 200003`, exit 1. Cleanup still ran — afterwards `getent passwd` showed
+  no `isakai-*` fixture accounts for the gate's uids (200003/200004) and no
+  leftover app JVM or process; only the three unrelated pinned-app accounts
+  (200000-200002) remained. The injection was a temporary one-line edit,
+  reverted immediately (`git checkout`); the working tree is clean and no test
+  fixture was authored.
+
+The earlier authority properties confirmed by the 2026-10-14 review still hold
+by inspection in the same `window-flow.py`/`tools/e2e-privileged.sh`:
+`--unprivileged` rejected with exit 2, missing elevation returns 77 (skip) or 1
+(required), and assertion/subprocess failures surface as errors, never a silent
+pass. Acceptance holds; status set to `done`.
+
+### 2026-10-24 — shell entry point and N3 boundary reverified
+
+A later N3 run exposed that the documented shell entry point could not select
+this host's working pkexec path: it accepted only `--required`, while the Python
+driver already supported `--elevate {sudo,pkexec}`. The wrapper now validates and forwards that existing option, still rejects
+`--unprivileged` and unknown arguments with exit 2, and selects pkexec when
+cached noninteractive sudo authorization is unavailable.
+
+After correcting the N3 runtime-boundary mismatches found by the first real
+run, the exact shell path completed with exit 0:
+
+```sh
+tools/e2e-privileged.sh --required
+```
+
+It printed `PASS: privileged install/isolation/window/lifetime/close/back/uninstall`.
+Evidence is retained at `/tmp/isakai-e2e-duhxxk5u`; both fixture users and data
+were removed, their processes were absent, and the compositor socket ACL was
+restored. R4 remains done.
+
+## Code review
+
+### 2026-10-24 — wrapper follow-up
+
+Reviewed wrapper parsing and the Python driver's elevation ownership boundary.
+The wrapper forwards only `--required` and a validated `--elevate` pair, cannot
+forward `--unprivileged`, retains argument boundaries through the saved array,
+and falls back only from unavailable noninteractive sudo to installed pkexec.
+`bash -n` passed, explicit `--unprivileged` returned exit 2, and the exact bare
+wrapper invocation selected pkexec and passed. An independent read-only review found
+no material issues. No material findings remain.
+
+### 2026-10-24 — close-out (self-review)
+
+No harness code changed to close this task: the gate was already repaired under
+N1, and the failure-injection proof used a temporary one-line edit that was
+reverted (`git status` clean). Reviewed that the valid gate passes and cleans
+up, and that a genuine broken-isolation condition (unconfined launch) makes the
+unmodified gate fail closed with cleanup intact. The gate is authoritative, not
+success-shaped. No material findings.
+
+### 2026-10-14 — self-review complete
+
+Reviewed `tools/e2e-privileged.sh`, `verify-isakai/` and `tools/fixture-apk.zig` for exit codes, failure handling, cleanup and regressions.
+
+- Confirmed skip/required codes, `--unprivileged` rejection, assertion/subprocess failures as errors, and cleanup of installs, users/data, socket ACLs and windows.
+- Load-bearing finding: dangling `window-flow.py:149` reference to the absent `RuntimeProbe.java` breaks the privileged gate; fixed by reopening this task as blocked rather than by authoring a new probe here.
+- Minor: uncaught `KeyError`/`ValueError`/`JSONDecodeError` paths exit non-zero via traceback without the `FAIL:` prefix and still run the `finally` cleanup; no silent pass.
+
+Acceptance does not hold until the N1 fixture restoration and a fresh privileged pass are recorded.
