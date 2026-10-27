@@ -1478,3 +1478,40 @@ fill; plus adjacent `ImageView` ignoring `android:src`. No fix landed
 risk note in [WORKER-picker](WORKER-picker.md) (evidence under
 `evidence/picker/`). Notes + calculator flows PASS on its reverted tree.
 Next discrete task: implement the handoff and repaint-check all pinned apps.
+
+### 2026-10-27 — settings renders: bridge poll stall fixed (self-review)
+
+Parallel worker `a047186` merged as `a170899`. No Compose framework
+code was needed — the app ships its own runtime; the defect was
+`isakai-dbus-bridge`'s `poll` op long-polling up to 1s per call while
+the app polls every 100ms window-loop slice, throttling the whole UI
+thread to ~1Hz (measured `desk=1001ms`/slice; drawFrame itself 22–33ms).
+One-hunk fix in `src/dbus_bridge.zig`: nonblocking drain, late signals
+arrive next slice (~100ms). Contract-safe: the Java caller
+(`Activity.pollDesktopResults`) already treats poll as a per-slice drain.
+Settings now opens with full content and pref taps repaint in ~1s;
+calculator/opencalc/notes all PASS on the worker's fresh trees.
+Residual ~1–2s toggle latency is app-scheduled (coroutine delay), not
+loop starvation; cosmetics (clipped first row, "GENER", black back
+icon) unchanged and non-blocking. File-picker cancel past one slice is
+reasoned, not proven — needs a future file-picker flow. Full spike
+record in [WORKER-compose](WORKER-compose.md).
+
+### 2026-10-27 — input hardening merged, no rate gain (self-review)
+
+Parallel worker `a674380` merged as `95f8c3e`. Harness-only change
+(`compositor.py` blind-tap refusal via live-rect check, commit-tap retry
+until durable app state confirms, attempts recorded in steps):
+reviewed line-by-line, gates not weakened (durable DB/prefs rows still
+required; blind taps now fail loudly instead of vanishing). Honest
+negative result: `=`-miss 1/6 before → 2/12 after, retry never absorbed
+a live miss; after-misses are harsher 25s pointer-dead clusters with
+keyboard alive (root cause below harness, per-launch pointer setup
+suspected, needs `src/` bridge logging). Also exonerated: mid-series
+"misses" were stdout-buffering artifacts; geometry ruled out; rapid
+commits crash OpenCalc's RecyclerView (separate race, noted). Notes save
+failure reproduced 6/6 on the worker's loaded box AND on its unmodified
+control — matches the known intermittent C6 baseline, needs its own
+session. Caveat for all worker numbers: measured on pre-bridge-fix code;
+the 1Hz loop starvation plausibly explains the dead periods. Full record
+in [WORKER-input](WORKER-input.md). Machine now free: quiet re-verification next.
