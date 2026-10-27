@@ -106,13 +106,57 @@ class SwayCompositor:
         return node
 
     # --- input (absolute compositor pixels) ---
+    def _await_inside(self, x, y, timeout=5.0):
+        """Re-read the window until (x, y) is inside its live rect.
+
+        A tap outside the live rect is delivered to whatever sits behind
+        the window and vanishes silently (reproduced: fixed 640x800 taps
+        issued while the window was transiently 640x480 after map). Never
+        tap blind: wait out a resize, then fail loudly with coords + rect.
+        """
+        deadline = time.monotonic() + timeout
+        node = self.ensure_focus()
+        while True:
+            r = node['rect']
+            if (r['x'] <= x < r['x'] + r['width']
+                    and r['y'] <= y < r['y'] + r['height']):
+                return node
+            if time.monotonic() >= deadline:
+                raise SwayError('tap point (%d,%d) outside live window rect %s: '
+                                'refusing a blind tap' % (x, y, node['rect']))
+            time.sleep(0.3)
+            node = self.ensure_focus()
+
+    def attempt_until(self, tap, wait, tries=3, label='commit'):
+        """Run tap() until wait() observes the app-side effect.
+
+        Single taps intermittently never register (identical taps sometimes
+        have zero app-observable effect, never a wrong effect), so a commit
+        tap is retried while its app-recorded effect is absent. wait() must
+        read durable app state (DB/prefs), never the process log: log lines
+        can lag the file by seconds under buffering and would fake misses.
+        Only re-taps while no effect exists, so a landed tap is never
+        doubled: its durable record stops the loop. Attempts are recorded
+        in steps as evidence of absorbed misses.
+        """
+        for attempt in range(1, tries + 1):
+            tap()
+            result = wait()
+            if result:
+                self.steps.append({'step': label, 'attempts': attempt})
+                return result
+        raise SwayError('%s had no app-observed effect after %d taps'
+                        % (label, tries))
+
     def click(self, x, y, hold_ms=80):
-        self.ensure_focus()
+        self._await_inside(int(x), int(y))
         self.vinput.click(int(x), int(y), int(hold_ms))
         time.sleep(0.2)
 
     def click_window(self, dx, dy, hold_ms=80):
         node = self.ensure_focus()
+        r = node['rect']
+        node = self._await_inside(int(r['x'] + dx), int(r['y'] + dy))
         r = node['rect']
         self.vinput.click(int(r['x'] + dx), int(r['y'] + dy), int(hold_ms))
         time.sleep(0.2)
@@ -120,6 +164,8 @@ class SwayCompositor:
 
     def down_window(self, dx, dy):
         node = self.ensure_focus()
+        r = node['rect']
+        node = self._await_inside(int(r['x'] + dx), int(r['y'] + dy))
         r = node['rect']
         self.vinput.down(int(r['x'] + dx), int(r['y'] + dy))
         return node
@@ -132,6 +178,11 @@ class SwayCompositor:
         """
         import time as _time
         node = self.ensure_focus()
+        r = node['rect']
+        x1, y1 = int(r['x'] + dx1), int(r['y'] + dy1)
+        x2, y2 = int(r['x'] + dx2), int(r['y'] + dy2)
+        node = self._await_inside(x1, y1)
+        node = self._await_inside(x2, y2)
         r = node['rect']
         x1, y1 = int(r['x'] + dx1), int(r['y'] + dy1)
         x2, y2 = int(r['x'] + dx2), int(r['y'] + dy2)

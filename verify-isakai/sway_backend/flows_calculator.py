@@ -154,12 +154,19 @@ def run(run_app, comp):
     prior_id = prior[0] if prior else 0
     steps['baseline_row'] = prior
     # A retained expression would prefix the fresh 2+2 input; clear first.
-    comp.click_window(*KEY_CLEAR)
-    time.sleep(0.4)
-    for point in (KEY_2, KEY_PLUS, KEY_2, KEY_EQUALS):
-        comp.click_window(*point)
+    # Single '=' taps intermittently never register, so the whole keypad
+    # sequence (clear first, so a retry never doubles a landed commit) is
+    # re-tapped until the app's own Room history shows the new row.
+    def commit_2_plus_2():
+        comp.click_window(*KEY_CLEAR)
         time.sleep(0.4)
-    row = wait_for_new_row(run_app.work, package, prior_id)
+        for point in (KEY_2, KEY_PLUS, KEY_2, KEY_EQUALS):
+            comp.click_window(*point)
+            time.sleep(0.4)
+    row = comp.attempt_until(
+        commit_2_plus_2,
+        lambda: wait_for_new_row(run_app.work, package, prior_id, timeout=8.0),
+        tries=3, label='2+2= commit')
     if row is None:
         comp.shot('02-no-result')
         raise SwayError('no new history row after 2+2= (baseline id %d)' % prior_id)
@@ -197,13 +204,17 @@ def run(run_app, comp):
         raise SwayError('back from settings did not return to MainActivity')
     steps['back_to_main'] = True
     prior_id = row2_id
-    comp.click_window(*KEY_CLEAR)
-    time.sleep(0.4)
-    for point in (KEY_1, KEY_DECIMAL, KEY_5, KEY_PLUS, KEY_2, KEY_DECIMAL,
-                  KEY_5, KEY_EQUALS):
-        comp.click_window(*point)
+    def commit_decimal():
+        comp.click_window(*KEY_CLEAR)
         time.sleep(0.4)
-    row = wait_for_new_row(run_app.work, package, prior_id)
+        for point in (KEY_1, KEY_DECIMAL, KEY_5, KEY_PLUS, KEY_2, KEY_DECIMAL,
+                      KEY_5, KEY_EQUALS):
+            comp.click_window(*point)
+            time.sleep(0.4)
+    row = comp.attempt_until(
+        commit_decimal,
+        lambda: wait_for_new_row(run_app.work, package, prior_id, timeout=8.0),
+        tries=3, label='decimal commit')
     if row is None:
         comp.shot('05-no-decimal-result')
         raise SwayError('no new history row for a decimal keypad expression '
