@@ -1,0 +1,2 @@
+ISAKAIPI_TREE                   com.simplemobiletools.commons.views.MyFloatingActionButton [87,623,143,679] meas=56x56 V bg=android.graphics.drawable.RippleDrawable src=null tint=FF7A90C8
+ISAKAIPI_TREE                   com.simplemobiletools.commons.views.MyFloatingActionButton [87,623,143,679] meas=56x56 V bg=android.graphics.drawable.RippleDrawable src=null tint=FF7A90C8
