@@ -1,0 +1,7 @@
+AUTHORIZE: approve the pkexec prompt for the privileged gate
+ARTIFACTS: /tmp/isakai-e2e-qo2ergj1
+RUN: /home/tenzin/development/isakai/.claude/worktrees/agent-a20b40d2c32ad08e3/zig-out/bin/fixture-apk /tmp/isakai-e2e-qo2ergj1/org.isakai.e91d4ad1fe5ab.apk org.isakai.e91d4ad1fe5ab 1
+wrote /tmp/isakai-e2e-qo2ergj1/org.isakai.e91d4ad1fe5ab.apk package=org.isakai.e91d4ad1fe5ab manifest=1288 dex=4418
+RUN: /home/tenzin/development/isakai/.claude/worktrees/agent-a20b40d2c32ad08e3/zig-out/bin/isakai --work /tmp/isakai-e2e-qo2ergj1/work install /tmp/isakai-e2e-qo2ergj1/org.isakai.e91d4ad1fe5ab.apk
+uninstall failed: NotInstalled
+FAIL: cleanup failed; retained work at /tmp/isakai-e2e-qo2ergj1/work: org.isakai.e91d4ad1fe5ab
