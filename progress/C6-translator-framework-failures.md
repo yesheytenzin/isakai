@@ -1450,3 +1450,15 @@ Driver note: ad-hoc drives must select the app by package, not by
 against another app's work tree fails launch with a bare `NotFound`.
 The earlier `NotFound` during the history check was this script bug, not
 a product defect; corrected, the dialog check passes.
+
+### 2026-10-27 — gaps worker merged: scrim closed, XKB excluded (self-review)
+
+Parallel worker `a5025150` (isolated worktree, report + evidence only,
+no code) merged as `195955a`. Two verdicts, both verified above from its
+retained screenshots: scrim tap (80ms) and hold (1500ms) at (320,318)
+both dismiss the history dialog via cancel-on-outside across 3 launches
+— no hold-to-dismiss needed, earlier silent tap reclassified as the
+known single-press flake. XKB reorder/delay stress stays explicitly
+excluded: no existing tool can inject adversarial keymap sequences and a
+churn harness is barred by policy; needs stated in the report.
+Full per-gap consolidation in [WORKER-gaps](WORKER-gaps.md).
