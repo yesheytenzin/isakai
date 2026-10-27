@@ -1462,3 +1462,19 @@ known single-press flake. XKB reorder/delay stress stays explicitly
 excluded: no existing tool can inject adversarial keymap sequences and a
 churn harness is barred by policy; needs stated in the report.
 Full per-gap consolidation in [WORKER-gaps](WORKER-gaps.md).
+
+### 2026-10-27 — picker diagnosis merged, fix handed off (self-review)
+
+Parallel worker `a2a52ca` (isolated worktree, report + evidence only)
+merged as `e03fa6c`. Root causes probe-proven, both in `View.java`:
+(1) row "overlap" is whitewash — background-less views fill opaque
+white over the app's own `FFEEF0FF` row backgrounds; fix is
+default-transparent with `Activity.paintRoot` keeping frame erase;
+(2) black FAB blob is dead drawable-state delivery
+(`drawableStateChanged` empty stub, no `refreshDrawableState`) plus
+missing `InsetDrawable` propagation, so the blue tint never reaches the
+fill; plus adjacent `ImageView` ignoring `android:src`. No fix landed
+(worker ban respected, no patch-around). Full handoff with mechanism and
+risk note in [WORKER-picker](WORKER-picker.md) (evidence under
+`evidence/picker/`). Notes + calculator flows PASS on its reverted tree.
+Next discrete task: implement the handoff and repaint-check all pinned apps.
