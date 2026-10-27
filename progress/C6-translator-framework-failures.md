@@ -1514,4 +1514,24 @@ failure reproduced 6/6 on the worker's loaded box AND on its unmodified
 control — matches the known intermittent C6 baseline, needs its own
 session. Caveat for all worker numbers: measured on pre-bridge-fix code;
 the 1Hz loop starvation plausibly explains the dead periods. Full record
-in [WORKER-input](WORKER-input.md). Machine now free: quiet re-verification next.
+in [WORKER-input](WORKER-input.md).
+
+### 2026-10-27 — quiet main re-verification: calc/opencalc pass, notes body-save intermittent (self-review)
+
+On main with the bridge fix + hardened harness, quiet box, fresh trees:
+calculator PASS (result, fast-rendering settings, decimal persist, reopen)
+and OpenCalc PASS (`12+34=46` committed). Notes body-save is the red item:
+flow FAIL — dialog confirm saves title row `N2`/empty body, editor shows the
+Unicode text, picker opens, but the body UPDATE never lands even at process
+end. Yet a manual drive on the SAME tree minutes later saved `N9`/`BODY9`
+through identical steps, and the baseline tree holds both a failed `N2`/''
+row and a fully-saved `N3` row. Verdict: intermittent save-trigger loss,
+not deterministic breakage. Ruled out: watcher gap as sole cause (passes
+prove the body CAN persist), slow-write (absent at process end, not just
+past the poll window), Room itself (title INSERT works in-process). Leading
+hypothesis: the picker-open save is posted/async and races the editor
+teardown — timing-sensitive across loop speeds and box load. Queued
+follow-up, not attempted here (needs a focused session). Evidence:
+[quiet-calc](../evidence/C6/2026-10-27/quiet-calc.log),
+[quiet-ocalc](../evidence/C6/2026-10-27/quiet-ocalc.log),
+[quiet-notes](../evidence/C6/2026-10-27/quiet-notes.log).
