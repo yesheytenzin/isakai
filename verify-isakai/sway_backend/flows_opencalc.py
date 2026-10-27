@@ -43,9 +43,17 @@ def run(run_app, comp):
     # Commit with '=' at the bottom-right key. The result line can change
     # height (a retained Syntax result pushes the pad down), so target the
     # key glyph at the bottom row rather than a row-relative estimate.
-    comp.click_window(560, 750)
+    # Single '=' taps intermittently never register (preview stays, no row),
+    # so tap until the app's own history shows the new row; only the absent
+    # row triggers a re-tap, so a landed tap is never doubled.
+    expected = comp.attempt_until(
+        lambda: comp.click_window(560, 750),
+        lambda: wait_for_result(run_app.work, package, '12+34',
+                                baseline_count=baseline_count, timeout=8.0),
+        tries=3, label='= commit for 12+34')
+    # Post-commit settle before the copy step below: the app animates the
+    # history panel after a commit and taps during that window can vanish.
     time.sleep(2.0)
-    expected = wait_for_result(run_app.work, package, '12+34', baseline_count=baseline_count)
     if expected is None:
         comp.shot('02-no-result')
         raise SwayError('the app never recorded a NEW result for 12+34 in its own history '
