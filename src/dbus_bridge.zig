@@ -1047,11 +1047,10 @@ fn handleLine(br: *Bridge, line: []const u8, rsp: *Responder) void {
         opCloseReq(br, @intCast(@max(jint(v, "req"), 0)));
         rsp.send("{\"ok\":true}");
     } else if (std.mem.eql(u8, op, "poll")) {
-        // Blocking settle: up to ~1s for late signals (cancel path).
-        var waited: i32 = 0;
-        while (br.events.items.len == 0 and waited < 1000) {
-            if (!pumpOnce(br, 100)) waited += 100 else waited = 1000;
-        }
+        // Nonblocking drain: the app polls every window-loop slice, so a
+        // signal that arrives just after this drain is picked up on the
+        // next slice (~100ms) instead of stalling input, recompose
+        // invalidates and redraws behind a 1s wait on the UI thread.
         drainBus(br);
         out.appendSlice(gpa, "{\"ok\":true,\"events\":[") catch return;
         for (br.events.items, 0..) |ev, i| {
