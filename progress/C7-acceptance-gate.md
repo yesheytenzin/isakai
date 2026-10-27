@@ -1172,3 +1172,21 @@ Remaining limits (unchanged, tracked in C6/N1, not C7 acceptance blockers):
 in-sandbox denial observability (N1), Calculator blank-Compose settings
 surface and ~60px draw/hit offset, Notes picker row overlap, and the
 older-signed Calculator history dialog (C6).
+
+### 2026-10-27 — privileged gate re-greened; pinned calc/notes red under load (self-review)
+
+Parallel worker `a20b40d2` (isolated worktree, evidence + report only)
+merged. Required gate `tools/e2e-privileged.sh --required` PASS exit 0
+with fresh evidence ([log](../evidence/C7/2026-10-27/gate-pass.stdout.txt),
+fixtures at uids 200003/200004, nnp/seccomp/mount-ns proof in
+[gate/](../evidence/C7/2026-10-27/gate/); first attempt's uid collision fully
+explained and recovered same session. Same-UID pinned rehearsal on fresh
+trees: OpenCalc PASS, Calculator FAIL 2/2 (settings tap opened the unit
+converter), Notes FAIL 2/2 (create dialog never opened — its own
+screenshots show the `+` tap missed and the title typed into search).
+Assessment: not a HEAD regression — the same code passed all three flows
+in the same-day loop sweep ([loop-calc](../evidence/C6/2026-10-27/loop-calc.log),
+[loop-notes](../evidence/C6/2026-10-27/loop-notes.log)); failure mode fits
+missed/unsettled taps with five workers driving concurrently. Pending: a
+quiet-machine rerun of fresh calculator + notes to confirm. Full worker
+report: [WORKER-c7](WORKER-c7.md). C7 stays open on the pinned flows.
