@@ -1,0 +1,60 @@
+ISAKAIPI_TREE android.app.DialogOverlayGroup [0,0,640,800] meas=640x800 V
+ISAKAIPI_TREE   android.app.HeadlessWindow$1 [240,40,399,760] meas=159x720 V
+ISAKAIPI_TREE     android.app.HeadlessWindow$2 [0,0,159,720] meas=159x720 V
+ISAKAIPI_TREE       androidx.appcompat.widget.FitWindowsFrameLayout [0,0,159,720] meas=159x720 V
+ISAKAIPI_TREE         androidx.appcompat.widget.ContentFrameLayout [0,0,159,720] meas=159x720 V
+ISAKAIPI_TREE           androidx.appcompat.widget.AlertDialogLayout [0,0,159,720] meas=159x720 V
+ISAKAIPI_TREE             android.widget.LinearLayout [0,0,0,0] meas=0x0 G
+ISAKAIPI_TREE               android.widget.LinearLayout [0,0,0,0] meas=0x0 G
+ISAKAIPI_TREE                 android.widget.ImageView [0,0,0,0] meas=0x0 G src=null
+ISAKAIPI_TREE                 androidx.appcompat.widget.DialogTitle [0,0,0,0] meas=0x0 V text=""
+ISAKAIPI_TREE               android.widget.Space [0,0,0,0] meas=0x0 G
+ISAKAIPI_TREE             android.widget.FrameLayout [0,0,0,0] meas=0x0 G
+ISAKAIPI_TREE               android.widget.ImageView [0,0,0,0] meas=0x0 G src=null
+ISAKAIPI_TREE               androidx.core.widget.NestedScrollView [0,0,0,0] meas=0x0 V
+ISAKAIPI_TREE                 android.widget.LinearLayout [0,0,0,0] meas=0x0 V
+ISAKAIPI_TREE                   android.widget.Space [0,0,0,0] meas=0x0 V
+ISAKAIPI_TREE                   android.widget.TextView [0,0,0,0] meas=0x0 G text=""
+ISAKAIPI_TREE                   android.widget.Space [0,0,0,0] meas=0x0 G
+ISAKAIPI_TREE               android.widget.ImageView [0,0,0,0] meas=0x0 G src=null
+ISAKAIPI_TREE             android.widget.FrameLayout [0,0,159,695] meas=159x695 V
+ISAKAIPI_TREE               android.widget.FrameLayout [0,0,159,695] meas=159x695 V
+ISAKAIPI_TREE                 androidx.coordinatorlayout.widget.CoordinatorLayout [0,0,159,695] meas=159x695 V
+ISAKAIPI_TREE                   androidx.core.widget.NestedScrollView [0,8,159,695] meas=159x687 V
+ISAKAIPI_TREE                     com.simplemobiletools.commons.views.MyRecyclerView [0,0,159,1138] meas=159x1138 V
+ISAKAIPI_TREE                       android.widget.RelativeLayout [8,8,151,33] meas=143x25 V bg=android.graphics.drawable.LayerDrawable
+ISAKAIPI_TREE                         android.widget.ImageView [0,0,0,0] meas=0x0 G src=android.graphics.drawable.VectorDrawable
+ISAKAIPI_TREE                         com.simplemobiletools.commons.views.MyTextView [0,0,89,25] meas=89x25 V text="General note"
+ISAKAIPI_TREE                         com.simplemobiletools.commons.views.MyTextView [0,0,0,0] meas=0x0 G text=""
+ISAKAIPI_TREE                       android.widget.RelativeLayout [8,49,151,99] meas=143x50 V bg=android.graphics.drawable.LayerDrawable
+ISAKAIPI_TREE                         android.widget.ImageView [0,0,0,0] meas=0x0 G src=android.graphics.drawable.VectorDrawable
+ISAKAIPI_TREE                         com.simplemobiletools.commons.views.MyTextView [0,0,34,25] meas=34x25 V text="N10"
+ISAKAIPI_TREE                         com.simplemobiletools.commons.views.MyTextView [0,25,134,50] meas=134x25 V text="Isakai 日本語 – note"
+ISAKAIPI_TREE                       android.widget.RelativeLayout [8,115,151,165] meas=143x50 V bg=android.graphics.drawable.LayerDrawable
+ISAKAIPI_TREE                         android.widget.ImageView [0,0,0,0] meas=0x0 G src=android.graphics.drawable.VectorDrawable
+ISAKAIPI_TREE                         com.simplemobiletools.commons.views.MyTextView [0,0,34,25] meas=34x25 V text="N11"
+ISAKAIPI_TREE                         com.simplemobiletools.commons.views.MyTextView [0,25,143,50] meas=143x25 V text="Isakai 日本語 – noteX"
+ISAKAIPI_TREE                       android.widget.RelativeLayout [8,181,151,231] meas=143x50 V bg=android.graphics.drawable.LayerDrawable
+ISAKAIPI_TREE                         android.widget.ImageView [0,0,0,0] meas=0x0 G src=android.graphics.drawable.VectorDrawable
+ISAKAIPI_TREE                         com.simplemobiletools.commons.views.MyTextView [0,0,34,25] meas=34x25 V text="N12"
+ISAKAIPI_TREE                         com.simplemobiletools.commons.views.MyTextView [0,25,143,50] meas=143x25 V text="Isakai 日本語 – noteX"
+ISAKAIPI_TREE                       android.widget.RelativeLayout [8,247,151,297] meas=143x50 V bg=android.graphics.drawable.LayerDrawable
+ISAKAIPI_TREE                         android.widget.ImageView [0,0,0,0] meas=0x0 G src=android.graphics.drawable.VectorDrawable
+ISAKAIPI_TREE                         com.simplemobiletools.commons.views.MyTextView [0,0,34,25] meas=34x25 V text="N13"
+ISAKAIPI_TREE                         com.simplemobiletools.commons.views.MyTextView [0,25,143,50] meas=143x25 V text="Isakai 日本語 – noteX"
+ISAKAIPI_TREE                       android.widget.RelativeLayout [8,313,151,363] meas=143x50 V bg=android.graphics.drawable.LayerDrawable
+ISAKAIPI_TREE                         android.widget.ImageView [0,0,0,0] meas=0x0 G src=android.graphics.drawable.VectorDrawable
+ISAKAIPI_TREE                         com.simplemobiletools.commons.views.MyTextView [0,0,34,25] meas=34x25 V text="N14"
+ISAKAIPI_TREE                         com.simplemobiletools.commons.views.MyTextView [0,25,143,50] meas=143x25 V text="Isakai 日本語 – noteX"
+ISAKAIPI_TREE                       android.widget.RelativeLayout [8,379,151,429] meas=143x50 V bg=android.graphics.drawable.LayerDrawable
+ISAKAIPI_TREE                         android.widget.ImageView [0,0,0,0] meas=0x0 G src=android.graphics.drawable.VectorDrawable
+ISAKAIPI_TREE                         com.simplemobiletools.commons.views.MyTextView [0,0,34,25] meas=34x25 V text="N15"
+ISAKAIPI_TREE                         com.simplemobiletools.commons.views.MyTextView [0,25,143,50] meas=143x25 V text="Isakai 日本語 – noteX"
+ISAKAIPI_TREE                       android.widget.RelativeLayout [8,445,151,495] meas=143x50 V bg=android.graphics.drawable.LayerDrawable
+ISAKAIPI_TREE                         android.widget.ImageView [0,0,0,0] meas=0x0 G src=android.graphics.drawable.VectorDrawable
+ISAKAIPI_TREE                         com.simplemobiletools.commons.views.MyTextView [0,0,34,25] meas=34x25 V text="N16"
+ISAKAIPI_TREE                         com.simplemobiletools.commons.views.MyTextView [0,25,143,50] meas=143x25 V text="Isakai 日本語 – noteX"
+ISAKAIPI_TREE                       android.widget.RelativeLayout [8,511,151,561] meas=143x50 V bg=android.graphics.drawable.LayerDrawable
+ISAKAIPI_TREE                         android.widget.ImageView [0,0,0,0] meas=0x0 G src=android.graphics.drawable.VectorDrawable
+ISAKAIPI_TREE                         com.simplemobiletools.commons.views.MyTextView [0,0,34,25] meas=34x25 V text="N17"
+ISAKAIPI_TREE                         com.simplemobiletools.commons.views.MyTextView [0,25,143,50] meas=143x25 V text="Isakai 日本語 – noteX"
