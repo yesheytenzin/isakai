@@ -1351,7 +1351,15 @@ public class View {
         }
         viewTreeObserver.dispatchOnDraw();
         onDrawAt(canvas, absLeft, absTop);
-        dispatchDrawAt(canvas, absLeft, absTop);
+        if (this instanceof ViewGroup) {
+            dispatchDrawAt(canvas, absLeft, absTop);
+        } else {
+            // Translated leaf views (Compose layers, custom holders) do their
+            // custom drawing in the AOSP dispatchDraw hook, which this
+            // pipeline never invoked. Framework leaves do not override it,
+            // so this is a no-op for them.
+            dispatchDraw(canvas);
+        }
         canvas.restore();
     }
 
@@ -1362,6 +1370,11 @@ public class View {
 
     /** Group child dispatch with this view's root offset. Default draws nothing extra. */
     protected void dispatchDrawAt(Canvas canvas, int offsetX, int offsetY) {}
+
+    /** AOSP child/custom dispatch hook. Empty here; translated leaf views
+     * override it, and drawAt invokes it for leaves so their custom drawing
+     * runs. Groups keep the offset-aware dispatchDrawAt path above. */
+    protected void dispatchDraw(Canvas canvas) {}
 
     protected void onDraw(Canvas canvas) {
         // The fill stands in for a setBackgroundColor and doubles as the

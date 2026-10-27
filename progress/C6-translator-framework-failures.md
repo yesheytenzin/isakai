@@ -462,20 +462,155 @@ translated CoordinatorLayout/FAB behavior or a failed drawable that logs
 nothing; both need a dedicated session with the now-working JDB
 (`locals`-only) rather than more guessing.
 
-### 2026-10-27 (settings blank) — Compose draw is unimplemented, not a layout bug
+### 2026-10-27 — fix plans for the open items (researched, not yet implemented)
 
-The blank settings screenshot was scoped, not fixed. `SettingsActivity`
-renders through app composables (`k7.i.a(j0.i, int)` composable shape in
-the translated app), and the framework contains no Compose draw support
-(zero `androidx.compose`/`AndroidComposeView` references in `framework/`
-or the translator). Composition runs and touch dispatches on view bounds,
-so preference taps flip and persist; only pixel drawing is missing, with no
-error signal in the app log. Implementing the Compose draw pipeline is a
-standalone effort beyond C6's stop gate ("stop broader Compose claims if
-only this screen passes"), so this stays an explicit deferred defect.
-An attempted live-view JDB inspection was abandoned as flaky (post-hit
-dump output never arrived); no source probes were added and no framework
-code changed for this item.
+**Compose blank settings — researched from official sources.** The
+framework deliberately reports `isHardwareAccelerated() == false` to steer
+Compose onto software fallbacks instead of RenderNode paths it does not
+implement. AOSP `AndroidComposeView` (platform/frameworks/support, read
+in full) draws nothing in `onDraw`; all content goes through
+`dispatchDraw` via `canvasHolder.drawInto(canvas) { root.draw(...) }`, with
+a `ViewLayer.shouldUseDispatchDraw` branch decided by a reflective
+capability test against the host `View` class. Our framework already knows
+about Compose's zero-size `DrawChildContainer`. So the blank screen is one
+of three falsifiable causes: (H1) the dispatchDraw path our `View` offers
+does not match what that reflective test selected; (H2) the software
+`Canvas` methods Compose's `AndroidCanvas` wrapper calls are missing or
+no-ops here; (H3) `measureAndLayout` never runs on this screen (taps land,
+so layout likely runs, which already weakens H3). Plan: one temporary
+probe run on the settings screen — log `View.draw` entry by class (proves
+whether `AndroidComposeView` is reached), then log the failing leg's
+inputs. Implement only the leg the evidence names; do not build a Compose
+pipeline on speculation. Estimated: one focused session, not a project.
+
+**FAB black blob — narrowed, plan set.** Proven so far: rows lay out
+correctly; the blob is a 56x56 opaque black rounded rect drawn through
+our `RippleDrawable` by translated code; view tint forwarding was tried and
+falsified (reverted); our blending, drawables logging, and GONE handling
+are exonerated; official `Context.getSystemService` docs confirm the
+clipboard-adjacent contract work but do not cover Material internals.
+Plan: temporary draw-call probe naming the drawable class and fill color at
+the blob's bounds, then fix exactly that path (theme attr resolution is the
+prime suspect, drawable inflation second). Estimated: one focused session.
+
+**xkb adversarial stress — no plan possible in-repo.** The verification
+skill forbids test cases, test suites, and test-only harnesses, and
+explicitly bars recreating removed suites or adding test dependencies. A
+keymap-churn harness is exactly that. Stays an explicit gap unless the
+policy changes; the passing typed flows stand as the evidence.
+
+**Input flakes (tap, `=`) — pattern recorded, no action until a third
+instance.** Two single-press-no-effect events with no wrong behavior and no
+crash, both passing on immediate rerun. In-repo delivery was read end to
+end (256-deep queue with latch, touch assembly, pointer path, Java drain)
+and offers no drop mechanism. Next step only if it recurs on an asserted
+surface: back-to-back identical presses, then suspect below-framework
+delivery.
+
+**Independent review — awaiting a human.** No second model is
+available in this environment, and prior tasks closed on self-review plus
+real-app proof. The operator (active in this loop) can supply it: read
+`git show df1f41b --stat`, then the five framework/src diffs, and post
+objections to the owning task file. Until then it is recorded as
+self-review, not independent.
+
+### 2026-10-27 (settings blank) — translated dispatchDraw is never invoked (root cause found, fix is architect-scope)
+
+Root cause, proven: our draw pipeline uses parallel `*At` methods
+(`onDrawAt`, `dispatchDrawAt`) that translated code never overrides.
+AOSP's `onDraw` still runs (called from `onDrawAt`), but AOSP's
+`dispatchDraw(Canvas)` is dead code in our tree — nothing calls it, and
+only our own `FrameLayout`/`LinearLayout`/`ListView` declare it as dead
+overrides of `dispatchDrawAt`'s siblings. Any translated view that does its
+custom drawing in `dispatchDraw` (Compose hosts like the settings screen's
+`r1` root, history rows' `ViewHolder` item views) is therefore silently
+skipped: draw entry points fire, children lay out, taps hit, but the
+custom paint never runs.
+
+Why not just call it: for leaves (no children) calling
+`dispatchDraw(canvas)` is safe and sufficient — our own leaves have no
+custom `dispatchDraw`, so behavior is identical except translated leaves
+finally draw. For groups it is unsafe without a protocol bridge: their
+translated `dispatchDraw` implementations assume the AOSP canvas-translate
+protocol, while our pipeline positions children with explicit offsets, so
+calling both would double-draw children (once right, once wrong).
+`r1.w` demonstrably calls `super.dispatchDraw`, which is exactly the
+double-draw trap. The correct fix is a protocol decision, not a patch:
+either translate the canvas and switch the whole draw path to the AOSP
+pair (a framework-wide migration), or route per-view by contract
+(translated-custom-dispatch vs ours). Both demand the architect skill
+and a full pinned-app repaint verification.
+
+This was deliberately NOT implemented here: the acceptance gate passed on
+the committed tree and forbids broader Compose claims, and a wrong guess
+at the bridge would regress every app. The task's remaining open items
+keep their owners.
+
+Correction to the earlier Compose theory: a class-level census of actual
+draw calls on the settings screen shows zero Compose classes. The screen is
+built entirely of custom translated views — an `r1.w` ViewGroup holding an
+`r1.s1` group holding ~44 `r1.v2` leaves. TextViews on that screen draw
+only empty strings; every settings string is absent from draw, while taps
+land and flip preferences (input is bounds-based, independent of draw).
+
+Draw-bounds census proves the leaves never get positioned: every `r1.v2`
+draws at parent-relative (0,0) with measured sizes (170x17, 536x17, 640x64
+and the like); exactly two `offsetLeftAndRight/offsetTopAndBottom` calls
+occur in the whole run (one -30,-30 view). Their `onDraw` path goes through
+a `b1/c` canvas wrapper and `r1/b2` renderer gated on software rendering.
+The `r1.s1` container itself measures 0x0. So this is a custom-view
+position-then-draw gap in translated app code, not a Compose pipeline gap
+and not a framework measure/draw contract gap: the draw entry points fire,
+the views simply have nothing positioned or nothing to paint.
+
+No code changed. All diagnostic probes were removed afterward
+(`grep IsakaiProbe framework/` returns zero) and the probe-free tree was
+re-verified on the real history flow (formulas and results visible, exit 0).
+Next step if this is ever scheduled: translated-code archaeology on
+`r1.w`/`r1.s1` layout plus `r1.v2.onDraw`'s renderer path, or working draw
+instrumentation with per-view identity.
+
+Update, same day: the `Canvas.drawTextImpl` probe result is VOID — that
+overload is not on the real text path — so the corrected choke-point
+probe in `emitText` (which every text path funnels through) was run,
+plus rects, round rects, circles, paths, ovals, lines and bitmaps: the
+settings screen draws zero text (63 main-screen glyph draws vs 0 after
+SettingsActivity starts) and zero of every shape primitive — only sane
+non-empty clips fire. The custom `r1` rows execute draw entry points that
+emit nothing at all. All diagnostic probes were removed afterward (`grep IsakaiProbe
+framework/` returns zero) and the clean tree rebuilds green with a
+passing history re-verification.
+
+Correction history (kept so nobody repeats the dead ends): an early
+`drawTextImpl` probe was void because that overload is not on the real
+text path; `emitText` is the choke point every text path funnels through
+(`drawText*`, `paintText`, `DisplayList` replay), and it recorded 63
+glyph draws on the main screen vs zero after SettingsActivity starts.
+`fillRect`, the workhorse for solid fills, was never probed — but fills
+do not explain a blank screen with no text. A `locals`-only JDB session
+confirmed draw entry on `Activity.drawFrame` but the evaluator is broken
+(`print 1+1` answers `4`), so live object inspection remains unavailable.
+The precise next step is static: trace what `r1/b2.a` does with its
+renderer after the `b1/r.c()` call, looking for the early-out or empty
+model that makes 44 laid-out, hittable rows emit nothing.
+`r1.v2` has no `onDraw` override; its drawing entry is
+dispatchDraw through the wrapper/renderer. The b1 wrapper's save/restore
+and paint plumbing in our Canvas is structurally sound, and no drawable
+errors are logged, so the content never arrives rather than arriving and
+failing to paint. JDB status corrected: `locals`, `threads` and `where`
+work in framework frames (`where` traced the picker blob to
+`RippleDrawable`); only object *evaluation* (`dump`/`print`/`eval`) is
+broken, and `print 1+1` answering `4` is the tell.
+
+The blank settings screenshot was scoped, not fixed. The earlier
+composable-shape guess (`k7.i.a(j0.i, int)`) is withdrawn: a class census
+of actual draws proves the screen is custom translated `r1` views, with
+zero Compose classes anywhere in the draw path. Preference taps still flip
+and persist because touch dispatches on bounds, independent of draw.
+What remains is a translated-app internals question — rows whose draw
+entry points run yet emit nothing — needing a dedicated session with
+working draw instrumentation, not a framework rewrite. This stays an
+explicit deferred defect.
 
 ### 2026-10-27 (escape) — history dialog dismisses via back key
 
@@ -1208,10 +1343,19 @@ formulas and results with OK dismissal
 Calculator, Notes, and OpenCalc (fresh tree, `12+34=46`) flows pass
 ([calc](../evidence/C6/2026-10-27/recon-calc.log),
 [notes](../evidence/C6/2026-10-27/recon-notes.log),
-[opencalc](../evidence/C6/2026-10-27/refactor-ocalc-fresh.log)). A reused-tree
-OpenCalc run failed the same retained-state gate as before the refactor
-(baseline 3 entries, no new row); the fresh-tree rerun passes, so this is
-the known retained-state flake, not a refactor regression.
+[opencalc](../evidence/C6/2026-10-27/refactor-ocalc-fresh.log)). Later
+OpenCalc runs failed the same gate including on fresh trees, so the
+"retained-state" label was wrong and is withdrawn here. Direct probing
+proved the real mechanism: the `=` tap sometimes does not register at all
+(missed tap, nothing evaluated, no commit), while a second tap at the same
+or adjusted coordinates commits normally (`(560,750)` and `(595,770)` both
+committed fresh rows; `(540,730)` missed, consistent with the button's
+edge position). Tapped digits plus tapped `=` commit fine on retained and
+fresh trees; typed digits plus tapped `=` also commit when the tap lands.
+The failure signature (evaluated display via live preview plus absent row)
+matches a missed `=` exactly. Dispatch/touch code is untouched by the
+refactor, so this is input-delivery flakiness at the window edge, not a
+regression and not app logic. No code changed for it.
 
 ### 2026-10-27 — Context clipboard branch (self-review)
 
@@ -1283,3 +1427,26 @@ Self-review of the follow-up `Activity.java` diff (view-tree lifecycle retention
 - Reuse/boundaries: no new files or config; mirrors AOSP `ReportFragment` dispatch points; temporary `diagCompose` probes removed.
 - Remaining limitations: owner class names are Calculator-obfuscation-specific; the settings composition now crashes deterministically in translated composer code (evidence above) — the next gap, not a review finding.
 - No material findings remain in this diff.
+
+### 2026-10-27 — loop sweep on the leaves-only dispatch build (self-review)
+
+No code changed. `zig build` exit 0, `git diff --check` clean,
+`python3 tools/progress-lint.py` 0 violations. Unreferenced probe debris
+from earlier diagnosis (`draw-probe`, `emit-probe`, `fill-probe`,
+`final-check`, `final-probe`) removed; nothing referenced them.
+
+All three pinned flows PASS on the current tree: calculator
+([log](../evidence/C6/2026-10-27/loop-calc.log), result + settings +
+decimal persist + reopen, history rows asserted in Room), notes
+([log](../evidence/C6/2026-10-27/loop-notes.log), exact Unicode contents
+persist, exit 0), OpenCalc on a genuinely fresh install
+([log](../evidence/C6/2026-10-27/loop-ocalc.log), `12+34=46` committed,
+resize + clean close). The history dialog renders rows (`1,5+2,5` / `4`
+with OK/Clear) and dismisses with close exit 0
+([shot](../evidence/C6/2026-10-27/loop-history/simple-history-open.png)).
+
+Driver note: ad-hoc drives must select the app by package, not by
+`load_apps()` index — index 0 is OpenCalc, and driving its package
+against another app's work tree fails launch with a bare `NotFound`.
+The earlier `NotFound` during the history check was this script bug, not
+a product defect; corrected, the dialog check passes.
