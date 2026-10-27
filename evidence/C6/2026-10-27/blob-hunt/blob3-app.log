@@ -1,0 +1,967 @@
+exited with code 0
+ndroid:appComponentFactory (direct instantiation)
+info: desktop bridge ready at /tmp/isakai-1000-isosway/bridge.sock
+isakai: application com.simplemobiletools.notes.pro.App onCreate
+D/AppCompatDelegate: Checking for metadata for AppLocalesMetadataHolderService : Service not found
+isakai: activity com.simplemobiletools.notes.pro.activities.SplashActivity runWindowed
+D/ViewUtils: Could not find method computeFitSystemWindows. Oh well.
+D/ViewUtils: Could not find method makeOptionalFitsSystemWindows. Oh well...
+isakai: activity com.simplemobiletools.notes.pro.activities.MainActivity start
+ISAKAI_UNSUPPORTED android.view.View.tooltipRendering at androidx.appcompat.widget.e4.a bci=2
+ISAKAI_UNSUPPORTED android.graphics.Paint.xfermodeRendering at n6.h.<clinit> bci=55
+D/ViewUtils: Could not find method makeOptionalFitsSystemWindows. Oh well...
+ISAKAI_UNSUPPORTED android.os.Environment.sharedExternalStorage at t7.t.t bci=54
+ISAKAI_UNSUPPORTED android.view.View.androidSystemBars at f7.g.M bci=95
+ISAKAI_UNSUPPORTED android.app.Activity.taskIconAndColor at f7.g.H bci=24
+ISAKAI_UNSUPPORTED android.view.View.androidSystemBars at f7.g.onResume bci=629
+D/FragmentManager: onCleared called for FragmentManagerViewModel{63440df3} Fragments () Child Non Config () ViewModelStores ()
+I/IsakaiProbe: layout android.app.HeadlessWindow$2 0,0,640,480
+I/IsakaiProbe: layout androidx.appcompat.widget.FitWindowsFrameLayout 0,0,640,480
+I/IsakaiProbe: layout androidx.appcompat.widget.ContentFrameLayout 0,0,640,480
+I/IsakaiProbe: layout androidx.coordinatorlayout.widget.CoordinatorLayout 0,0,640,480
+I/IsakaiProbe: layout com.google.android.material.appbar.MaterialToolbar 0,0,640,64
+I/IsakaiProbe: layout androidx.appcompat.widget.ActionMenuView 520,0,640,56
+I/IsakaiProbe: layout android.widget.LinearLayout 0,64,640,480
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyViewPager 0,0,640,416
+V/FragmentManager: Run: BackStackEntry{46238e3f}
+V/FragmentManager: Added fragment to active set g{32464a14} (d980b7d7-0eda-4b5e-bf4f-d4d8fbd98a87 id=0x7f0903ca)
+V/FragmentManager: Added fragment to active set g{4e4aea35} (9f8892b6-aa43-486f-aa85-35e98b86e696 id=0x7f0903ca)
+V/FragmentManager: add: g{32464a14} (d980b7d7-0eda-4b5e-bf4f-d4d8fbd98a87 id=0x7f0903ca)
+V/FragmentManager: add: g{4e4aea35} (9f8892b6-aa43-486f-aa85-35e98b86e696 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 7 for g{32464a14} (d980b7d7-0eda-4b5e-bf4f-d4d8fbd98a87 id=0x7f0903ca)
+D/FragmentManager: moveto ATTACHED: g{32464a14} (d980b7d7-0eda-4b5e-bf4f-d4d8fbd98a87 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 7 for g{32464a14} (d980b7d7-0eda-4b5e-bf4f-d4d8fbd98a87 id=0x7f0903ca)
+D/FragmentManager: moveto CREATED: g{32464a14} (d980b7d7-0eda-4b5e-bf4f-d4d8fbd98a87 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 7 for g{32464a14} (d980b7d7-0eda-4b5e-bf4f-d4d8fbd98a87 id=0x7f0903ca)
+D/FragmentManager: moveto CREATE_VIEW: g{32464a14} (d980b7d7-0eda-4b5e-bf4f-d4d8fbd98a87 id=0x7f0903ca)
+V/FragmentManager: Updating retained Fragments: Added g{32464a14} (d980b7d7-0eda-4b5e-bf4f-d4d8fbd98a87 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 7 for g{32464a14} (d980b7d7-0eda-4b5e-bf4f-d4d8fbd98a87 id=0x7f0903ca)
+D/FragmentManager: moveto ACTIVITY_CREATED: g{32464a14} (d980b7d7-0eda-4b5e-bf4f-d4d8fbd98a87 id=0x7f0903ca)
+D/FragmentManager: moveto RESTORE_VIEW_STATE: g{32464a14} (d980b7d7-0eda-4b5e-bf4f-d4d8fbd98a87 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 7 for g{32464a14} (d980b7d7-0eda-4b5e-bf4f-d4d8fbd98a87 id=0x7f0903ca)
+V/FragmentManager: SpecialEffectsController: Enqueuing add operation for fragment g{32464a14} (d980b7d7-0eda-4b5e-bf4f-d4d8fbd98a87 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 6 for g{32464a14} (d980b7d7-0eda-4b5e-bf4f-d4d8fbd98a87 id=0x7f0903ca)
+D/FragmentManager: moveto STARTED: g{32464a14} (d980b7d7-0eda-4b5e-bf4f-d4d8fbd98a87 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 6 for g{32464a14} (d980b7d7-0eda-4b5e-bf4f-d4d8fbd98a87 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 6 for g{32464a14} (d980b7d7-0eda-4b5e-bf4f-d4d8fbd98a87 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 4 for g{4e4aea35} (9f8892b6-aa43-486f-aa85-35e98b86e696 id=0x7f0903ca)
+D/FragmentManager: moveto ATTACHED: g{4e4aea35} (9f8892b6-aa43-486f-aa85-35e98b86e696 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 4 for g{4e4aea35} (9f8892b6-aa43-486f-aa85-35e98b86e696 id=0x7f0903ca)
+D/FragmentManager: moveto CREATED: g{4e4aea35} (9f8892b6-aa43-486f-aa85-35e98b86e696 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 4 for g{4e4aea35} (9f8892b6-aa43-486f-aa85-35e98b86e696 id=0x7f0903ca)
+D/FragmentManager: moveto CREATE_VIEW: g{4e4aea35} (9f8892b6-aa43-486f-aa85-35e98b86e696 id=0x7f0903ca)
+V/FragmentManager: Updating retained Fragments: Added g{4e4aea35} (9f8892b6-aa43-486f-aa85-35e98b86e696 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 4 for g{4e4aea35} (9f8892b6-aa43-486f-aa85-35e98b86e696 id=0x7f0903ca)
+D/FragmentManager: moveto ACTIVITY_CREATED: g{4e4aea35} (9f8892b6-aa43-486f-aa85-35e98b86e696 id=0x7f0903ca)
+D/FragmentManager: moveto RESTORE_VIEW_STATE: g{4e4aea35} (9f8892b6-aa43-486f-aa85-35e98b86e696 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 4 for g{4e4aea35} (9f8892b6-aa43-486f-aa85-35e98b86e696 id=0x7f0903ca)
+V/FragmentManager: SpecialEffectsController: Enqueuing add operation for fragment g{4e4aea35} (9f8892b6-aa43-486f-aa85-35e98b86e696 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 4 for g{4e4aea35} (9f8892b6-aa43-486f-aa85-35e98b86e696 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 6 for g{32464a14} (d980b7d7-0eda-4b5e-bf4f-d4d8fbd98a87 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 4 for g{4e4aea35} (9f8892b6-aa43-486f-aa85-35e98b86e696 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 6 for g{32464a14} (d980b7d7-0eda-4b5e-bf4f-d4d8fbd98a87 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 4 for g{4e4aea35} (9f8892b6-aa43-486f-aa85-35e98b86e696 id=0x7f0903ca)
+V/FragmentManager: SpecialEffectsController: For fragment g{32464a14} (d980b7d7-0eda-4b5e-bf4f-d4d8fbd98a87 id=0x7f0903ca) mFinalState = VISIBLE -> VISIBLE. 
+V/FragmentManager: SpecialEffectsController: For fragment g{4e4aea35} (9f8892b6-aa43-486f-aa85-35e98b86e696 id=0x7f0903ca) mFinalState = VISIBLE -> VISIBLE. 
+V/FragmentManager: SpecialEffectsController: For fragment g{32464a14} (d980b7d7-0eda-4b5e-bf4f-d4d8fbd98a87 id=0x7f0903ca) mFinalState = VISIBLE -> VISIBLE. 
+V/FragmentManager: SpecialEffectsController: For fragment g{4e4aea35} (9f8892b6-aa43-486f-aa85-35e98b86e696 id=0x7f0903ca) mFinalState = VISIBLE -> VISIBLE. 
+V/FragmentManager: SpecialEffectsController: Operation {37574691} {mFinalState = VISIBLE} {mLifecycleImpact = ADDING} {mFragment = g{32464a14} (d980b7d7-0eda-4b5e-bf4f-d4d8fbd98a87 id=0x7f0903ca)} has called complete.
+V/FragmentManager: SpecialEffectsController: Setting view android.widget.RelativeLayout@21a947fe to VISIBLE
+V/FragmentManager: computeExpectedState() of 7 for g{32464a14} (d980b7d7-0eda-4b5e-bf4f-d4d8fbd98a87 id=0x7f0903ca)
+D/FragmentManager: moveto RESUMED: g{32464a14} (d980b7d7-0eda-4b5e-bf4f-d4d8fbd98a87 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 7 for g{32464a14} (d980b7d7-0eda-4b5e-bf4f-d4d8fbd98a87 id=0x7f0903ca)
+V/FragmentManager: SpecialEffectsController: Operation {25359ed8} {mFinalState = VISIBLE} {mLifecycleImpact = ADDING} {mFragment = g{4e4aea35} (9f8892b6-aa43-486f-aa85-35e98b86e696 id=0x7f0903ca)} has called complete.
+V/FragmentManager: SpecialEffectsController: Setting view android.widget.RelativeLayout@6c3f5566 to VISIBLE
+V/FragmentManager: computeExpectedState() of 4 for g{4e4aea35} (9f8892b6-aa43-486f-aa85-35e98b86e696 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 7 for g{4e4aea35} (9f8892b6-aa43-486f-aa85-35e98b86e696 id=0x7f0903ca)
+D/FragmentManager: moveto STARTED: g{4e4aea35} (9f8892b6-aa43-486f-aa85-35e98b86e696 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 7 for g{4e4aea35} (9f8892b6-aa43-486f-aa85-35e98b86e696 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 7 for g{4e4aea35} (9f8892b6-aa43-486f-aa85-35e98b86e696 id=0x7f0903ca)
+D/FragmentManager: moveto RESUMED: g{4e4aea35} (9f8892b6-aa43-486f-aa85-35e98b86e696 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 7 for g{4e4aea35} (9f8892b6-aa43-486f-aa85-35e98b86e696 id=0x7f0903ca)
+bridge: client uid 1000 connected
+V/FragmentManager: Run: BackStackEntry{76508ed1}
+V/FragmentManager: Added fragment to active set g{41e36e46} (28bedfff-b155-4477-9084-4549d1e59bc6 id=0x7f0903ca)
+V/FragmentManager: Added fragment to active set g{15c43bd9} (db669333-6b10-4245-9006-18eb2a7a3e0c id=0x7f0903ca)
+V/FragmentManager: Added fragment to active set g{3d74bf60} (db7dcf84-aa40-4ac4-8451-55411482650a id=0x7f0903ca)
+V/FragmentManager: add: g{41e36e46} (28bedfff-b155-4477-9084-4549d1e59bc6 id=0x7f0903ca)
+V/FragmentManager: add: g{15c43bd9} (db669333-6b10-4245-9006-18eb2a7a3e0c id=0x7f0903ca)
+V/FragmentManager: add: g{3d74bf60} (db7dcf84-aa40-4ac4-8451-55411482650a id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 7 for g{41e36e46} (28bedfff-b155-4477-9084-4549d1e59bc6 id=0x7f0903ca)
+D/FragmentManager: moveto ATTACHED: g{41e36e46} (28bedfff-b155-4477-9084-4549d1e59bc6 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 7 for g{41e36e46} (28bedfff-b155-4477-9084-4549d1e59bc6 id=0x7f0903ca)
+D/FragmentManager: moveto CREATED: g{41e36e46} (28bedfff-b155-4477-9084-4549d1e59bc6 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 7 for g{41e36e46} (28bedfff-b155-4477-9084-4549d1e59bc6 id=0x7f0903ca)
+D/FragmentManager: moveto CREATE_VIEW: g{41e36e46} (28bedfff-b155-4477-9084-4549d1e59bc6 id=0x7f0903ca)
+V/FragmentManager: Updating retained Fragments: Added g{41e36e46} (28bedfff-b155-4477-9084-4549d1e59bc6 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 7 for g{41e36e46} (28bedfff-b155-4477-9084-4549d1e59bc6 id=0x7f0903ca)
+D/FragmentManager: moveto ACTIVITY_CREATED: g{41e36e46} (28bedfff-b155-4477-9084-4549d1e59bc6 id=0x7f0903ca)
+D/FragmentManager: moveto RESTORE_VIEW_STATE: g{41e36e46} (28bedfff-b155-4477-9084-4549d1e59bc6 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 7 for g{41e36e46} (28bedfff-b155-4477-9084-4549d1e59bc6 id=0x7f0903ca)
+V/FragmentManager: SpecialEffectsController: Enqueuing add operation for fragment g{41e36e46} (28bedfff-b155-4477-9084-4549d1e59bc6 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 6 for g{41e36e46} (28bedfff-b155-4477-9084-4549d1e59bc6 id=0x7f0903ca)
+D/FragmentManager: moveto STARTED: g{41e36e46} (28bedfff-b155-4477-9084-4549d1e59bc6 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 6 for g{41e36e46} (28bedfff-b155-4477-9084-4549d1e59bc6 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 6 for g{41e36e46} (28bedfff-b155-4477-9084-4549d1e59bc6 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 4 for g{15c43bd9} (db669333-6b10-4245-9006-18eb2a7a3e0c id=0x7f0903ca)
+D/FragmentManager: moveto ATTACHED: g{15c43bd9} (db669333-6b10-4245-9006-18eb2a7a3e0c id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 4 for g{15c43bd9} (db669333-6b10-4245-9006-18eb2a7a3e0c id=0x7f0903ca)
+D/FragmentManager: moveto CREATED: g{15c43bd9} (db669333-6b10-4245-9006-18eb2a7a3e0c id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 4 for g{15c43bd9} (db669333-6b10-4245-9006-18eb2a7a3e0c id=0x7f0903ca)
+D/FragmentManager: moveto CREATE_VIEW: g{15c43bd9} (db669333-6b10-4245-9006-18eb2a7a3e0c id=0x7f0903ca)
+V/FragmentManager: Updating retained Fragments: Added g{15c43bd9} (db669333-6b10-4245-9006-18eb2a7a3e0c id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 4 for g{15c43bd9} (db669333-6b10-4245-9006-18eb2a7a3e0c id=0x7f0903ca)
+D/FragmentManager: moveto ACTIVITY_CREATED: g{15c43bd9} (db669333-6b10-4245-9006-18eb2a7a3e0c id=0x7f0903ca)
+D/FragmentManager: moveto RESTORE_VIEW_STATE: g{15c43bd9} (db669333-6b10-4245-9006-18eb2a7a3e0c id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 4 for g{15c43bd9} (db669333-6b10-4245-9006-18eb2a7a3e0c id=0x7f0903ca)
+V/FragmentManager: SpecialEffectsController: Enqueuing add operation for fragment g{15c43bd9} (db669333-6b10-4245-9006-18eb2a7a3e0c id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 4 for g{15c43bd9} (db669333-6b10-4245-9006-18eb2a7a3e0c id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 4 for g{3d74bf60} (db7dcf84-aa40-4ac4-8451-55411482650a id=0x7f0903ca)
+D/FragmentManager: moveto ATTACHED: g{3d74bf60} (db7dcf84-aa40-4ac4-8451-55411482650a id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 4 for g{3d74bf60} (db7dcf84-aa40-4ac4-8451-55411482650a id=0x7f0903ca)
+D/FragmentManager: moveto CREATED: g{3d74bf60} (db7dcf84-aa40-4ac4-8451-55411482650a id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 4 for g{3d74bf60} (db7dcf84-aa40-4ac4-8451-55411482650a id=0x7f0903ca)
+D/FragmentManager: moveto CREATE_VIEW: g{3d74bf60} (db7dcf84-aa40-4ac4-8451-55411482650a id=0x7f0903ca)
+V/FragmentManager: Updating retained Fragments: Added g{3d74bf60} (db7dcf84-aa40-4ac4-8451-55411482650a id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 4 for g{3d74bf60} (db7dcf84-aa40-4ac4-8451-55411482650a id=0x7f0903ca)
+D/FragmentManager: moveto ACTIVITY_CREATED: g{3d74bf60} (db7dcf84-aa40-4ac4-8451-55411482650a id=0x7f0903ca)
+D/FragmentManager: moveto RESTORE_VIEW_STATE: g{3d74bf60} (db7dcf84-aa40-4ac4-8451-55411482650a id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 4 for g{3d74bf60} (db7dcf84-aa40-4ac4-8451-55411482650a id=0x7f0903ca)
+V/FragmentManager: SpecialEffectsController: Enqueuing add operation for fragment g{3d74bf60} (db7dcf84-aa40-4ac4-8451-55411482650a id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 4 for g{3d74bf60} (db7dcf84-aa40-4ac4-8451-55411482650a id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 7 for g{32464a14} (d980b7d7-0eda-4b5e-bf4f-d4d8fbd98a87 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 7 for g{4e4aea35} (9f8892b6-aa43-486f-aa85-35e98b86e696 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 6 for g{41e36e46} (28bedfff-b155-4477-9084-4549d1e59bc6 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 4 for g{15c43bd9} (db669333-6b10-4245-9006-18eb2a7a3e0c id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 4 for g{3d74bf60} (db7dcf84-aa40-4ac4-8451-55411482650a id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 6 for g{41e36e46} (28bedfff-b155-4477-9084-4549d1e59bc6 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 4 for g{15c43bd9} (db669333-6b10-4245-9006-18eb2a7a3e0c id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 7 for g{32464a14} (d980b7d7-0eda-4b5e-bf4f-d4d8fbd98a87 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 7 for g{4e4aea35} (9f8892b6-aa43-486f-aa85-35e98b86e696 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 4 for g{3d74bf60} (db7dcf84-aa40-4ac4-8451-55411482650a id=0x7f0903ca)
+V/FragmentManager: SpecialEffectsController: For fragment g{41e36e46} (28bedfff-b155-4477-9084-4549d1e59bc6 id=0x7f0903ca) mFinalState = VISIBLE -> VISIBLE. 
+V/FragmentManager: SpecialEffectsController: For fragment g{15c43bd9} (db669333-6b10-4245-9006-18eb2a7a3e0c id=0x7f0903ca) mFinalState = VISIBLE -> VISIBLE. 
+V/FragmentManager: SpecialEffectsController: For fragment g{3d74bf60} (db7dcf84-aa40-4ac4-8451-55411482650a id=0x7f0903ca) mFinalState = VISIBLE -> VISIBLE. 
+V/FragmentManager: SpecialEffectsController: For fragment g{41e36e46} (28bedfff-b155-4477-9084-4549d1e59bc6 id=0x7f0903ca) mFinalState = VISIBLE -> VISIBLE. 
+V/FragmentManager: SpecialEffectsController: For fragment g{15c43bd9} (db669333-6b10-4245-9006-18eb2a7a3e0c id=0x7f0903ca) mFinalState = VISIBLE -> VISIBLE. 
+V/FragmentManager: SpecialEffectsController: For fragment g{3d74bf60} (db7dcf84-aa40-4ac4-8451-55411482650a id=0x7f0903ca) mFinalState = VISIBLE -> VISIBLE. 
+V/FragmentManager: SpecialEffectsController: Operation {5119fb47} {mFinalState = VISIBLE} {mLifecycleImpact = ADDING} {mFragment = g{41e36e46} (28bedfff-b155-4477-9084-4549d1e59bc6 id=0x7f0903ca)} has called complete.
+V/FragmentManager: SpecialEffectsController: Setting view android.widget.RelativeLayout@3835c46 to VISIBLE
+V/FragmentManager: computeExpectedState() of 7 for g{41e36e46} (28bedfff-b155-4477-9084-4549d1e59bc6 id=0x7f0903ca)
+D/FragmentManager: moveto RESUMED: g{41e36e46} (28bedfff-b155-4477-9084-4549d1e59bc6 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 7 for g{41e36e46} (28bedfff-b155-4477-9084-4549d1e59bc6 id=0x7f0903ca)
+V/FragmentManager: SpecialEffectsController: Operation {7193666c} {mFinalState = VISIBLE} {mLifecycleImpact = ADDING} {mFragment = g{15c43bd9} (db669333-6b10-4245-9006-18eb2a7a3e0c id=0x7f0903ca)} has called complete.
+V/FragmentManager: SpecialEffectsController: Setting view android.widget.RelativeLayout@20ce78ec to VISIBLE
+V/FragmentManager: computeExpectedState() of 4 for g{15c43bd9} (db669333-6b10-4245-9006-18eb2a7a3e0c id=0x7f0903ca)
+V/FragmentManager: SpecialEffectsController: Operation {20deea7f} {mFinalState = VISIBLE} {mLifecycleImpact = ADDING} {mFragment = g{3d74bf60} (db7dcf84-aa40-4ac4-8451-55411482650a id=0x7f0903ca)} has called complete.
+V/FragmentManager: SpecialEffectsController: Setting view android.widget.RelativeLayout@393671df to VISIBLE
+V/FragmentManager: computeExpectedState() of 4 for g{3d74bf60} (db7dcf84-aa40-4ac4-8451-55411482650a id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 7 for g{15c43bd9} (db669333-6b10-4245-9006-18eb2a7a3e0c id=0x7f0903ca)
+D/FragmentManager: moveto STARTED: g{15c43bd9} (db669333-6b10-4245-9006-18eb2a7a3e0c id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 7 for g{15c43bd9} (db669333-6b10-4245-9006-18eb2a7a3e0c id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 7 for g{15c43bd9} (db669333-6b10-4245-9006-18eb2a7a3e0c id=0x7f0903ca)
+D/FragmentManager: moveto RESUMED: g{15c43bd9} (db669333-6b10-4245-9006-18eb2a7a3e0c id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 7 for g{15c43bd9} (db669333-6b10-4245-9006-18eb2a7a3e0c id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 7 for g{3d74bf60} (db7dcf84-aa40-4ac4-8451-55411482650a id=0x7f0903ca)
+D/FragmentManager: moveto STARTED: g{3d74bf60} (db7dcf84-aa40-4ac4-8451-55411482650a id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 7 for g{3d74bf60} (db7dcf84-aa40-4ac4-8451-55411482650a id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 7 for g{3d74bf60} (db7dcf84-aa40-4ac4-8451-55411482650a id=0x7f0903ca)
+D/FragmentManager: moveto RESUMED: g{3d74bf60} (db7dcf84-aa40-4ac4-8451-55411482650a id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 7 for g{3d74bf60} (db7dcf84-aa40-4ac4-8451-55411482650a id=0x7f0903ca)
+I/IsakaiProbe: layout android.app.HeadlessWindow$2 0,0,640,800
+I/IsakaiProbe: layout androidx.appcompat.widget.FitWindowsFrameLayout 0,0,640,800
+I/IsakaiProbe: layout androidx.appcompat.widget.ContentFrameLayout 0,0,640,800
+I/IsakaiProbe: layout androidx.coordinatorlayout.widget.CoordinatorLayout 0,0,640,800
+I/IsakaiProbe: layout com.google.android.material.appbar.MaterialToolbar 0,0,640,64
+I/IsakaiProbe: layout androidx.appcompat.widget.ActionMenuView 472,0,640,56
+I/IsakaiProbe: layout android.widget.LinearLayout 0,64,640,800
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyViewPager 0,0,640,736
+I/IsakaiProbe: layout androidx.viewpager.widget.PagerTabStrip 0,0,640,33
+I/IsakaiProbe: layout android.widget.RelativeLayout -3200,33,-2560,736
+I/IsakaiProbe: layout android.widget.ScrollView 0,0,122,28
+I/IsakaiProbe: layout android.widget.RelativeLayout 0,0,122,28
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyEditText 0,0,122,28
+I/IsakaiProbe: layout android.widget.RelativeLayout -2560,33,-1920,736
+I/IsakaiProbe: layout android.widget.ScrollView 0,0,122,28
+I/IsakaiProbe: layout android.widget.RelativeLayout 0,0,122,28
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyEditText 0,0,122,28
+I/IsakaiProbe: layout android.widget.RelativeLayout 0,33,640,736
+I/IsakaiProbe: layout android.widget.ScrollView 0,0,102,25
+I/IsakaiProbe: layout android.widget.RelativeLayout 0,0,102,25
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyEditText 0,0,102,25
+I/IsakaiProbe: layout android.widget.RelativeLayout -640,33,0,736
+I/IsakaiProbe: layout android.widget.ScrollView 0,0,102,25
+I/IsakaiProbe: layout android.widget.RelativeLayout 0,0,102,25
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyEditText 0,0,102,25
+I/IsakaiProbe: layout android.widget.RelativeLayout 640,33,1280,736
+I/IsakaiProbe: layout android.widget.ScrollView 0,0,102,25
+I/IsakaiProbe: layout android.widget.RelativeLayout 0,0,102,25
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyEditText 0,0,102,25
+V/FragmentManager: saveAllState: no fragments!
+V/FragmentManager: saveAllState: no fragments!
+V/FragmentManager: Run: BackStackEntry{f5ac9e4}
+V/FragmentManager: remove: g{4e4aea35} (9f8892b6-aa43-486f-aa85-35e98b86e696 id=0x7f0903ca) nesting=0
+V/FragmentManager: remove: g{32464a14} (d980b7d7-0eda-4b5e-bf4f-d4d8fbd98a87 id=0x7f0903ca) nesting=0
+V/FragmentManager: computeExpectedState() of -1 for g{4e4aea35} (9f8892b6-aa43-486f-aa85-35e98b86e696 id=0x7f0903ca)
+D/FragmentManager: movefrom RESUMED: g{4e4aea35} (9f8892b6-aa43-486f-aa85-35e98b86e696 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of -1 for g{4e4aea35} (9f8892b6-aa43-486f-aa85-35e98b86e696 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of -1 for g{4e4aea35} (9f8892b6-aa43-486f-aa85-35e98b86e696 id=0x7f0903ca)
+D/FragmentManager: movefrom STARTED: g{4e4aea35} (9f8892b6-aa43-486f-aa85-35e98b86e696 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of -1 for g{4e4aea35} (9f8892b6-aa43-486f-aa85-35e98b86e696 id=0x7f0903ca)
+D/FragmentManager: movefrom ACTIVITY_CREATED: g{4e4aea35} (9f8892b6-aa43-486f-aa85-35e98b86e696 id=0x7f0903ca)
+V/FragmentManager: SpecialEffectsController: Enqueuing remove operation for fragment g{4e4aea35} (9f8892b6-aa43-486f-aa85-35e98b86e696 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 3 for g{4e4aea35} (9f8892b6-aa43-486f-aa85-35e98b86e696 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of -1 for g{32464a14} (d980b7d7-0eda-4b5e-bf4f-d4d8fbd98a87 id=0x7f0903ca)
+D/FragmentManager: movefrom RESUMED: g{32464a14} (d980b7d7-0eda-4b5e-bf4f-d4d8fbd98a87 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of -1 for g{32464a14} (d980b7d7-0eda-4b5e-bf4f-d4d8fbd98a87 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of -1 for g{32464a14} (d980b7d7-0eda-4b5e-bf4f-d4d8fbd98a87 id=0x7f0903ca)
+D/FragmentManager: movefrom STARTED: g{32464a14} (d980b7d7-0eda-4b5e-bf4f-d4d8fbd98a87 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of -1 for g{32464a14} (d980b7d7-0eda-4b5e-bf4f-d4d8fbd98a87 id=0x7f0903ca)
+D/FragmentManager: movefrom ACTIVITY_CREATED: g{32464a14} (d980b7d7-0eda-4b5e-bf4f-d4d8fbd98a87 id=0x7f0903ca)
+V/FragmentManager: SpecialEffectsController: Enqueuing remove operation for fragment g{32464a14} (d980b7d7-0eda-4b5e-bf4f-d4d8fbd98a87 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 3 for g{32464a14} (d980b7d7-0eda-4b5e-bf4f-d4d8fbd98a87 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 7 for g{41e36e46} (28bedfff-b155-4477-9084-4549d1e59bc6 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 7 for g{15c43bd9} (db669333-6b10-4245-9006-18eb2a7a3e0c id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 7 for g{3d74bf60} (db7dcf84-aa40-4ac4-8451-55411482650a id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 7 for g{41e36e46} (28bedfff-b155-4477-9084-4549d1e59bc6 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 7 for g{15c43bd9} (db669333-6b10-4245-9006-18eb2a7a3e0c id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 3 for g{32464a14} (d980b7d7-0eda-4b5e-bf4f-d4d8fbd98a87 id=0x7f0903ca)
+V/FragmentManager: Updating retained Fragments: Removed g{32464a14} (d980b7d7-0eda-4b5e-bf4f-d4d8fbd98a87 id=0x7f0903ca)
+V/FragmentManager: Removed fragment from active set g{32464a14} (d980b7d7-0eda-4b5e-bf4f-d4d8fbd98a87 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 3 for g{4e4aea35} (9f8892b6-aa43-486f-aa85-35e98b86e696 id=0x7f0903ca)
+V/FragmentManager: Updating retained Fragments: Removed g{4e4aea35} (9f8892b6-aa43-486f-aa85-35e98b86e696 id=0x7f0903ca)
+V/FragmentManager: Removed fragment from active set g{4e4aea35} (9f8892b6-aa43-486f-aa85-35e98b86e696 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 7 for g{3d74bf60} (db7dcf84-aa40-4ac4-8451-55411482650a id=0x7f0903ca)
+V/FragmentManager: SpecialEffectsController: Operation {62150f9e} {mFinalState = REMOVED} {mLifecycleImpact = REMOVING} {mFragment = g{4e4aea35} (9f8892b6-aa43-486f-aa85-35e98b86e696 id=0x7f0903ca)} has called complete.
+V/FragmentManager: SpecialEffectsController: Removing view android.widget.RelativeLayout@6c3f5566 from container com.simplemobiletools.commons.views.MyViewPager@7fa98a66
+V/FragmentManager: computeExpectedState() of -1 for g{4e4aea35} (9f8892b6-aa43-486f-aa85-35e98b86e696 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of -1 for g{4e4aea35} (9f8892b6-aa43-486f-aa85-35e98b86e696 id=0x7f0903ca)
+D/FragmentManager: movefrom CREATE_VIEW: g{4e4aea35} (9f8892b6-aa43-486f-aa85-35e98b86e696 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of -1 for g{4e4aea35} (9f8892b6-aa43-486f-aa85-35e98b86e696 id=0x7f0903ca)
+D/FragmentManager: movefrom CREATED: g{4e4aea35} (9f8892b6-aa43-486f-aa85-35e98b86e696 id=0x7f0903ca)
+D/FragmentManager: Clearing non-config state for g{4e4aea35} (9f8892b6-aa43-486f-aa85-35e98b86e696 id=0x7f0903ca)
+D/FragmentManager: onCleared called for FragmentManagerViewModel{8dbdac1} Fragments () Child Non Config () ViewModelStores ()
+V/FragmentManager: computeExpectedState() of -1 for g{4e4aea35} (9f8892b6-aa43-486f-aa85-35e98b86e696 id=0x7f0903ca)
+D/FragmentManager: movefrom ATTACHED: g{4e4aea35} (9f8892b6-aa43-486f-aa85-35e98b86e696 id=0x7f0903ca)
+D/FragmentManager: initState called for fragment: g{4e4aea35} (9f8892b6-aa43-486f-aa85-35e98b86e696 id=0x7f0903ca)
+V/FragmentManager: SpecialEffectsController: Operation {1a451d4d} {mFinalState = REMOVED} {mLifecycleImpact = REMOVING} {mFragment = g{32464a14} (d980b7d7-0eda-4b5e-bf4f-d4d8fbd98a87 id=0x7f0903ca)} has called complete.
+V/FragmentManager: SpecialEffectsController: Removing view android.widget.RelativeLayout@21a947fe from container com.simplemobiletools.commons.views.MyViewPager@7fa98a66
+V/FragmentManager: computeExpectedState() of -1 for g{32464a14} (d980b7d7-0eda-4b5e-bf4f-d4d8fbd98a87 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of -1 for g{32464a14} (d980b7d7-0eda-4b5e-bf4f-d4d8fbd98a87 id=0x7f0903ca)
+D/FragmentManager: movefrom CREATE_VIEW: g{32464a14} (d980b7d7-0eda-4b5e-bf4f-d4d8fbd98a87 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of -1 for g{32464a14} (d980b7d7-0eda-4b5e-bf4f-d4d8fbd98a87 id=0x7f0903ca)
+D/FragmentManager: movefrom CREATED: g{32464a14} (d980b7d7-0eda-4b5e-bf4f-d4d8fbd98a87 id=0x7f0903ca)
+D/FragmentManager: Clearing non-config state for g{32464a14} (d980b7d7-0eda-4b5e-bf4f-d4d8fbd98a87 id=0x7f0903ca)
+D/FragmentManager: onCleared called for FragmentManagerViewModel{6aba2b86} Fragments () Child Non Config () ViewModelStores ()
+V/FragmentManager: computeExpectedState() of -1 for g{32464a14} (d980b7d7-0eda-4b5e-bf4f-d4d8fbd98a87 id=0x7f0903ca)
+D/FragmentManager: movefrom ATTACHED: g{32464a14} (d980b7d7-0eda-4b5e-bf4f-d4d8fbd98a87 id=0x7f0903ca)
+D/FragmentManager: initState called for fragment: g{32464a14} (d980b7d7-0eda-4b5e-bf4f-d4d8fbd98a87 id=0x7f0903ca)
+I/IsakaiProbe: layout android.app.HeadlessWindow$2 0,0,640,800
+I/IsakaiProbe: layout androidx.appcompat.widget.FitWindowsFrameLayout 0,0,640,800
+I/IsakaiProbe: layout androidx.appcompat.widget.ContentFrameLayout 0,0,640,800
+I/IsakaiProbe: layout androidx.coordinatorlayout.widget.CoordinatorLayout 0,0,640,800
+I/IsakaiProbe: layout com.google.android.material.appbar.MaterialToolbar 0,0,640,64
+I/IsakaiProbe: layout androidx.appcompat.widget.ActionMenuView 472,0,640,56
+I/IsakaiProbe: layout android.widget.LinearLayout 0,64,640,800
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyViewPager 0,0,640,736
+I/IsakaiProbe: layout androidx.viewpager.widget.PagerTabStrip 0,0,640,33
+I/IsakaiProbe: layout android.widget.RelativeLayout 0,33,640,736
+I/IsakaiProbe: layout android.widget.ScrollView 0,0,240,28
+I/IsakaiProbe: layout android.widget.RelativeLayout 0,0,240,28
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyEditText 0,0,240,28
+I/IsakaiProbe: layout android.widget.RelativeLayout -640,33,0,736
+I/IsakaiProbe: layout android.widget.ScrollView 0,0,172,28
+I/IsakaiProbe: layout android.widget.RelativeLayout 0,0,172,28
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyEditText 0,0,172,28
+I/IsakaiProbe: layout android.widget.RelativeLayout 640,33,1280,736
+I/IsakaiProbe: layout android.widget.ScrollView 0,0,122,28
+I/IsakaiProbe: layout android.widget.RelativeLayout 0,0,122,28
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyEditText 0,0,122,28
+I/IsakaiProbe: layout android.app.HeadlessWindow$2 0,0,640,800
+I/IsakaiProbe: layout androidx.appcompat.widget.FitWindowsFrameLayout 0,0,640,800
+I/IsakaiProbe: layout androidx.appcompat.widget.ContentFrameLayout 0,0,640,800
+I/IsakaiProbe: layout androidx.coordinatorlayout.widget.CoordinatorLayout 0,0,640,800
+I/IsakaiProbe: layout com.google.android.material.appbar.MaterialToolbar 0,0,640,64
+I/IsakaiProbe: layout androidx.appcompat.widget.ActionMenuView 472,0,640,56
+I/IsakaiProbe: layout android.widget.LinearLayout 0,64,640,800
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyViewPager 0,0,640,736
+I/IsakaiProbe: layout androidx.viewpager.widget.PagerTabStrip 0,0,640,33
+I/IsakaiProbe: layout android.widget.RelativeLayout 0,33,640,736
+I/IsakaiProbe: layout android.widget.ScrollView 0,0,240,28
+I/IsakaiProbe: layout android.widget.RelativeLayout 0,0,240,28
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyEditText 0,0,240,28
+I/IsakaiProbe: layout android.widget.RelativeLayout -640,33,0,736
+I/IsakaiProbe: layout android.widget.ScrollView 0,0,172,28
+I/IsakaiProbe: layout android.widget.RelativeLayout 0,0,172,28
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyEditText 0,0,172,28
+I/IsakaiProbe: layout android.widget.RelativeLayout 640,33,1280,736
+I/IsakaiProbe: layout android.widget.ScrollView 0,0,122,28
+I/IsakaiProbe: layout android.widget.RelativeLayout 0,0,122,28
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyEditText 0,0,122,28
+ISAKAI_UNSUPPORTED AnimatedStateListDrawable.transitions at w2.c.b bci=2
+ISAKAI_UNSUPPORTED Drawable.tint: unsupported android.graphics.drawable.StateListDrawable; solid, gradient, bitmap, and vector path drawables support SRC_IN tint at z2.b.h bci=2
+D/ViewUtils: Could not find method makeOptionalFitsSystemWindows. Oh well...
+I/IsakaiProbe: layout android.app.HeadlessWindow$2 0,0,640,800
+I/IsakaiProbe: layout androidx.appcompat.widget.FitWindowsFrameLayout 0,0,640,800
+I/IsakaiProbe: layout androidx.appcompat.widget.ContentFrameLayout 0,0,640,800
+I/IsakaiProbe: layout androidx.coordinatorlayout.widget.CoordinatorLayout 0,0,640,800
+I/IsakaiProbe: layout com.google.android.material.appbar.MaterialToolbar 0,0,640,64
+I/IsakaiProbe: layout androidx.appcompat.widget.ActionMenuView 472,0,640,56
+I/IsakaiProbe: layout android.widget.LinearLayout 0,64,640,800
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyViewPager 0,0,640,736
+I/IsakaiProbe: layout androidx.viewpager.widget.PagerTabStrip 0,0,640,33
+I/IsakaiProbe: layout android.widget.RelativeLayout 0,33,640,736
+I/IsakaiProbe: layout android.widget.ScrollView 0,0,240,28
+I/IsakaiProbe: layout android.widget.RelativeLayout 0,0,240,28
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyEditText 0,0,240,28
+I/IsakaiProbe: layout android.widget.RelativeLayout -640,33,0,736
+I/IsakaiProbe: layout android.widget.ScrollView 0,0,172,28
+I/IsakaiProbe: layout android.widget.RelativeLayout 0,0,172,28
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyEditText 0,0,172,28
+I/IsakaiProbe: layout android.widget.RelativeLayout 640,33,1280,736
+I/IsakaiProbe: layout android.widget.ScrollView 0,0,122,28
+I/IsakaiProbe: layout android.widget.RelativeLayout 0,0,122,28
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyEditText 0,0,122,28
+isakai: new root android.app.DialogOverlayGroup bounds=0,0,0x0
+I/IsakaiProbe: layout android.app.DialogOverlayGroup 0,0,640,800
+I/IsakaiProbe: layout android.app.HeadlessWindow$2 0,0,640,800
+I/IsakaiProbe: layout androidx.appcompat.widget.FitWindowsFrameLayout 0,0,640,800
+I/IsakaiProbe: layout androidx.appcompat.widget.ContentFrameLayout 0,0,640,800
+I/IsakaiProbe: layout androidx.coordinatorlayout.widget.CoordinatorLayout 0,0,640,800
+I/IsakaiProbe: layout com.google.android.material.appbar.MaterialToolbar 0,0,640,64
+I/IsakaiProbe: layout androidx.appcompat.widget.ActionMenuView 472,0,640,56
+I/IsakaiProbe: layout android.widget.LinearLayout 0,64,640,800
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyViewPager 0,0,640,736
+I/IsakaiProbe: layout androidx.viewpager.widget.PagerTabStrip 0,0,640,33
+I/IsakaiProbe: layout android.widget.RelativeLayout 0,33,640,736
+I/IsakaiProbe: layout android.widget.ScrollView 0,0,240,28
+I/IsakaiProbe: layout android.widget.RelativeLayout 0,0,240,28
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyEditText 0,0,240,28
+I/IsakaiProbe: layout android.widget.RelativeLayout -640,33,0,736
+I/IsakaiProbe: layout android.widget.ScrollView 0,0,172,28
+I/IsakaiProbe: layout android.widget.RelativeLayout 0,0,172,28
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyEditText 0,0,172,28
+I/IsakaiProbe: layout android.widget.RelativeLayout 640,33,1280,736
+I/IsakaiProbe: layout android.widget.ScrollView 0,0,122,28
+I/IsakaiProbe: layout android.widget.RelativeLayout 0,0,122,28
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyEditText 0,0,122,28
+I/IsakaiProbe: layout android.app.HeadlessWindow$1 269,325,371,474
+I/IsakaiProbe: layout android.app.HeadlessWindow$2 0,0,102,149
+I/IsakaiProbe: layout androidx.appcompat.widget.FitWindowsFrameLayout 0,0,102,149
+I/IsakaiProbe: layout androidx.appcompat.widget.ContentFrameLayout 0,0,102,149
+I/IsakaiProbe: layout androidx.appcompat.widget.AlertDialogLayout 0,0,102,149
+I/IsakaiProbe: layout android.widget.FrameLayout 0,0,102,124
+I/IsakaiProbe: layout android.widget.FrameLayout 0,0,102,124
+I/IsakaiProbe: layout android.widget.LinearLayout 0,0,102,124
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyTextInputLayout 0,8,102,33
+I/IsakaiProbe: layout com.google.android.material.textfield.TextInputEditText 0,0,102,25
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyTextView 0,49,102,74
+I/IsakaiProbe: layout android.widget.RadioGroup 0,74,102,124
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyCompatRadioButton 0,0,102,25
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyCompatRadioButton 0,25,102,50
+I/IsakaiProbe: layout android.widget.ScrollView 0,124,102,149
+I/IsakaiProbe: layout androidx.appcompat.widget.ButtonBarLayout 0,0,102,25
+I/IsakaiProbe: layout android.app.DialogOverlayGroup 0,0,640,800
+I/IsakaiProbe: layout android.app.HeadlessWindow$2 0,0,640,800
+I/IsakaiProbe: layout androidx.appcompat.widget.FitWindowsFrameLayout 0,0,640,800
+I/IsakaiProbe: layout androidx.appcompat.widget.ContentFrameLayout 0,0,640,800
+I/IsakaiProbe: layout androidx.coordinatorlayout.widget.CoordinatorLayout 0,0,640,800
+I/IsakaiProbe: layout com.google.android.material.appbar.MaterialToolbar 0,0,640,64
+I/IsakaiProbe: layout androidx.appcompat.widget.ActionMenuView 472,0,640,56
+I/IsakaiProbe: layout android.widget.LinearLayout 0,64,640,800
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyViewPager 0,0,640,736
+I/IsakaiProbe: layout androidx.viewpager.widget.PagerTabStrip 0,0,640,33
+I/IsakaiProbe: layout android.widget.RelativeLayout 0,33,640,736
+I/IsakaiProbe: layout android.widget.ScrollView 0,0,240,28
+I/IsakaiProbe: layout android.widget.RelativeLayout 0,0,240,28
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyEditText 0,0,240,28
+I/IsakaiProbe: layout android.widget.RelativeLayout -640,33,0,736
+I/IsakaiProbe: layout android.widget.ScrollView 0,0,172,28
+I/IsakaiProbe: layout android.widget.RelativeLayout 0,0,172,28
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyEditText 0,0,172,28
+I/IsakaiProbe: layout android.widget.RelativeLayout 640,33,1280,736
+I/IsakaiProbe: layout android.widget.ScrollView 0,0,122,28
+I/IsakaiProbe: layout android.widget.RelativeLayout 0,0,122,28
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyEditText 0,0,122,28
+I/IsakaiProbe: layout android.app.HeadlessWindow$1 269,325,371,474
+I/IsakaiProbe: layout android.app.HeadlessWindow$2 0,0,102,149
+I/IsakaiProbe: layout androidx.appcompat.widget.FitWindowsFrameLayout 0,0,102,149
+I/IsakaiProbe: layout androidx.appcompat.widget.ContentFrameLayout 0,0,102,149
+I/IsakaiProbe: layout androidx.appcompat.widget.AlertDialogLayout 0,0,102,149
+I/IsakaiProbe: layout android.widget.FrameLayout 0,0,102,124
+I/IsakaiProbe: layout android.widget.FrameLayout 0,0,102,124
+I/IsakaiProbe: layout android.widget.LinearLayout 0,0,102,124
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyTextInputLayout 0,8,102,33
+I/IsakaiProbe: layout com.google.android.material.textfield.TextInputEditText 0,0,102,25
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyTextView 0,49,102,74
+I/IsakaiProbe: layout android.widget.RadioGroup 0,74,102,124
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyCompatRadioButton 0,0,102,25
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyCompatRadioButton 0,25,102,50
+I/IsakaiProbe: layout android.widget.ScrollView 0,124,102,149
+I/IsakaiProbe: layout androidx.appcompat.widget.ButtonBarLayout 0,0,102,25
+I/IsakaiProbe: layout android.app.DialogOverlayGroup 0,0,640,800
+I/IsakaiProbe: layout android.app.HeadlessWindow$2 0,0,640,800
+I/IsakaiProbe: layout androidx.appcompat.widget.FitWindowsFrameLayout 0,0,640,800
+I/IsakaiProbe: layout androidx.appcompat.widget.ContentFrameLayout 0,0,640,800
+I/IsakaiProbe: layout androidx.coordinatorlayout.widget.CoordinatorLayout 0,0,640,800
+I/IsakaiProbe: layout com.google.android.material.appbar.MaterialToolbar 0,0,640,64
+I/IsakaiProbe: layout androidx.appcompat.widget.ActionMenuView 424,0,640,56
+I/IsakaiProbe: layout android.widget.LinearLayout 0,64,640,800
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyViewPager 0,0,640,736
+I/IsakaiProbe: layout androidx.viewpager.widget.PagerTabStrip 0,0,640,33
+I/IsakaiProbe: layout android.widget.RelativeLayout 0,33,640,736
+I/IsakaiProbe: layout android.widget.ScrollView 0,0,263,28
+I/IsakaiProbe: layout android.widget.RelativeLayout 0,0,263,28
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyEditText 0,0,263,28
+I/IsakaiProbe: layout android.widget.RelativeLayout -640,33,0,736
+I/IsakaiProbe: layout android.widget.ScrollView 0,0,172,28
+I/IsakaiProbe: layout android.widget.RelativeLayout 0,0,172,28
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyEditText 0,0,172,28
+I/IsakaiProbe: layout android.widget.RelativeLayout 640,33,1280,736
+I/IsakaiProbe: layout android.widget.ScrollView 0,0,122,28
+I/IsakaiProbe: layout android.widget.RelativeLayout 0,0,122,28
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyEditText 0,0,122,28
+I/IsakaiProbe: layout android.app.HeadlessWindow$1 269,325,371,474
+I/IsakaiProbe: layout android.app.HeadlessWindow$2 0,0,102,149
+I/IsakaiProbe: layout androidx.appcompat.widget.FitWindowsFrameLayout 0,0,102,149
+I/IsakaiProbe: layout androidx.appcompat.widget.ContentFrameLayout 0,0,102,149
+I/IsakaiProbe: layout androidx.appcompat.widget.AlertDialogLayout 0,0,102,149
+I/IsakaiProbe: layout android.widget.FrameLayout 0,0,102,124
+I/IsakaiProbe: layout android.widget.FrameLayout 0,0,102,124
+I/IsakaiProbe: layout android.widget.LinearLayout 0,0,102,124
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyTextInputLayout 0,8,102,33
+I/IsakaiProbe: layout com.google.android.material.textfield.TextInputEditText 0,0,102,25
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyTextView 0,49,102,74
+I/IsakaiProbe: layout android.widget.RadioGroup 0,74,102,124
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyCompatRadioButton 0,0,102,25
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyCompatRadioButton 0,25,102,50
+I/IsakaiProbe: layout android.widget.ScrollView 0,124,102,149
+I/IsakaiProbe: layout androidx.appcompat.widget.ButtonBarLayout 0,0,102,25
+isakai: new root android.app.HeadlessWindow$2 bounds=0,0,640x800
+I/IsakaiProbe: layout android.app.HeadlessWindow$2 0,0,640,800
+I/IsakaiProbe: layout androidx.appcompat.widget.FitWindowsFrameLayout 0,0,640,800
+I/IsakaiProbe: layout androidx.appcompat.widget.ContentFrameLayout 0,0,640,800
+I/IsakaiProbe: layout androidx.coordinatorlayout.widget.CoordinatorLayout 0,0,640,800
+I/IsakaiProbe: layout com.google.android.material.appbar.MaterialToolbar 0,0,640,64
+I/IsakaiProbe: layout androidx.appcompat.widget.ActionMenuView 424,0,640,56
+I/IsakaiProbe: layout android.widget.LinearLayout 0,64,640,800
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyViewPager 0,0,640,736
+I/IsakaiProbe: layout androidx.viewpager.widget.PagerTabStrip 0,0,640,33
+I/IsakaiProbe: layout android.widget.RelativeLayout 0,33,640,736
+I/IsakaiProbe: layout android.widget.ScrollView 0,0,263,28
+I/IsakaiProbe: layout android.widget.RelativeLayout 0,0,263,28
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyEditText 0,0,263,28
+I/IsakaiProbe: layout android.widget.RelativeLayout -640,33,0,736
+I/IsakaiProbe: layout android.widget.ScrollView 0,0,172,28
+I/IsakaiProbe: layout android.widget.RelativeLayout 0,0,172,28
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyEditText 0,0,172,28
+I/IsakaiProbe: layout android.widget.RelativeLayout 640,33,1280,736
+I/IsakaiProbe: layout android.widget.ScrollView 0,0,122,28
+I/IsakaiProbe: layout android.widget.RelativeLayout 0,0,122,28
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyEditText 0,0,122,28
+I/IsakaiProbe: layout android.app.HeadlessWindow$2 0,0,640,800
+I/IsakaiProbe: layout androidx.appcompat.widget.FitWindowsFrameLayout 0,0,640,800
+I/IsakaiProbe: layout androidx.appcompat.widget.ContentFrameLayout 0,0,640,800
+I/IsakaiProbe: layout androidx.coordinatorlayout.widget.CoordinatorLayout 0,0,640,800
+I/IsakaiProbe: layout com.google.android.material.appbar.MaterialToolbar 0,0,640,64
+I/IsakaiProbe: layout androidx.appcompat.widget.ActionMenuView 424,0,640,56
+I/IsakaiProbe: layout android.widget.LinearLayout 0,64,640,800
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyViewPager 0,0,640,736
+I/IsakaiProbe: layout androidx.viewpager.widget.PagerTabStrip 0,0,640,33
+I/IsakaiProbe: layout android.widget.RelativeLayout 0,33,640,736
+I/IsakaiProbe: layout android.widget.ScrollView 0,0,263,28
+I/IsakaiProbe: layout android.widget.RelativeLayout 0,0,263,28
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyEditText 0,0,263,28
+I/IsakaiProbe: layout android.widget.RelativeLayout -640,33,0,736
+I/IsakaiProbe: layout android.widget.ScrollView 0,0,172,28
+I/IsakaiProbe: layout android.widget.RelativeLayout 0,0,172,28
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyEditText 0,0,172,28
+I/IsakaiProbe: layout android.widget.RelativeLayout 640,33,1280,736
+I/IsakaiProbe: layout android.widget.ScrollView 0,0,122,28
+I/IsakaiProbe: layout android.widget.RelativeLayout 0,0,122,28
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyEditText 0,0,122,28
+I/IsakaiProbe: layout android.app.HeadlessWindow$2 0,0,640,800
+I/IsakaiProbe: layout androidx.appcompat.widget.FitWindowsFrameLayout 0,0,640,800
+I/IsakaiProbe: layout androidx.appcompat.widget.ContentFrameLayout 0,0,640,800
+I/IsakaiProbe: layout androidx.coordinatorlayout.widget.CoordinatorLayout 0,0,640,800
+I/IsakaiProbe: layout com.google.android.material.appbar.MaterialToolbar 0,0,640,64
+I/IsakaiProbe: layout androidx.appcompat.widget.ActionMenuView 424,0,640,56
+I/IsakaiProbe: layout android.widget.LinearLayout 0,64,640,800
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyViewPager 0,0,640,736
+I/IsakaiProbe: layout androidx.viewpager.widget.PagerTabStrip 0,0,640,33
+I/IsakaiProbe: layout android.widget.RelativeLayout 0,33,640,736
+I/IsakaiProbe: layout android.widget.ScrollView 0,0,263,28
+I/IsakaiProbe: layout android.widget.RelativeLayout 0,0,263,28
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyEditText 0,0,263,28
+I/IsakaiProbe: layout android.widget.RelativeLayout -640,33,0,736
+I/IsakaiProbe: layout android.widget.ScrollView 0,0,172,28
+I/IsakaiProbe: layout android.widget.RelativeLayout 0,0,172,28
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyEditText 0,0,172,28
+I/IsakaiProbe: layout android.widget.RelativeLayout 640,33,1280,736
+I/IsakaiProbe: layout android.widget.ScrollView 0,0,122,28
+I/IsakaiProbe: layout android.widget.RelativeLayout 0,0,122,28
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyEditText 0,0,122,28
+I/IsakaiProbe: layout android.app.HeadlessWindow$2 0,0,640,800
+I/IsakaiProbe: layout androidx.appcompat.widget.FitWindowsFrameLayout 0,0,640,800
+I/IsakaiProbe: layout androidx.appcompat.widget.ContentFrameLayout 0,0,640,800
+I/IsakaiProbe: layout androidx.coordinatorlayout.widget.CoordinatorLayout 0,0,640,800
+I/IsakaiProbe: layout com.google.android.material.appbar.MaterialToolbar 0,0,640,64
+I/IsakaiProbe: layout androidx.appcompat.widget.ActionMenuView 424,0,640,56
+I/IsakaiProbe: layout android.widget.LinearLayout 0,64,640,800
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyViewPager 0,0,640,736
+I/IsakaiProbe: layout androidx.viewpager.widget.PagerTabStrip 0,0,640,33
+I/IsakaiProbe: layout android.widget.RelativeLayout 0,33,640,736
+I/IsakaiProbe: layout android.widget.ScrollView 0,0,263,28
+I/IsakaiProbe: layout android.widget.RelativeLayout 0,0,263,28
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyEditText 0,0,263,28
+I/IsakaiProbe: layout android.widget.RelativeLayout -640,33,0,736
+I/IsakaiProbe: layout android.widget.ScrollView 0,0,172,28
+I/IsakaiProbe: layout android.widget.RelativeLayout 0,0,172,28
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyEditText 0,0,172,28
+I/IsakaiProbe: layout android.widget.RelativeLayout 640,33,1280,736
+I/IsakaiProbe: layout android.widget.ScrollView 0,0,122,28
+I/IsakaiProbe: layout android.widget.RelativeLayout 0,0,122,28
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyEditText 0,0,122,28
+ISAKAI_UNSUPPORTED RippleDrawable.animation at h6.n.g bci=507
+I/IsakaiProbe: layout android.app.HeadlessWindow$2 0,0,640,800
+I/IsakaiProbe: layout androidx.appcompat.widget.FitWindowsFrameLayout 0,0,640,800
+I/IsakaiProbe: layout androidx.appcompat.widget.ContentFrameLayout 0,0,640,800
+I/IsakaiProbe: layout androidx.coordinatorlayout.widget.CoordinatorLayout 0,0,640,800
+I/IsakaiProbe: layout com.google.android.material.appbar.MaterialToolbar 0,0,640,64
+I/IsakaiProbe: layout androidx.appcompat.widget.ActionMenuView 424,0,640,56
+I/IsakaiProbe: layout android.widget.LinearLayout 0,64,640,800
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyViewPager 0,0,640,736
+I/IsakaiProbe: layout androidx.viewpager.widget.PagerTabStrip 0,0,640,33
+I/IsakaiProbe: layout android.widget.RelativeLayout 0,33,640,736
+I/IsakaiProbe: layout android.widget.ScrollView 0,0,263,28
+I/IsakaiProbe: layout android.widget.RelativeLayout 0,0,263,28
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyEditText 0,0,263,28
+I/IsakaiProbe: layout android.widget.RelativeLayout -640,33,0,736
+I/IsakaiProbe: layout android.widget.ScrollView 0,0,172,28
+I/IsakaiProbe: layout android.widget.RelativeLayout 0,0,172,28
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyEditText 0,0,172,28
+I/IsakaiProbe: layout android.widget.RelativeLayout 640,33,1280,736
+I/IsakaiProbe: layout android.widget.ScrollView 0,0,122,28
+I/IsakaiProbe: layout android.widget.RelativeLayout 0,0,122,28
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyEditText 0,0,122,28
+D/ViewUtils: Could not find method makeOptionalFitsSystemWindows. Oh well...
+isakai: new root android.app.DialogOverlayGroup bounds=0,0,0x0
+I/IsakaiProbe: layout android.widget.RelativeLayout 8,8,97,33
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyTextView 0,0,89,25
+I/IsakaiProbe: layout android.widget.RelativeLayout 8,90,151,140
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyTextView 0,25,143,50
+I/IsakaiProbe: layout android.widget.RelativeLayout 8,156,151,206
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyTextView 0,25,143,50
+I/IsakaiProbe: layout android.widget.RelativeLayout 8,222,151,272
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyTextView 0,25,143,50
+I/IsakaiProbe: layout android.widget.RelativeLayout 8,288,226,338
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyTextView 0,25,218,50
+I/IsakaiProbe: layout android.widget.RelativeLayout 8,8,97,33
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyTextView 0,0,89,25
+I/IsakaiProbe: layout android.widget.RelativeLayout 8,90,151,140
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyTextView 0,25,143,50
+I/IsakaiProbe: layout android.widget.RelativeLayout 8,156,151,206
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyTextView 0,25,143,50
+I/IsakaiProbe: layout android.widget.RelativeLayout 8,222,151,272
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyTextView 0,25,143,50
+I/IsakaiProbe: layout android.widget.RelativeLayout 8,288,226,338
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyTextView 0,25,218,50
+I/IsakaiProbe: layout android.widget.RelativeLayout 8,8,226,33
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyTextView 0,0,89,25
+I/IsakaiProbe: layout android.widget.RelativeLayout 8,49,226,74
+I/IsakaiProbe: layout android.widget.RelativeLayout 8,90,226,140
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyTextView 0,25,143,50
+I/IsakaiProbe: layout android.widget.RelativeLayout 8,156,226,206
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyTextView 0,25,143,50
+I/IsakaiProbe: layout android.widget.RelativeLayout 8,222,226,272
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyTextView 0,25,143,50
+I/IsakaiProbe: layout android.widget.RelativeLayout 8,288,226,338
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyTextView 0,25,218,50
+I/IsakaiProbe: layout android.widget.RelativeLayout 8,354,226,379
+I/IsakaiProbe: layout android.app.DialogOverlayGroup 0,0,640,800
+I/IsakaiProbe: layout android.app.HeadlessWindow$2 0,0,640,800
+I/IsakaiProbe: layout androidx.appcompat.widget.FitWindowsFrameLayout 0,0,640,800
+I/IsakaiProbe: layout androidx.appcompat.widget.ContentFrameLayout 0,0,640,800
+I/IsakaiProbe: layout androidx.coordinatorlayout.widget.CoordinatorLayout 0,0,640,800
+I/IsakaiProbe: layout com.google.android.material.appbar.MaterialToolbar 0,0,640,64
+I/IsakaiProbe: layout androidx.appcompat.widget.ActionMenuView 424,0,640,56
+I/IsakaiProbe: layout android.widget.LinearLayout 0,64,640,800
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyViewPager 0,0,640,736
+I/IsakaiProbe: layout androidx.viewpager.widget.PagerTabStrip 0,0,640,33
+I/IsakaiProbe: layout android.widget.RelativeLayout 0,33,640,736
+I/IsakaiProbe: layout android.widget.ScrollView 0,0,263,28
+I/IsakaiProbe: layout android.widget.RelativeLayout 0,0,263,28
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyEditText 0,0,263,28
+I/IsakaiProbe: layout android.widget.RelativeLayout -640,33,0,736
+I/IsakaiProbe: layout android.widget.ScrollView 0,0,172,28
+I/IsakaiProbe: layout android.widget.RelativeLayout 0,0,172,28
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyEditText 0,0,172,28
+I/IsakaiProbe: layout android.widget.RelativeLayout 640,33,1280,736
+I/IsakaiProbe: layout android.widget.ScrollView 0,0,122,28
+I/IsakaiProbe: layout android.widget.RelativeLayout 0,0,122,28
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyEditText 0,0,122,28
+I/IsakaiProbe: layout android.app.HeadlessWindow$1 203,190,437,610
+I/IsakaiProbe: layout android.app.HeadlessWindow$2 0,0,234,420
+I/IsakaiProbe: layout androidx.appcompat.widget.FitWindowsFrameLayout 0,0,234,420
+I/IsakaiProbe: layout androidx.appcompat.widget.ContentFrameLayout 0,0,234,420
+I/IsakaiProbe: layout androidx.appcompat.widget.AlertDialogLayout 0,0,234,420
+I/IsakaiProbe: layout android.widget.FrameLayout 0,0,234,395
+I/IsakaiProbe: layout android.widget.FrameLayout 0,0,234,395
+I/IsakaiProbe: layout androidx.coordinatorlayout.widget.CoordinatorLayout 0,0,234,395
+I/IsakaiProbe: layout androidx.core.widget.NestedScrollView 0,8,234,395
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyRecyclerView 0,0,234,387
+I/IsakaiProbe: layout android.widget.RelativeLayout 8,8,226,33
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyTextView 0,0,89,25
+I/IsakaiProbe: layout android.widget.RelativeLayout 8,49,226,74
+I/IsakaiProbe: layout android.widget.RelativeLayout 8,90,226,140
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyTextView 0,25,143,50
+I/IsakaiProbe: layout android.widget.RelativeLayout 8,156,226,206
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyTextView 0,25,143,50
+I/IsakaiProbe: layout android.widget.RelativeLayout 8,222,226,272
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyTextView 0,25,143,50
+I/IsakaiProbe: layout android.widget.RelativeLayout 8,288,226,338
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyTextView 0,25,218,50
+I/IsakaiProbe: layout android.widget.RelativeLayout 8,354,226,379
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyFloatingActionButton 162,323,218,379
+I/IsakaiProbe: layout android.widget.ScrollView 0,395,234,420
+I/IsakaiProbe: layout androidx.appcompat.widget.ButtonBarLayout 0,0,234,25
+I/IsakaiProbe: layout android.widget.RelativeLayout 8,8,226,33
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyTextView 0,0,89,25
+I/IsakaiProbe: layout android.widget.RelativeLayout 8,49,226,74
+I/IsakaiProbe: layout android.widget.RelativeLayout 8,90,226,140
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyTextView 0,25,143,50
+I/IsakaiProbe: layout android.widget.RelativeLayout 8,156,226,206
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyTextView 0,25,143,50
+I/IsakaiProbe: layout android.widget.RelativeLayout 8,222,226,272
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyTextView 0,25,143,50
+I/IsakaiProbe: layout android.widget.RelativeLayout 8,288,226,338
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyTextView 0,25,218,50
+I/IsakaiProbe: layout android.widget.RelativeLayout 8,354,226,379
+I/IsakaiProbe: layout android.widget.RelativeLayout 8,8,226,33
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyTextView 0,0,89,25
+I/IsakaiProbe: layout android.widget.RelativeLayout 8,49,226,74
+I/IsakaiProbe: layout android.widget.RelativeLayout 8,90,226,140
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyTextView 0,25,143,50
+I/IsakaiProbe: layout android.widget.RelativeLayout 8,156,226,206
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyTextView 0,25,143,50
+I/IsakaiProbe: layout android.widget.RelativeLayout 8,222,226,272
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyTextView 0,25,143,50
+I/IsakaiProbe: layout android.widget.RelativeLayout 8,288,226,338
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyTextView 0,25,218,50
+I/IsakaiProbe: layout android.widget.RelativeLayout 8,354,226,379
+I/IsakaiProbe: layout android.widget.RelativeLayout 8,8,226,33
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyTextView 0,0,89,25
+I/IsakaiProbe: layout android.widget.RelativeLayout 8,49,226,74
+I/IsakaiProbe: layout android.widget.RelativeLayout 8,90,226,140
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyTextView 0,25,143,50
+I/IsakaiProbe: layout android.widget.RelativeLayout 8,156,226,206
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyTextView 0,25,143,50
+I/IsakaiProbe: layout android.widget.RelativeLayout 8,222,226,272
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyTextView 0,25,143,50
+I/IsakaiProbe: layout android.widget.RelativeLayout 8,288,226,338
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyTextView 0,25,218,50
+I/IsakaiProbe: layout android.widget.RelativeLayout 8,354,226,379
+I/IsakaiProbe: layout android.app.DialogOverlayGroup 0,0,640,800
+I/IsakaiProbe: layout android.app.HeadlessWindow$2 0,0,640,800
+I/IsakaiProbe: layout androidx.appcompat.widget.FitWindowsFrameLayout 0,0,640,800
+I/IsakaiProbe: layout androidx.appcompat.widget.ContentFrameLayout 0,0,640,800
+I/IsakaiProbe: layout androidx.coordinatorlayout.widget.CoordinatorLayout 0,0,640,800
+I/IsakaiProbe: layout com.google.android.material.appbar.MaterialToolbar 0,0,640,64
+I/IsakaiProbe: layout androidx.appcompat.widget.ActionMenuView 424,0,640,56
+I/IsakaiProbe: layout android.widget.LinearLayout 0,64,640,800
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyViewPager 0,0,640,736
+I/IsakaiProbe: layout androidx.viewpager.widget.PagerTabStrip 0,0,640,33
+I/IsakaiProbe: layout android.widget.RelativeLayout 0,33,640,736
+I/IsakaiProbe: layout android.widget.ScrollView 0,0,263,28
+I/IsakaiProbe: layout android.widget.RelativeLayout 0,0,263,28
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyEditText 0,0,263,28
+I/IsakaiProbe: layout android.widget.RelativeLayout -640,33,0,736
+I/IsakaiProbe: layout android.widget.ScrollView 0,0,172,28
+I/IsakaiProbe: layout android.widget.RelativeLayout 0,0,172,28
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyEditText 0,0,172,28
+I/IsakaiProbe: layout android.widget.RelativeLayout 640,33,1280,736
+I/IsakaiProbe: layout android.widget.ScrollView 0,0,122,28
+I/IsakaiProbe: layout android.widget.RelativeLayout 0,0,122,28
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyEditText 0,0,122,28
+I/IsakaiProbe: layout android.app.HeadlessWindow$1 203,190,437,610
+I/IsakaiProbe: layout android.app.HeadlessWindow$2 0,0,234,420
+I/IsakaiProbe: layout androidx.appcompat.widget.FitWindowsFrameLayout 0,0,234,420
+I/IsakaiProbe: layout androidx.appcompat.widget.ContentFrameLayout 0,0,234,420
+I/IsakaiProbe: layout androidx.appcompat.widget.AlertDialogLayout 0,0,234,420
+I/IsakaiProbe: layout android.widget.FrameLayout 0,0,234,395
+I/IsakaiProbe: layout android.widget.FrameLayout 0,0,234,395
+I/IsakaiProbe: layout androidx.coordinatorlayout.widget.CoordinatorLayout 0,0,234,395
+I/IsakaiProbe: layout androidx.core.widget.NestedScrollView 0,8,234,395
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyRecyclerView 0,0,234,387
+I/IsakaiProbe: layout android.widget.RelativeLayout 8,8,226,33
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyTextView 0,0,89,25
+I/IsakaiProbe: layout android.widget.RelativeLayout 8,49,226,74
+I/IsakaiProbe: layout android.widget.RelativeLayout 8,90,226,140
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyTextView 0,25,143,50
+I/IsakaiProbe: layout android.widget.RelativeLayout 8,156,226,206
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyTextView 0,25,143,50
+I/IsakaiProbe: layout android.widget.RelativeLayout 8,222,226,272
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyTextView 0,25,143,50
+I/IsakaiProbe: layout android.widget.RelativeLayout 8,288,226,338
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyTextView 0,25,218,50
+I/IsakaiProbe: layout android.widget.RelativeLayout 8,354,226,379
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyFloatingActionButton 162,323,218,379
+I/IsakaiProbe: layout android.widget.ScrollView 0,395,234,420
+I/IsakaiProbe: layout androidx.appcompat.widget.ButtonBarLayout 0,0,234,25
+I/IsakaiProbe: layout android.widget.RelativeLayout 8,8,226,33
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyTextView 0,0,89,25
+I/IsakaiProbe: layout android.widget.RelativeLayout 8,49,226,74
+I/IsakaiProbe: layout android.widget.RelativeLayout 8,90,226,140
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyTextView 0,25,143,50
+I/IsakaiProbe: layout android.widget.RelativeLayout 8,156,226,206
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyTextView 0,25,143,50
+I/IsakaiProbe: layout android.widget.RelativeLayout 8,222,226,272
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyTextView 0,25,143,50
+I/IsakaiProbe: layout android.widget.RelativeLayout 8,288,226,338
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyTextView 0,25,218,50
+I/IsakaiProbe: layout android.widget.RelativeLayout 8,354,226,379
+I/IsakaiProbe: layout android.widget.RelativeLayout 8,8,226,33
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyTextView 0,0,89,25
+I/IsakaiProbe: layout android.widget.RelativeLayout 8,49,226,74
+I/IsakaiProbe: layout android.widget.RelativeLayout 8,90,226,140
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyTextView 0,25,143,50
+I/IsakaiProbe: layout android.widget.RelativeLayout 8,156,226,206
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyTextView 0,25,143,50
+I/IsakaiProbe: layout android.widget.RelativeLayout 8,222,226,272
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyTextView 0,25,143,50
+I/IsakaiProbe: layout android.widget.RelativeLayout 8,288,226,338
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyTextView 0,25,218,50
+I/IsakaiProbe: layout android.widget.RelativeLayout 8,354,226,379
+I/IsakaiProbe: layout android.widget.RelativeLayout 8,8,226,33
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyTextView 0,0,89,25
+I/IsakaiProbe: layout android.widget.RelativeLayout 8,49,226,74
+I/IsakaiProbe: layout android.widget.RelativeLayout 8,90,226,140
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyTextView 0,25,143,50
+I/IsakaiProbe: layout android.widget.RelativeLayout 8,156,226,206
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyTextView 0,25,143,50
+I/IsakaiProbe: layout android.widget.RelativeLayout 8,222,226,272
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyTextView 0,25,143,50
+I/IsakaiProbe: layout android.widget.RelativeLayout 8,288,226,338
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyTextView 0,25,218,50
+I/IsakaiProbe: layout android.widget.RelativeLayout 8,354,226,379
+I/IsakaiProbe: layout android.app.DialogOverlayGroup 0,0,640,800
+I/IsakaiProbe: layout android.app.HeadlessWindow$2 0,0,640,800
+I/IsakaiProbe: layout androidx.appcompat.widget.FitWindowsFrameLayout 0,0,640,800
+I/IsakaiProbe: layout androidx.appcompat.widget.ContentFrameLayout 0,0,640,800
+I/IsakaiProbe: layout androidx.coordinatorlayout.widget.CoordinatorLayout 0,0,640,800
+I/IsakaiProbe: layout com.google.android.material.appbar.MaterialToolbar 0,0,640,64
+I/IsakaiProbe: layout androidx.appcompat.widget.ActionMenuView 424,0,640,56
+I/IsakaiProbe: layout android.widget.LinearLayout 0,64,640,800
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyViewPager 0,0,640,736
+I/IsakaiProbe: layout androidx.viewpager.widget.PagerTabStrip 0,0,640,33
+I/IsakaiProbe: layout android.widget.RelativeLayout 0,33,640,736
+I/IsakaiProbe: layout android.widget.ScrollView 0,0,263,28
+I/IsakaiProbe: layout android.widget.RelativeLayout 0,0,263,28
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyEditText 0,0,263,28
+I/IsakaiProbe: layout android.widget.RelativeLayout -640,33,0,736
+I/IsakaiProbe: layout android.widget.ScrollView 0,0,172,28
+I/IsakaiProbe: layout android.widget.RelativeLayout 0,0,172,28
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyEditText 0,0,172,28
+I/IsakaiProbe: layout android.widget.RelativeLayout 640,33,1280,736
+I/IsakaiProbe: layout android.widget.ScrollView 0,0,122,28
+I/IsakaiProbe: layout android.widget.RelativeLayout 0,0,122,28
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyEditText 0,0,122,28
+I/IsakaiProbe: layout android.app.HeadlessWindow$1 203,190,437,610
+I/IsakaiProbe: layout android.app.HeadlessWindow$2 0,0,234,420
+I/IsakaiProbe: layout androidx.appcompat.widget.FitWindowsFrameLayout 0,0,234,420
+I/IsakaiProbe: layout androidx.appcompat.widget.ContentFrameLayout 0,0,234,420
+I/IsakaiProbe: layout androidx.appcompat.widget.AlertDialogLayout 0,0,234,420
+I/IsakaiProbe: layout android.widget.FrameLayout 0,0,234,395
+I/IsakaiProbe: layout android.widget.FrameLayout 0,0,234,395
+I/IsakaiProbe: layout androidx.coordinatorlayout.widget.CoordinatorLayout 0,0,234,395
+I/IsakaiProbe: layout androidx.core.widget.NestedScrollView 0,8,234,395
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyRecyclerView 0,0,234,387
+I/IsakaiProbe: layout android.widget.RelativeLayout 8,8,226,33
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyTextView 0,0,89,25
+I/IsakaiProbe: layout android.widget.RelativeLayout 8,49,226,74
+I/IsakaiProbe: layout android.widget.RelativeLayout 8,90,226,140
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyTextView 0,25,143,50
+I/IsakaiProbe: layout android.widget.RelativeLayout 8,156,226,206
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyTextView 0,25,143,50
+I/IsakaiProbe: layout android.widget.RelativeLayout 8,222,226,272
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyTextView 0,25,143,50
+I/IsakaiProbe: layout android.widget.RelativeLayout 8,288,226,338
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyTextView 0,25,218,50
+I/IsakaiProbe: layout android.widget.RelativeLayout 8,354,226,379
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyFloatingActionButton 162,323,218,379
+I/IsakaiProbe: layout android.widget.ScrollView 0,395,234,420
+I/IsakaiProbe: layout androidx.appcompat.widget.ButtonBarLayout 0,0,234,25
+I/IsakaiProbe: layout android.widget.RelativeLayout 8,8,226,33
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyTextView 0,0,89,25
+I/IsakaiProbe: layout android.widget.RelativeLayout 8,49,226,74
+I/IsakaiProbe: layout android.widget.RelativeLayout 8,90,226,140
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyTextView 0,25,143,50
+I/IsakaiProbe: layout android.widget.RelativeLayout 8,156,226,206
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyTextView 0,25,143,50
+I/IsakaiProbe: layout android.widget.RelativeLayout 8,222,226,272
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyTextView 0,25,143,50
+I/IsakaiProbe: layout android.widget.RelativeLayout 8,288,226,338
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyTextView 0,25,218,50
+I/IsakaiProbe: layout android.widget.RelativeLayout 8,354,226,379
+I/IsakaiProbe: layout android.widget.RelativeLayout 8,8,226,33
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyTextView 0,0,89,25
+I/IsakaiProbe: layout android.widget.RelativeLayout 8,49,226,74
+I/IsakaiProbe: layout android.widget.RelativeLayout 8,90,226,140
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyTextView 0,25,143,50
+I/IsakaiProbe: layout android.widget.RelativeLayout 8,156,226,206
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyTextView 0,25,143,50
+I/IsakaiProbe: layout android.widget.RelativeLayout 8,222,226,272
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyTextView 0,25,143,50
+I/IsakaiProbe: layout android.widget.RelativeLayout 8,288,226,338
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyTextView 0,25,218,50
+I/IsakaiProbe: layout android.widget.RelativeLayout 8,354,226,379
+I/IsakaiProbe: layout android.widget.RelativeLayout 8,8,226,33
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyTextView 0,0,89,25
+I/IsakaiProbe: layout android.widget.RelativeLayout 8,49,226,74
+I/IsakaiProbe: layout android.widget.RelativeLayout 8,90,226,140
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyTextView 0,25,143,50
+I/IsakaiProbe: layout android.widget.RelativeLayout 8,156,226,206
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyTextView 0,25,143,50
+I/IsakaiProbe: layout android.widget.RelativeLayout 8,222,226,272
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyTextView 0,25,143,50
+I/IsakaiProbe: layout android.widget.RelativeLayout 8,288,226,338
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyTextView 0,25,218,50
+I/IsakaiProbe: layout android.widget.RelativeLayout 8,354,226,379
+I/IsakaiProbe: layout android.app.DialogOverlayGroup 0,0,640,800
+I/IsakaiProbe: layout android.app.HeadlessWindow$2 0,0,640,800
+I/IsakaiProbe: layout androidx.appcompat.widget.FitWindowsFrameLayout 0,0,640,800
+I/IsakaiProbe: layout androidx.appcompat.widget.ContentFrameLayout 0,0,640,800
+I/IsakaiProbe: layout androidx.coordinatorlayout.widget.CoordinatorLayout 0,0,640,800
+I/IsakaiProbe: layout com.google.android.material.appbar.MaterialToolbar 0,0,640,64
+I/IsakaiProbe: layout androidx.appcompat.widget.ActionMenuView 424,0,640,56
+I/IsakaiProbe: layout android.widget.LinearLayout 0,64,640,800
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyViewPager 0,0,640,736
+I/IsakaiProbe: layout androidx.viewpager.widget.PagerTabStrip 0,0,640,33
+I/IsakaiProbe: layout android.widget.RelativeLayout 0,33,640,736
+I/IsakaiProbe: layout android.widget.ScrollView 0,0,263,28
+I/IsakaiProbe: layout android.widget.RelativeLayout 0,0,263,28
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyEditText 0,0,263,28
+I/IsakaiProbe: layout android.widget.RelativeLayout -640,33,0,736
+I/IsakaiProbe: layout android.widget.ScrollView 0,0,172,28
+I/IsakaiProbe: layout android.widget.RelativeLayout 0,0,172,28
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyEditText 0,0,172,28
+I/IsakaiProbe: layout android.widget.RelativeLayout 640,33,1280,736
+I/IsakaiProbe: layout android.widget.ScrollView 0,0,122,28
+I/IsakaiProbe: layout android.widget.RelativeLayout 0,0,122,28
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyEditText 0,0,122,28
+I/IsakaiProbe: layout android.app.HeadlessWindow$1 203,190,437,610
+I/IsakaiProbe: layout android.app.HeadlessWindow$2 0,0,234,420
+I/IsakaiProbe: layout androidx.appcompat.widget.FitWindowsFrameLayout 0,0,234,420
+I/IsakaiProbe: layout androidx.appcompat.widget.ContentFrameLayout 0,0,234,420
+I/IsakaiProbe: layout androidx.appcompat.widget.AlertDialogLayout 0,0,234,420
+I/IsakaiProbe: layout android.widget.FrameLayout 0,0,234,395
+I/IsakaiProbe: layout android.widget.FrameLayout 0,0,234,395
+I/IsakaiProbe: layout androidx.coordinatorlayout.widget.CoordinatorLayout 0,0,234,395
+I/IsakaiProbe: layout androidx.core.widget.NestedScrollView 0,8,234,395
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyRecyclerView 0,0,234,387
+I/IsakaiProbe: layout android.widget.RelativeLayout 8,8,226,33
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyTextView 0,0,89,25
+I/IsakaiProbe: layout android.widget.RelativeLayout 8,49,226,74
+I/IsakaiProbe: layout android.widget.RelativeLayout 8,90,226,140
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyTextView 0,25,143,50
+I/IsakaiProbe: layout android.widget.RelativeLayout 8,156,226,206
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyTextView 0,25,143,50
+I/IsakaiProbe: layout android.widget.RelativeLayout 8,222,226,272
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyTextView 0,25,143,50
+I/IsakaiProbe: layout android.widget.RelativeLayout 8,288,226,338
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyTextView 0,25,218,50
+I/IsakaiProbe: layout android.widget.RelativeLayout 8,354,226,379
+I/IsakaiProbe: layout com.simplemobiletools.commons.views.MyFloatingActionButton 162,323,218,379
+I/IsakaiProbe: layout android.widget.ScrollView 0,395,234,420
+I/IsakaiProbe: layout androidx.appcompat.widget.ButtonBarLayout 0,0,234,25
+isakai: frame post failed: ConnectionClosed
+V/FragmentManager: computeExpectedState() of 5 for g{41e36e46} (28bedfff-b155-4477-9084-4549d1e59bc6 id=0x7f0903ca)
+D/FragmentManager: movefrom RESUMED: g{41e36e46} (28bedfff-b155-4477-9084-4549d1e59bc6 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 5 for g{41e36e46} (28bedfff-b155-4477-9084-4549d1e59bc6 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 5 for g{41e36e46} (28bedfff-b155-4477-9084-4549d1e59bc6 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 5 for g{15c43bd9} (db669333-6b10-4245-9006-18eb2a7a3e0c id=0x7f0903ca)
+D/FragmentManager: movefrom RESUMED: g{15c43bd9} (db669333-6b10-4245-9006-18eb2a7a3e0c id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 5 for g{15c43bd9} (db669333-6b10-4245-9006-18eb2a7a3e0c id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 5 for g{15c43bd9} (db669333-6b10-4245-9006-18eb2a7a3e0c id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 5 for g{3d74bf60} (db7dcf84-aa40-4ac4-8451-55411482650a id=0x7f0903ca)
+D/FragmentManager: movefrom RESUMED: g{3d74bf60} (db7dcf84-aa40-4ac4-8451-55411482650a id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 5 for g{3d74bf60} (db7dcf84-aa40-4ac4-8451-55411482650a id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 5 for g{3d74bf60} (db7dcf84-aa40-4ac4-8451-55411482650a id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 5 for g{41e36e46} (28bedfff-b155-4477-9084-4549d1e59bc6 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 5 for g{15c43bd9} (db669333-6b10-4245-9006-18eb2a7a3e0c id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 5 for g{3d74bf60} (db7dcf84-aa40-4ac4-8451-55411482650a id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 4 for g{41e36e46} (28bedfff-b155-4477-9084-4549d1e59bc6 id=0x7f0903ca)
+D/FragmentManager: movefrom STARTED: g{41e36e46} (28bedfff-b155-4477-9084-4549d1e59bc6 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 4 for g{41e36e46} (28bedfff-b155-4477-9084-4549d1e59bc6 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 4 for g{15c43bd9} (db669333-6b10-4245-9006-18eb2a7a3e0c id=0x7f0903ca)
+D/FragmentManager: movefrom STARTED: g{15c43bd9} (db669333-6b10-4245-9006-18eb2a7a3e0c id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 4 for g{15c43bd9} (db669333-6b10-4245-9006-18eb2a7a3e0c id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 4 for g{3d74bf60} (db7dcf84-aa40-4ac4-8451-55411482650a id=0x7f0903ca)
+D/FragmentManager: movefrom STARTED: g{3d74bf60} (db7dcf84-aa40-4ac4-8451-55411482650a id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 4 for g{3d74bf60} (db7dcf84-aa40-4ac4-8451-55411482650a id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 4 for g{41e36e46} (28bedfff-b155-4477-9084-4549d1e59bc6 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 4 for g{15c43bd9} (db669333-6b10-4245-9006-18eb2a7a3e0c id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 4 for g{3d74bf60} (db7dcf84-aa40-4ac4-8451-55411482650a id=0x7f0903ca)
+D/FragmentManager: onCleared called for FragmentManagerViewModel{7e5afaa6} Fragments (g{41e36e46} (28bedfff-b155-4477-9084-4549d1e59bc6 id=0x7f0903ca), g{15c43bd9} (db669333-6b10-4245-9006-18eb2a7a3e0c id=0x7f0903ca), g{3d74bf60} (db7dcf84-aa40-4ac4-8451-55411482650a id=0x7f0903ca)) Child Non Config (28bedfff-b155-4477-9084-4549d1e59bc6, db669333-6b10-4245-9006-18eb2a7a3e0c, db7dcf84-aa40-4ac4-8451-55411482650a) ViewModelStores (28bedfff-b155-4477-9084-4549d1e59bc6, db669333-6b10-4245-9006-18eb2a7a3e0c, db7dcf84-aa40-4ac4-8451-55411482650a)
+V/FragmentManager: computeExpectedState() of -1 for g{41e36e46} (28bedfff-b155-4477-9084-4549d1e59bc6 id=0x7f0903ca)
+D/FragmentManager: movefrom ACTIVITY_CREATED: g{41e36e46} (28bedfff-b155-4477-9084-4549d1e59bc6 id=0x7f0903ca)
+V/FragmentManager: SpecialEffectsController: Enqueuing remove operation for fragment g{41e36e46} (28bedfff-b155-4477-9084-4549d1e59bc6 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 3 for g{41e36e46} (28bedfff-b155-4477-9084-4549d1e59bc6 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of -1 for g{15c43bd9} (db669333-6b10-4245-9006-18eb2a7a3e0c id=0x7f0903ca)
+D/FragmentManager: movefrom ACTIVITY_CREATED: g{15c43bd9} (db669333-6b10-4245-9006-18eb2a7a3e0c id=0x7f0903ca)
+V/FragmentManager: SpecialEffectsController: Enqueuing remove operation for fragment g{15c43bd9} (db669333-6b10-4245-9006-18eb2a7a3e0c id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 3 for g{15c43bd9} (db669333-6b10-4245-9006-18eb2a7a3e0c id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of -1 for g{3d74bf60} (db7dcf84-aa40-4ac4-8451-55411482650a id=0x7f0903ca)
+D/FragmentManager: movefrom ACTIVITY_CREATED: g{3d74bf60} (db7dcf84-aa40-4ac4-8451-55411482650a id=0x7f0903ca)
+V/FragmentManager: SpecialEffectsController: Enqueuing remove operation for fragment g{3d74bf60} (db7dcf84-aa40-4ac4-8451-55411482650a id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 3 for g{3d74bf60} (db7dcf84-aa40-4ac4-8451-55411482650a id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 3 for g{41e36e46} (28bedfff-b155-4477-9084-4549d1e59bc6 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 3 for g{15c43bd9} (db669333-6b10-4245-9006-18eb2a7a3e0c id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 3 for g{3d74bf60} (db7dcf84-aa40-4ac4-8451-55411482650a id=0x7f0903ca)
+V/FragmentManager: SpecialEffectsController: Container com.simplemobiletools.commons.views.MyViewPager@7fa98a66 is not attached to window. Cancelling pending operation Operation {32b260fa} {mFinalState = REMOVED} {mLifecycleImpact = REMOVING} {mFragment = g{41e36e46} (28bedfff-b155-4477-9084-4549d1e59bc6 id=0x7f0903ca)}
+V/FragmentManager: SpecialEffectsController: Operation {32b260fa} {mFinalState = REMOVED} {mLifecycleImpact = REMOVING} {mFragment = g{41e36e46} (28bedfff-b155-4477-9084-4549d1e59bc6 id=0x7f0903ca)} has called complete.
+V/FragmentManager: SpecialEffectsController: Removing view android.widget.RelativeLayout@3835c46 from container com.simplemobiletools.commons.views.MyViewPager@7fa98a66
+V/FragmentManager: computeExpectedState() of -1 for g{41e36e46} (28bedfff-b155-4477-9084-4549d1e59bc6 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of -1 for g{41e36e46} (28bedfff-b155-4477-9084-4549d1e59bc6 id=0x7f0903ca)
+D/FragmentManager: movefrom CREATE_VIEW: g{41e36e46} (28bedfff-b155-4477-9084-4549d1e59bc6 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of -1 for g{41e36e46} (28bedfff-b155-4477-9084-4549d1e59bc6 id=0x7f0903ca)
+D/FragmentManager: movefrom CREATED: g{41e36e46} (28bedfff-b155-4477-9084-4549d1e59bc6 id=0x7f0903ca)
+D/FragmentManager: Clearing non-config state for g{41e36e46} (28bedfff-b155-4477-9084-4549d1e59bc6 id=0x7f0903ca)
+D/FragmentManager: onCleared called for FragmentManagerViewModel{57d7f8ca} Fragments () Child Non Config () ViewModelStores ()
+V/FragmentManager: Ignoring removeRetainedFragment as the state is already saved
+V/FragmentManager: Removed fragment from active set g{41e36e46} (28bedfff-b155-4477-9084-4549d1e59bc6 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of -1 for g{41e36e46} (28bedfff-b155-4477-9084-4549d1e59bc6 id=0x7f0903ca)
+D/FragmentManager: movefrom ATTACHED: g{41e36e46} (28bedfff-b155-4477-9084-4549d1e59bc6 id=0x7f0903ca)
+D/FragmentManager: initState called for fragment: g{41e36e46} (28bedfff-b155-4477-9084-4549d1e59bc6 id=0x7f0903ca)
+V/FragmentManager: SpecialEffectsController: Container com.simplemobiletools.commons.views.MyViewPager@7fa98a66 is not attached to window. Cancelling pending operation Operation {78123e82} {mFinalState = REMOVED} {mLifecycleImpact = REMOVING} {mFragment = g{15c43bd9} (db669333-6b10-4245-9006-18eb2a7a3e0c id=0x7f0903ca)}
+V/FragmentManager: SpecialEffectsController: Operation {78123e82} {mFinalState = REMOVED} {mLifecycleImpact = REMOVING} {mFragment = g{15c43bd9} (db669333-6b10-4245-9006-18eb2a7a3e0c id=0x7f0903ca)} has called complete.
+V/FragmentManager: SpecialEffectsController: Removing view android.widget.RelativeLayout@20ce78ec from container com.simplemobiletools.commons.views.MyViewPager@7fa98a66
+V/FragmentManager: computeExpectedState() of -1 for g{15c43bd9} (db669333-6b10-4245-9006-18eb2a7a3e0c id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of -1 for g{15c43bd9} (db669333-6b10-4245-9006-18eb2a7a3e0c id=0x7f0903ca)
+D/FragmentManager: movefrom CREATE_VIEW: g{15c43bd9} (db669333-6b10-4245-9006-18eb2a7a3e0c id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of -1 for g{15c43bd9} (db669333-6b10-4245-9006-18eb2a7a3e0c id=0x7f0903ca)
+D/FragmentManager: movefrom CREATED: g{15c43bd9} (db669333-6b10-4245-9006-18eb2a7a3e0c id=0x7f0903ca)
+D/FragmentManager: Clearing non-config state for g{15c43bd9} (db669333-6b10-4245-9006-18eb2a7a3e0c id=0x7f0903ca)
+D/FragmentManager: onCleared called for FragmentManagerViewModel{662b4c69} Fragments () Child Non Config () ViewModelStores ()
+V/FragmentManager: Ignoring removeRetainedFragment as the state is already saved
+V/FragmentManager: Removed fragment from active set g{15c43bd9} (db669333-6b10-4245-9006-18eb2a7a3e0c id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of -1 for g{15c43bd9} (db669333-6b10-4245-9006-18eb2a7a3e0c id=0x7f0903ca)
+D/FragmentManager: movefrom ATTACHED: g{15c43bd9} (db669333-6b10-4245-9006-18eb2a7a3e0c id=0x7f0903ca)
+D/FragmentManager: initState called for fragment: g{15c43bd9} (db669333-6b10-4245-9006-18eb2a7a3e0c id=0x7f0903ca)
+V/FragmentManager: SpecialEffectsController: Container com.simplemobiletools.commons.views.MyViewPager@7fa98a66 is not attached to window. Cancelling pending operation Operation {71238fc2} {mFinalState = REMOVED} {mLifecycleImpact = REMOVING} {mFragment = g{3d74bf60} (db7dcf84-aa40-4ac4-8451-55411482650a id=0x7f0903ca)}
+V/FragmentManager: SpecialEffectsController: Operation {71238fc2} {mFinalState = REMOVED} {mLifecycleImpact = REMOVING} {mFragment = g{3d74bf60} (db7dcf84-aa40-4ac4-8451-55411482650a id=0x7f0903ca)} has called complete.
+V/FragmentManager: SpecialEffectsController: Removing view android.widget.RelativeLayout@393671df from container com.simplemobiletools.commons.views.MyViewPager@7fa98a66
+V/FragmentManager: computeExpectedState() of -1 for g{3d74bf60} (db7dcf84-aa40-4ac4-8451-55411482650a id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of -1 for g{3d74bf60} (db7dcf84-aa40-4ac4-8451-55411482650a id=0x7f0903ca)
+D/FragmentManager: movefrom CREATE_VIEW: g{3d74bf60} (db7dcf84-aa40-4ac4-8451-55411482650a id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of -1 for g{3d74bf60} (db7dcf84-aa40-4ac4-8451-55411482650a id=0x7f0903ca)
+D/FragmentManager: movefrom CREATED: g{3d74bf60} (db7dcf84-aa40-4ac4-8451-55411482650a id=0x7f0903ca)
+D/FragmentManager: Clearing non-config state for g{3d74bf60} (db7dcf84-aa40-4ac4-8451-55411482650a id=0x7f0903ca)
+D/FragmentManager: onCleared called for FragmentManagerViewModel{3d6f0054} Fragments () Child Non Config () ViewModelStores ()
+V/FragmentManager: Ignoring removeRetainedFragment as the state is already saved
+V/FragmentManager: Removed fragment from active set g{3d74bf60} (db7dcf84-aa40-4ac4-8451-55411482650a id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of -1 for g{3d74bf60} (db7dcf84-aa40-4ac4-8451-55411482650a id=0x7f0903ca)
+D/FragmentManager: movefrom ATTACHED: g{3d74bf60} (db7dcf84-aa40-4ac4-8451-55411482650a id=0x7f0903ca)
+D/FragmentManager: initState called for fragment: g{3d74bf60} (db7dcf84-aa40-4ac4-8451-55411482650a id=0x7f0903ca)
+isakai: activity com.simplemobiletools.notes.pro.activities.SplashActivity destroyed
+isakai: run complete

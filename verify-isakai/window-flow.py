@@ -265,7 +265,14 @@ def main():
         env.pop(key, None)
     env.update(ISAKAI_NO_PRIVILEGE='1' if opts.unprivileged else '0',
                ISAKAI_NONINTERACTIVE='1' if noninteractive_launch else '0',
-               ISAKAI_ALLOW_UNSIGNED='1', ISAKAI_FRAMEWORK=str(framework), ISAKAI_WINDOW='1')
+               ISAKAI_ALLOW_UNSIGNED='1', ISAKAI_WINDOW='1')
+    if opts.unprivileged:
+        # Unprivileged runs test the checkout tree (copied above for isolation).
+        env['ISAKAI_FRAMEWORK'] = str(framework)
+    # Privileged runs deliberately leave ISAKAI_FRAMEWORK unset: the CLI then
+    # resolves the installed /usr/share/isakai/framework, the only runtime
+    # the uid-helper trust profile accepts under confinement (a dev-tree
+    # framework can never pass that check by design; `make install` first).
     elevate_prefix = [opts.elevate, '-n'] if opts.elevate == 'sudo' else [opts.elevate]
 
     def elevate(argv, **kw):
@@ -310,8 +317,15 @@ def main():
         for iteration, close_mode in enumerate(('compositor', 'back')):
             log_path = artifacts / f'launch-{iteration}.log'
             with log_path.open('w') as log:
+                # New process GROUP but the same session: killpg cleanup keeps
+                # working while the child retains the controlling terminal, so
+                # the launch's internal `sudo -n uid-helper` still sees the
+                # operator's timestamp ticket (start_new_session detached it
+                # into a ticket-less session and every privileged launch died
+                # at the helper spawn with `sudo: a password is required`).
+                # Requires Python 3.11+ for process_group.
                 process = subprocess.Popen([str(binary), '--work', str(work), 'launch', package], env=env,
-                                           stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, start_new_session=True)
+                                           stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, process_group=0)
                 def record_output():
                     with log_path.open("a") as captured:
                         for line in process.stdout:

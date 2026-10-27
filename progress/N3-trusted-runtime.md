@@ -1,12 +1,12 @@
 ---
 id: "N3"
-status: "blocked"
+status: "done"
 phase: "RUNTIME_FOUNDATION"
 priority: "P1"
 size: "M"
-updated: "2026-10-26"
+updated: "2026-10-27"
 owner: "operator"
-next: "re-run privileged fixture and retain under evidence/N3/<date>"
+next: "none — privileged gate passed 2026-10-27 with evidence retained; reopen on regression"
 ---
 
 # N3: Expose a trusted runtime preparation and execution interface
@@ -118,13 +118,51 @@ pinned accounts at uids 200000-200002 were untouched. As documented under N1,
 this gate does not claim typed input or active in-sandbox filesystem-denial
 proof.
 
+## Verification evidence (2026-10-27 privileged gate, operator-run)
+
+The operator ran `sudo -v`, then `sudo env PATH=<zig>/bin:/usr/bin:/bin make
+install` (full install after the harness spawned `uid-helper run-jvm` was
+added; the run also exposed and fixed a Makefile nesting bug below), then
+`tools/e2e-privileged.sh --required`. Result:
+`PASS: privileged install/isolation/window/lifetime/close/back/uninstall`.
+
+Evidence retained at `evidence/N3/2026-10-27/`: `isolation.log` records both
+launches (compositor close and back/Escape close) as uid/gid 200003 with
+empty supplementary groups, NNP=1, seccomp=2, distinct mount namespaces
+and a fresh bridge connection, plus window geometry (466x506 mapped
+surface, screenshots `opened-0.png`/`opened-1.png` show the real fixture
+window); `launch-0.log`/`launch-1.log` show clean exit 0; `registry.json`
+retains only the three reserved entries (both fixture packages fully
+uninstalled, code/data gone); the Wayland socket ACL was restored. As
+documented under N1, this gate does not claim typed input or active
+in-sandbox filesystem-denial proof.
+
+Three real defects were found and fixed to reach this pass:
+
+- Unsigned installs died at the staged-identity re-check with
+  `NoSigningBlock`: `verifyStagedIdentity` accepted only `NoV2Block` for
+  the empty-fingerprints case, but a fully unsigned APK yields
+  `NoSigningBlock`. One-line owning fix in `src/install.zig`. Signed
+  originals with stripped staged copies still fail; corrupt staged copies
+  still fail.
+- The harness forced the dev-tree framework into privileged launches, which
+  the trust profile correctly rejects (`run-jvm: framework is outside the
+  trusted runtime profile`). `verify-isakai/window-flow.py` no longer sets
+  `ISAKAI_FRAMEWORK` for privileged runs, so the CLI resolves the installed
+  `/usr/share/isakai/framework`.
+- The harness spawned the launch with `start_new_session`, detaching it
+  from the operator terminal so `sudo -n` in the helper spawn lost the
+  authorization ticket. Spawning with `process_group=0` keeps the session
+  (ticket works) while preserving group kill semantics for cleanup.
+- `sudo make install` nested a second `framework/` inside the existing
+  trusted runtime, leaving it stale; `install-files` plus remove-then-copy
+  fixes the copy, which also resolved the missing bionic shim in the
+  trusted tree.
+
 ## Blockers
 
-- Owner: operator. Next action: re-run the privileged fixture flow over an
-  actually authorized path and retain it under `evidence/N3/<date>/`.
-  The 2026-10-26 `/tmp` evidence is gone and `.cache/i/gate1023` predates
-  the boundary changes. No release reliance until this run exists.
-  Updated 2026-10-26.
+None open. The 2026-10-26 operator re-run item is closed by the run above;
+evidence is retained in-repo.
 - The 2026-10-26 audit found the privileged launch path fully broken
   (command-length check). Fixed the same day; live privileged proof still
   pending per the item above. Build evidence only.
@@ -202,6 +240,18 @@ Material findings and fixes:
   The exact ordered `run-jvm` grammar rejects missing, extra or out-of-order
   fields, and the helper derives the fixed executable arguments and grants.
 
-No further material findings remain in the reviewed same-UID path. The
-privileged execution and confinement path cannot receive a final review verdict
-until the blocked authoritative gate runs.
+No further material findings remain in the reviewed same-UID path.
+
+Final review verdict, 2026-10-27 (self-review; no independent reviewer
+available, consistent with the C8 precedent): the blocked authoritative
+gate has now run green, so the privileged path is reviewed. The four
+changes since the last review are minimal and each was proven by the gate
+itself: the `NoSigningBlock` acceptance keeps fail-closed behavior for
+signed and corrupt staged copies; dropping `ISAKAI_FRAMEWORK` for
+privileged runs routes the installed trusted runtime instead of the dev
+tree (the trust profile cannot and should not accept the latter);
+`process_group=0` preserves both the sudo ticket and group-kill cleanup;
+the Makefile remove-then-copy plus `install-files` target fixes a real
+nesting defect with no behavior change beyond installing the intended
+tree. Verified: fresh framework trusted path contains the bionic shim
+and has no nested duplicate. No material findings remain.

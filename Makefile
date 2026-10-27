@@ -22,6 +22,9 @@ STAGE ?= .stage-install
 POLICY_SRC = $(STAGE)/share/polkit-1/actions/id.isakai.policy
 POLICY_DST = $(DESTDIR)/usr/share/polkit-1/actions/id.isakai.policy
 
+# One list feeds both install targets so they cannot drift apart.
+INSTALL_BINS := isakai isakai-dbus-bridge isakai-allocate-uid isakai-remove-uid isakai-run-app
+
 .PHONY: build install uninstall clean
 
 build:
@@ -36,12 +39,25 @@ ifeq ($(INSTALL_POLICY),1)
 endif
 	# DESTDIR belongs to the FHS copy below, not Zig's private staging build.
 	env -u DESTDIR zig build -Doptimize=ReleaseSafe --prefix $(STAGE)
-	install -D -m755 $(STAGE)/bin/isakai $(DESTDIR)$(PREFIX)/bin/isakai
-	install -D -m755 $(STAGE)/bin/isakai-dbus-bridge $(DESTDIR)$(PREFIX)/bin/isakai-dbus-bridge
-	install -D -m755 $(STAGE)/bin/isakai-allocate-uid $(DESTDIR)$(PREFIX)/bin/isakai-allocate-uid
-	install -D -m755 $(STAGE)/bin/isakai-remove-uid $(DESTDIR)$(PREFIX)/bin/isakai-remove-uid
-	install -D -m755 $(STAGE)/bin/isakai-run-app $(DESTDIR)$(PREFIX)/bin/isakai-run-app
+	for b in $(INSTALL_BINS); do install -D -m755 $(STAGE)/bin/$$b $(DESTDIR)$(PREFIX)/bin/$$b; done
 	mkdir -p $(DESTDIR)$(PREFIX)/share/isakai
+	# Replace (never merge into) the runtime tree: cp -r onto an existing
+	# dir would nest a second framework/ inside it and leave the trusted
+	# runtime stale while the fresh copy sits unused.
+	rm -rf $(DESTDIR)$(PREFIX)/share/isakai/framework
+	cp -r $(STAGE)/framework $(DESTDIR)$(PREFIX)/share/isakai/framework
+ifeq ($(INSTALL_POLICY),1)
+	install -D -m644 $(POLICY_SRC) $(POLICY_DST)
+	rm -f $(DESTDIR)/usr/share/polkit-1/actions/id.isakai.allocate-uid.policy
+endif
+
+# Copy-only install for a prebuilt staging tree (never invokes zig, so it
+# works where the compiler cache is unavailable to root). Build first with:
+#   zig build -Doptimize=ReleaseSafe --prefix $(STAGE)
+install-files:
+	for b in $(INSTALL_BINS); do install -D -m755 $(STAGE)/bin/$$b $(DESTDIR)$(PREFIX)/bin/$$b; done
+	mkdir -p $(DESTDIR)$(PREFIX)/share/isakai
+	rm -rf $(DESTDIR)$(PREFIX)/share/isakai/framework
 	cp -r $(STAGE)/framework $(DESTDIR)$(PREFIX)/share/isakai/framework
 ifeq ($(INSTALL_POLICY),1)
 	install -D -m644 $(POLICY_SRC) $(POLICY_DST)

@@ -891,7 +891,10 @@ pub fn verifyStagedIdentity(io: std.Io, gpa: std.mem.Allocator, code_dir: []cons
             gpa.free(fps);
             return error.SignerMismatch;
         } else |err| {
-            if (err != error.NoV2Block) return err;
+            // A fully unsigned staged copy (no signing block at all) is
+            // the expected counterpart of an unsigned install; only a
+            // v1-signed copy without v2 was handled before.
+            if (err != error.NoV2Block and err != error.NoSigningBlock) return err;
         }
         return;
     }

@@ -1,0 +1,14 @@
+info: desktop bridge ready at /tmp/isakai-1000-24e093f5f7f62c65/bridge.sock
+isakai: application org.isakai.fixture.FixtureApp onCreate
+43
+44
+isakai: fixture app onCreate
+46
+1
+isakai: activity org.isakai.fixture.FixtureActivity runWindowed
+isakai: fixture activity onCreate
+W/SoundPool: audio open failed for 44100Hz/2ch, dropping play
+bridge: client uid 200003 connected
+isakai: activity org.isakai.fixture.FixtureActivity destroyed
+isakai: run complete
+exited with code 0

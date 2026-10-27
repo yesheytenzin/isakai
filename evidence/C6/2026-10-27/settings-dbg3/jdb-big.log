@@ -1,0 +1,6 @@
+Set uncaught java.lang.Throwable
+Set deferred uncaught java.lang.Throwable
+Initializing jdb ...
+> Set breakpoint android.app.Activity.drawFrame
+> > Nothing suspended.
+> Nothing suspended.

@@ -1,0 +1,3 @@
+Source: https://developer.android.com/reference/android/content/Context#getSystemService(java.lang.String) (fetched 2026-10-27)
+
+th getSystemService(String) to retrieve a CarrierConfigManager for reading carrier configuration values. String CHOOSER_SERVICE Use with getSystemService(String) to retrieve a ChooserManager . String CLIPBOARD_SERVICE Use with getSystemService(String) to retrieve a ClipboardManager for accessing and modifying the contents of the global clipboard. String COMPANION_DEVICE_SERVICE Use with getSystemService(String) to retrieve a CompanionDeviceManager for managing companion devices String CONNECTIVITY_DIAGNOSTICS_SERVICE Use with getSystemService(String) to retrieve a ConnectivityDiagnosticsManage

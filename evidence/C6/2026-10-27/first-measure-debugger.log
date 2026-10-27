@@ -1,0 +1,97 @@
+Set uncaught java.lang.Throwable
+Set deferred uncaught java.lang.Throwable
+Initializing jdb ...
+
+VM Started: > No frames on the current call stack
+
+main[1] Deferring breakpoint androidx.recyclerview.widget.RecyclerView.onMeasure.
+It will be set after the class is loaded.
+main[1] > Set deferred breakpoint androidx.recyclerview.widget.RecyclerView.onMeasure
+
+Breakpoint hit: "thread=main", androidx.recyclerview.widget.RecyclerView.onMeasure(), line=1 bci=23
+Exception in thread "event-handler" java.lang.IllegalArgumentException
+	at jdk.jdi/com.sun.tools.example.debug.tty.Env.sourceLine(Env.java:205)
+	at jdk.jdi/com.sun.tools.example.debug.tty.TTY.printLocationWithSourceLine(TTY.java:296)
+	at jdk.jdi/com.sun.tools.example.debug.tty.TTY.printCurrentLocation(TTY.java:285)
+	at jdk.jdi/com.sun.tools.example.debug.tty.TTY.vmInterrupted(TTY.java:250)
+	at jdk.jdi/com.sun.tools.example.debug.tty.EventHandler.run(EventHandler.java:85)
+	at java.base/java.lang.Thread.run(Thread.java:1527)
+  [1] androidx.recyclerview.widget.RecyclerView.onMeasure (unknown)
+  [2] com.simplemobiletools.commons.views.MyRecyclerView.onMeasure (unknown)
+  [3] android.view.View.measure (View.java:589)
+  [4] android.view.ViewGroup.measureChild (ViewGroup.java:699)
+  [5] android.view.ViewGroup.measureChildren (ViewGroup.java:704)
+  [6] android.view.ViewGroup.onMeasure (ViewGroup.java:715)
+  [7] android.view.View.measure (View.java:589)
+  [8] android.view.ViewGroup.measureChild (ViewGroup.java:699)
+  [9] android.view.ViewGroup.measureChildren (ViewGroup.java:704)
+  [10] android.view.ViewGroup.onMeasure (ViewGroup.java:715)
+  [11] android.view.View.measure (View.java:589)
+  [12] androidx.appcompat.widget.AlertDialogLayout.onMeasure (unknown)
+  [13] android.view.View.measure (View.java:589)
+  [14] android.view.ViewGroup.measureChild (ViewGroup.java:699)
+  [15] android.view.ViewGroup.measureChildren (ViewGroup.java:704)
+  [16] android.view.ViewGroup.onMeasure (ViewGroup.java:715)
+  [17] androidx.appcompat.widget.ContentFrameLayout.onMeasure (unknown)
+  [18] android.view.View.measure (View.java:589)
+  [19] android.view.ViewGroup.measureChild (ViewGroup.java:699)
+  [20] android.view.ViewGroup.measureChildren (ViewGroup.java:704)
+  [21] android.view.ViewGroup.onMeasure (ViewGroup.java:715)
+  [22] android.view.View.measure (View.java:589)
+  [23] android.view.ViewGroup.measureChild (ViewGroup.java:699)
+  [24] android.view.ViewGroup.measureChildren (ViewGroup.java:704)
+  [25] android.view.ViewGroup.onMeasure (ViewGroup.java:715)
+  [26] android.view.View.measure (View.java:589)
+  [27] android.view.ViewGroup.measureChild (ViewGroup.java:699)
+  [28] android.view.ViewGroup.measureChildren (ViewGroup.java:704)
+  [29] android.view.ViewGroup.onMeasure (ViewGroup.java:715)
+  [30] android.view.View.measure (View.java:589)
+  [31] android.app.DialogOverlayGroup.onMeasure (DialogOverlayGroup.java:52)
+  [32] android.view.View.measure (View.java:589)
+  [33] android.app.Activity.drawFrame (Activity.java:1,234)
+  [34] android.app.Activity.runWindowed (Activity.java:1,042)
+  [35] org.isakai.runtime.IsakaiMain.main (IsakaiMain.java:86)
+main[1]  this.v = {
+    d: instance of com.simplemobiletools.calculator.activities.MainActivity(id=3333)
+    e: instance of java.util.ArrayList(id=3334)
+    f: instance of r7.b(id=3335)
+    g: instance of androidx.lifecycle.x0(id=3336)
+    h: -16770747
+    androidx.recyclerview.widget.f0.a: instance of androidx.recyclerview.widget.g0(id=3337)
+    androidx.recyclerview.widget.f0.b: false
+    androidx.recyclerview.widget.f0.c: 1
+}
+main[1]  this.w = {
+    androidx.recyclerview.widget.LinearLayoutManager.A: instance of androidx.recyclerview.widget.u(id=3339)
+    androidx.recyclerview.widget.LinearLayoutManager.B: instance of androidx.recyclerview.widget.v(id=3340)
+    androidx.recyclerview.widget.LinearLayoutManager.C: 2
+    androidx.recyclerview.widget.LinearLayoutManager.D: instance of int[2] (id=3341)
+    androidx.recyclerview.widget.LinearLayoutManager.p: 1
+    androidx.recyclerview.widget.LinearLayoutManager.q: null
+    androidx.recyclerview.widget.LinearLayoutManager.r: instance of androidx.recyclerview.widget.z(id=3342)
+    androidx.recyclerview.widget.LinearLayoutManager.s: false
+    androidx.recyclerview.widget.LinearLayoutManager.t: false
+    androidx.recyclerview.widget.LinearLayoutManager.u: false
+    androidx.recyclerview.widget.LinearLayoutManager.v: false
+    androidx.recyclerview.widget.LinearLayoutManager.w: true
+    androidx.recyclerview.widget.LinearLayoutManager.x: -1
+    androidx.recyclerview.widget.LinearLayoutManager.y: -2147483648
+    androidx.recyclerview.widget.LinearLayoutManager.z: null
+    androidx.recyclerview.widget.p0.a: instance of androidx.recyclerview.widget.d(id=3343)
+    androidx.recyclerview.widget.p0.b: instance of com.simplemobiletools.commons.views.MyRecyclerView(id=3331)
+    androidx.recyclerview.widget.p0.c: instance of androidx.recyclerview.widget.r1(id=3344)
+    androidx.recyclerview.widget.p0.d: instance of androidx.recyclerview.widget.r1(id=3345)
+    androidx.recyclerview.widget.p0.e: null
+    androidx.recyclerview.widget.p0.f: false
+    androidx.recyclerview.widget.p0.g: true
+    androidx.recyclerview.widget.p0.h: true
+    androidx.recyclerview.widget.p0.i: true
+    androidx.recyclerview.widget.p0.j: 0
+    androidx.recyclerview.widget.p0.k: false
+    androidx.recyclerview.widget.p0.l: 1073741824
+    androidx.recyclerview.widget.p0.m: 1073741824
+    androidx.recyclerview.widget.p0.n: 0
+    androidx.recyclerview.widget.p0.o: 0
+}
+main[1] 
+[bg] aborted

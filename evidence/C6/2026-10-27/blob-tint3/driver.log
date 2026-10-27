@@ -1,0 +1,10 @@
+EDITOR_READY
+Traceback (most recent call last):
+  File "<string>", line 16, in <module>
+    c.click_window(488,15); time.sleep(5); c.shot('tint3-picker')
+    ~~~~~~~~~~~~~~^^^^^^^^
+  File "/home/tenzin/development/isakai/verify-isakai/sway_backend/compositor.py", line 115, in click_window
+    node = self.ensure_focus()
+  File "/home/tenzin/development/isakai/verify-isakai/sway_backend/compositor.py", line 102, in ensure_focus
+    raise SwayError('app window is gone')
+sway_backend.compositor.SwayError: app window is gone

@@ -1,0 +1,10 @@
+iteration 0 (compositor close):
+pid=258264 uid=200003	200003	200003	200003 nnp=1 seccomp=2 mnt=mnt:[4026534023]
+bridge-connected-at-open: True
+text-input: not asserted (host keyboard path); see N1 limitation
+window-geometry: ((1442, 562), (466, 506))
+iteration 1 (back close):
+pid=258668 uid=200003	200003	200003	200003 nnp=1 seccomp=2 mnt=mnt:[4026534023]
+bridge-connected-at-open: True
+text-input: not asserted (host keyboard path); see N1 limitation
+window-geometry: ((1442, 562), (466, 506))

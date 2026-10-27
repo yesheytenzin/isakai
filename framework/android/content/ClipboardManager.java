@@ -24,6 +24,14 @@ public class ClipboardManager {
     /** Service name for Activity.getSystemService. */
     public static final String CLIPBOARD_SERVICE = "clipboard";
 
+    /** Process-wide selection channel for base-context managers (single window per process). */
+    private static volatile IsakaiWindow.Window defaultWindow;
+
+    /** Called once per window open; cleared on close. Never throws. */
+    public static void setDefaultWindow(IsakaiWindow.Window window) {
+        defaultWindow = window;
+    }
+
     private final IsakaiWindow.Window window;
     private ClipData localClip;
     private int selectionStatus;
@@ -37,14 +45,23 @@ public class ClipboardManager {
         return window;
     }
 
+    /** Own window, else the process default when still open, else null (local-only). */
+    private IsakaiWindow.Window effectiveWindow() {
+        if (window != null && window.isOpen()) return window;
+        IsakaiWindow.Window fallback = defaultWindow;
+        return fallback != null && fallback.isOpen() ? fallback : null;
+    }
+
     public void setPrimaryClip(ClipData clip) {
         localClip = clip;
-        if (window != null) window.clipboardSet(clipText(clip));
+        IsakaiWindow.Window target = effectiveWindow();
+        if (target != null) target.clipboardSet(clipText(clip));
     }
 
     public ClipData getPrimaryClip() {
         String wire = null;
-        if (window != null) wire = window.clipboardGet();
+        IsakaiWindow.Window target = effectiveWindow();
+        if (target != null) wire = target.clipboardGet();
         if (wire != null) {
             ClipData uris = tryParseUriList(wire);
             if (uris != null) return uris;
@@ -61,7 +78,8 @@ public class ClipboardManager {
     }
 
     public boolean hasPrimaryClip() {
-        if (window != null && window.clipboardHasText()) return true;
+        IsakaiWindow.Window target = effectiveWindow();
+        if (target != null && target.clipboardHasText()) return true;
         if (localClip != null && localClip.getItemCount() > 0) return true;
         return selectionStatus == 1;
     }

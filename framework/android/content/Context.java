@@ -46,6 +46,8 @@ public abstract class Context {
     public static final String ACCESSIBILITY_SERVICE = "accessibility";
     public static final String AUTOFILL_MANAGER_SERVICE = "autofill";
     public static final String ACTIVITY_SERVICE = "activity";
+    /** Window-independent clipboard: local-only until a window-bound manager takes over. */
+    private ClipboardManager clipboardManager;
     private String dataDir;
     private String packageName = "";
     private final Map<String, SharedPreferences> prefsCache = new ConcurrentHashMap<>();
@@ -365,6 +367,10 @@ public abstract class Context {
         }
         if (AUTOFILL_MANAGER_SERVICE.equals(name)) {
             return new android.view.autofill.AutofillManager();
+        }
+        if (ClipboardManager.CLIPBOARD_SERVICE.equals(name)) {
+            if (clipboardManager == null) clipboardManager = new ClipboardManager(null);
+            return clipboardManager;
         }
         return null;
     }

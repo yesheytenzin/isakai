@@ -1011,6 +1011,7 @@ public class Activity extends android.view.ContextThemeWrapper implements androi
             navigator.window=window;
             if(active.title!=null)window.setTitle(active.title.toString());
             clipboardManager = new ClipboardManager(window);
+            ClipboardManager.setDefaultWindow(window);
             try {
                 windowFocused = true;
                 root.dispatchHostAttached();
@@ -1094,6 +1095,7 @@ public class Activity extends android.view.ContextThemeWrapper implements androi
                 }
                 finally {
                     navigator.window=null;
+                    ClipboardManager.setDefaultWindow(null);
                     window.close();
                 }
             }

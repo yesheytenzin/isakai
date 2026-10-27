@@ -1,0 +1,18 @@
+Set uncaught java.lang.Throwable
+Set deferred uncaught java.lang.Throwable
+Initializing jdb ...
+> Group system:
+ 1+1 = 4
+ 2+2 = 4
+> >   (java.lang.ref.Reference$ReferenceHandler)3551 Reference Handler   running
+  (java.lang.ref.Finalizer$FinalizerThread)3552  Finalizer           cond. waiting
+  (java.lang.Thread)3553                         Signal Dispatcher   running
+  (java.lang.Thread)3554                         Notification Thread running
+  (java.lang.Thread)3558                         Java2D Disposer     cond. waiting
+Group main:
+  (java.lang.Thread)3550                         main                running
+  (java.lang.Thread)3557                         IsakaiPrefsWork     cond. waiting
+Group InnocuousThreadGroup:
+  (jdk.internal.misc.InnocuousThread)3555        Common-Cleaner      cond. waiting
+  (jdk.internal.misc.InnocuousThread)3556        Cleaner-0           cond. waiting
+> 

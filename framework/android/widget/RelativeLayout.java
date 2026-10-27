@@ -232,34 +232,80 @@ public class RelativeLayout extends ViewGroup {
         int maxHeight = View.MeasureSpec.getSize(heightSpec);
         int innerWidth = Math.max(0, maxWidth - getPaddingLeft() - getPaddingRight());
         int innerHeight = Math.max(0, maxHeight - getPaddingTop() - getPaddingBottom());
-        int widest = 0;
-        int tallest = 0;
-        for (int i = 0; i < getChildCount(); i++) {
+        int count = getChildCount();
+        for (int i = 0; i < count; i++) {
             View child = getChildAt(i);
             if (child == null || child.getVisibility() == GONE) continue;
             LayoutParams lp = (LayoutParams) child.getLayoutParams();
             int childWidth = lp.width;
             int childHeight = lp.height;
-            int wSpec = childWidth == ViewGroup.LayoutParams.MATCH_PARENT ? View.MeasureSpec.makeMeasureSpec(innerWidth, View.MeasureSpec.EXACTLY)
-                    : View.MeasureSpec.makeMeasureSpec(innerWidth, View.MeasureSpec.AT_MOST);
-            int hSpec = childHeight == ViewGroup.LayoutParams.MATCH_PARENT ? View.MeasureSpec.makeMeasureSpec(innerHeight, View.MeasureSpec.EXACTLY)
-                    : View.MeasureSpec.makeMeasureSpec(innerHeight, View.MeasureSpec.AT_MOST);
+            int wSpec = widthMode == View.MeasureSpec.UNSPECIFIED
+                    ? getChildMeasureSpec(widthSpec, getPaddingLeft() + getPaddingRight(), childWidth)
+                    : View.MeasureSpec.makeMeasureSpec(innerWidth, childWidth == ViewGroup.LayoutParams.MATCH_PARENT
+                            ? View.MeasureSpec.EXACTLY : View.MeasureSpec.AT_MOST);
+            int hSpec = heightMode == View.MeasureSpec.UNSPECIFIED
+                    ? getChildMeasureSpec(heightSpec, getPaddingTop() + getPaddingBottom(), childHeight)
+                    : View.MeasureSpec.makeMeasureSpec(innerHeight, childHeight == ViewGroup.LayoutParams.MATCH_PARENT
+                            ? View.MeasureSpec.EXACTLY : View.MeasureSpec.AT_MOST);
             child.measure(wSpec, hSpec);
-            int w = childWidth == ViewGroup.LayoutParams.MATCH_PARENT && widthMode != View.MeasureSpec.UNSPECIFIED
-                    ? innerWidth : child.getMeasuredWidth();
-            int h = childHeight == ViewGroup.LayoutParams.MATCH_PARENT && heightMode != View.MeasureSpec.UNSPECIFIED
-                    ? innerHeight : child.getMeasuredHeight();
-            int usedW = lp.width == ViewGroup.LayoutParams.MATCH_PARENT && widthMode == View.MeasureSpec.UNSPECIFIED
-                    ? child.getMeasuredWidth() : Math.min(w, Math.max(0, innerWidth));
-            int usedH = lp.height == ViewGroup.LayoutParams.MATCH_PARENT && heightMode == View.MeasureSpec.UNSPECIFIED
-                    ? child.getMeasuredHeight() : Math.min(h, Math.max(0, innerHeight));
-            widest = Math.max(widest, usedW + lp.leftMargin + lp.rightMargin);
-            tallest = Math.max(tallest, usedH + lp.topMargin + lp.bottomMargin);
         }
-        int width = widthMode == View.MeasureSpec.EXACTLY ? maxWidth
-                : Math.min(maxWidth, widest + getPaddingLeft() + getPaddingRight());
-        int height = heightMode == View.MeasureSpec.EXACTLY ? maxHeight
-                : Math.min(maxHeight, tallest + getPaddingTop() + getPaddingBottom());
+        // Positioned extents: BELOW/RIGHT_OF siblings stack, so the parent
+        // needs the anchor offset plus the child, not the largest child.
+        int innerLeft = getPaddingLeft();
+        int innerTop = getPaddingTop();
+        int innerRight = widthMode == View.MeasureSpec.UNSPECIFIED
+                ? Integer.MAX_VALUE : innerLeft + innerWidth;
+        int innerBottom = heightMode == View.MeasureSpec.UNSPECIFIED
+                ? Integer.MAX_VALUE : innerTop + innerHeight;
+        int[] xs = new int[count];
+        int[] ys = new int[count];
+        boolean[] placed = new boolean[count];
+        int remaining = 0;
+        for (int i = 0; i < count; i++) {
+            View child = getChildAt(i);
+            if (child == null || child.getVisibility() == GONE) {
+                placed[i] = true;
+                continue;
+            }
+            remaining++;
+        }
+        int widest = 0;
+        int tallest = 0;
+        while (remaining > 0) {
+            int beforeRemaining = remaining;
+            for (int i = 0; i < count; i++) {
+                if (placed[i]) continue;
+                View child = getChildAt(i);
+                LayoutParams lp = (LayoutParams) child.getLayoutParams();
+                if (!anchorsReady(lp, placed)) continue;
+                int[] pos = computePosition(i, xs, ys, placed, innerLeft, innerTop, innerRight, innerBottom);
+                xs[i] = pos[0];
+                ys[i] = pos[1];
+                int[] extent = positionedExtent(child, lp, pos, innerLeft, innerTop, innerWidth, innerHeight, widthMode, heightMode);
+                widest = Math.max(widest, extent[0]);
+                tallest = Math.max(tallest, extent[1]);
+                placed[i] = true;
+                remaining--;
+            }
+            if (remaining == beforeRemaining) {
+                for (int i = 0; i < count; i++) {
+                    if (placed[i]) continue;
+                    View child = getChildAt(i);
+                    LayoutParams lp = (LayoutParams) child.getLayoutParams();
+                    int[] pos = computePosition(i, xs, ys, placed, innerLeft, innerTop, innerRight, innerBottom);
+                    xs[i] = pos[0];
+                    ys[i] = pos[1];
+                    int[] extent = positionedExtent(child, lp, pos, innerLeft, innerTop, innerWidth, innerHeight, widthMode, heightMode);
+                    widest = Math.max(widest, extent[0]);
+                    tallest = Math.max(tallest, extent[1]);
+                    placed[i] = true;
+                    remaining--;
+                    break;
+                }
+            }
+        }
+        int width = resolveSize(widest + getPaddingLeft() + getPaddingRight(), widthSpec);
+        int height = resolveSize(tallest + getPaddingTop() + getPaddingBottom(), heightSpec);
         setMeasuredDimension(width == 0 && widthMode != View.MeasureSpec.UNSPECIFIED ? maxWidth : width,
                 height == 0 && heightMode != View.MeasureSpec.UNSPECIFIED ? maxHeight : height);
     }
@@ -283,6 +329,8 @@ public class RelativeLayout extends ViewGroup {
             }
             remaining++;
         }
+        int[] xs = new int[count];
+        int[] ys = new int[count];
         // Place children whose anchors are already placed, then fall back for
         // cycles. Each child is placed at most once, so a cycle cannot loop.
         while (remaining > 0) {
@@ -292,7 +340,10 @@ public class RelativeLayout extends ViewGroup {
                 View child = getChildAt(i);
                 LayoutParams lp = (LayoutParams) child.getLayoutParams();
                 if (!anchorsReady(lp, placed)) continue;
-                placeChild(child, lp, placed, innerLeft, innerTop, innerRight, innerBottom);
+                int[] pos = computePosition(i, xs, ys, placed, innerLeft, innerTop, innerRight, innerBottom);
+                xs[i] = pos[0];
+                ys[i] = pos[1];
+                child.layout(pos[0], pos[1], pos[0] + child.getMeasuredWidth(), pos[1] + child.getMeasuredHeight());
                 placed[i] = true;
                 remaining--;
             }
@@ -302,8 +353,10 @@ public class RelativeLayout extends ViewGroup {
                 for (int i = 0; i < count; i++) {
                     if (placed[i]) continue;
                     View child = getChildAt(i);
-                    placeChild(child, (LayoutParams) child.getLayoutParams(), placed,
-                            innerLeft, innerTop, innerRight, innerBottom);
+                    int[] pos = computePosition(i, xs, ys, placed, innerLeft, innerTop, innerRight, innerBottom);
+                    xs[i] = pos[0];
+                    ys[i] = pos[1];
+                    child.layout(pos[0], pos[1], pos[0] + child.getMeasuredWidth(), pos[1] + child.getMeasuredHeight());
                     placed[i] = true;
                     remaining--;
                     break;
@@ -332,17 +385,34 @@ public class RelativeLayout extends ViewGroup {
         return -1;
     }
 
-    private View childById(int id) {
-        int index = indexOfChildId(id);
-        return index < 0 ? null : getChildAt(index);
+    /** Positioned extent of one child for the parent size: the anchor offset
+     * plus the child, clamped only on bounded axes. Unbounded axes keep
+     * intrinsic extents so scrolling lists do not collapse to zero. */
+    private int[] positionedExtent(View child, LayoutParams lp, int[] pos,
+            int innerLeft, int innerTop, int innerWidth, int innerHeight, int widthMode, int heightMode) {
+        int right = pos[0] + child.getMeasuredWidth() + lp.rightMargin - innerLeft;
+        int bottom = pos[1] + child.getMeasuredHeight() + lp.bottomMargin - innerTop;
+        if (widthMode != View.MeasureSpec.UNSPECIFIED)
+            right = Math.min(right, innerWidth);
+        if (heightMode != View.MeasureSpec.UNSPECIFIED)
+            bottom = Math.min(bottom, innerHeight);
+        return new int[]{Math.max(0, right), Math.max(0, bottom)};
     }
 
-    private void placeChild(View child, LayoutParams lp, boolean[] placed,
+    /** Shared child-position solver for measure and layout. Runs once per child
+     * in anchor dependency order; callers store the result and either aggregate
+     * extents (measure) or apply bounds (layout). Unbounded axes leave
+     * parent-relative rules at the start edge instead of overflowing. */
+    private int[] computePosition(int index, int[] xs, int[] ys, boolean[] placed,
             int innerLeft, int innerTop, int innerRight, int innerBottom) {
+        View child = getChildAt(index);
+        LayoutParams lp = (LayoutParams) child.getLayoutParams();
         int[] rules = lp.rules;
         boolean alignParentIfMissing = lp.alignWithParentIfMissing;
         int w = child.getMeasuredWidth();
         int h = child.getMeasuredHeight();
+        boolean unboundedWidth = innerRight == Integer.MAX_VALUE;
+        boolean unboundedHeight = innerBottom == Integer.MAX_VALUE;
 
         // --- horizontal ---
         int x = innerLeft + lp.leftMargin;
@@ -354,73 +424,81 @@ public class RelativeLayout extends ViewGroup {
         int relatedRightOf = rightOf != 0 ? rightOf : startOf;
         int relatedLeftOf = leftOf != 0 ? leftOf : endOf;
         if (relatedRightOf != 0) {
-            View anchor = childById(relatedRightOf);
-            if (anchor != null && placed[indexOfChildId(relatedRightOf)]) {
-                x = anchor.getLeft() + anchor.getWidth() + lp.leftMargin;
+            int anchorIndex = indexOfChildId(relatedRightOf);
+            if (anchorIndex >= 0 && placed[anchorIndex]) {
+                View anchor = getChildAt(anchorIndex);
+                x = xs[anchorIndex] + anchor.getMeasuredWidth() + lp.leftMargin;
             } else if (relatedRightOf != TRUE) {
                 relationX = 0; // anchor missing: keep parent fallback
             }
         } else if (relatedLeftOf != 0) {
-            View anchor = childById(relatedLeftOf);
-            if (anchor != null && placed[indexOfChildId(relatedLeftOf)]) {
-                x = anchor.getLeft() - w - lp.rightMargin;
+            int anchorIndex = indexOfChildId(relatedLeftOf);
+            if (anchorIndex >= 0 && placed[anchorIndex]) {
+                x = xs[anchorIndex] - w - lp.rightMargin;
             }
         } else if (ruleSet(rules, rtl(0) ? ALIGN_RIGHT : ALIGN_LEFT, ALIGN_PARENT_LEFT, ALIGN_PARENT_START)) {
             x = innerLeft + lp.leftMargin;
         } else if (ruleSet(rules, rtl(0) ? ALIGN_LEFT : ALIGN_RIGHT, ALIGN_PARENT_RIGHT, ALIGN_PARENT_END)) {
-            x = innerRight - w - lp.rightMargin;
+            if (!unboundedWidth) x = innerRight - w - lp.rightMargin;
         } else if (ruleSet(rules, CENTER_IN_PARENT, CENTER_HORIZONTAL)) {
-            x = innerLeft + (innerRight - innerLeft - w) / 2;
+            if (!unboundedWidth) x = innerLeft + (innerRight - innerLeft - w) / 2;
         } else {
             int alignId = idOf(rules, rtl(0) ? ALIGN_END : ALIGN_START);
             if (alignId == 0) alignId = idOf(rules, rtl(0) ? ALIGN_START : ALIGN_END);
-            View anchor = alignId != 0 ? childById(alignId) : null;
-            if (anchor != null && placed[indexOfChildId(alignId)]) {
-                x = anchor.getLeft() + lp.leftMargin;
+            int anchorIndex = alignId != 0 ? indexOfChildId(alignId) : -1;
+            if (anchorIndex >= 0 && placed[anchorIndex]) {
+                x = xs[anchorIndex] + lp.leftMargin;
             } else if (alignId != 0 && alignParentIfMissing) {
                 x = innerLeft + lp.leftMargin;
             }
         }
         if (relationX != null) {
             boolean alignsRight = ruleSet(rules, ALIGN_RIGHT, ALIGN_PARENT_RIGHT, ALIGN_PARENT_END);
-            if (alignsRight && anchorsPresent(rules, placed)) x = innerRight - w;
+            if (alignsRight && !unboundedWidth && anchorsPresent(rules, placed)) x = innerRight - w;
         }
 
         // --- vertical ---
         int y = innerTop + lp.topMargin;
-        if (idOf(rules, BELOW) != 0) {
-            View anchor = childById(idOf(rules, BELOW));
-            if (anchor != null && placed[indexOfChildId(idOf(rules, BELOW))]) {
-                y = anchor.getBottom() + lp.topMargin;
+        int belowId = idOf(rules, BELOW);
+        int aboveId = idOf(rules, ABOVE);
+        int alignTopId = idOf(rules, ALIGN_TOP);
+        int alignBottomId = idOf(rules, ALIGN_BOTTOM);
+        int baselineId = idOf(rules, ALIGN_BASELINE);
+        if (belowId != 0) {
+            int anchorIndex = indexOfChildId(belowId);
+            if (anchorIndex >= 0 && placed[anchorIndex]) {
+                View anchor = getChildAt(anchorIndex);
+                y = ys[anchorIndex] + anchor.getMeasuredHeight() + lp.topMargin;
             }
-        } else if (idOf(rules, ABOVE) != 0) {
-            View anchor = childById(idOf(rules, ABOVE));
-            if (anchor != null && placed[indexOfChildId(idOf(rules, ABOVE))]) {
-                y = anchor.getTop() - h - lp.bottomMargin;
+        } else if (aboveId != 0) {
+            int anchorIndex = indexOfChildId(aboveId);
+            if (anchorIndex >= 0 && placed[anchorIndex]) {
+                y = ys[anchorIndex] - h - lp.bottomMargin;
             }
-        } else if (idOf(rules, ALIGN_TOP) != 0) {
-            View anchor = childById(idOf(rules, ALIGN_TOP));
-            if (anchor != null && placed[indexOfChildId(idOf(rules, ALIGN_TOP))]) {
-                y = anchor.getTop() + lp.topMargin;
+        } else if (alignTopId != 0) {
+            int anchorIndex = indexOfChildId(alignTopId);
+            if (anchorIndex >= 0 && placed[anchorIndex]) {
+                y = ys[anchorIndex] + lp.topMargin;
             }
-        } else if (idOf(rules, ALIGN_BOTTOM) != 0) {
-            View anchor = childById(idOf(rules, ALIGN_BOTTOM));
-            if (anchor != null && placed[indexOfChildId(idOf(rules, ALIGN_BOTTOM))]) {
-                y = anchor.getBottom() - h - lp.bottomMargin;
+        } else if (alignBottomId != 0) {
+            int anchorIndex = indexOfChildId(alignBottomId);
+            if (anchorIndex >= 0 && placed[anchorIndex]) {
+                View anchor = getChildAt(anchorIndex);
+                y = ys[anchorIndex] + anchor.getMeasuredHeight() - h - lp.bottomMargin;
             }
-        } else if (idOf(rules, ALIGN_BASELINE) != 0) {
-            View anchor = childById(idOf(rules, ALIGN_BASELINE));
-            if (anchor != null && placed[indexOfChildId(idOf(rules, ALIGN_BASELINE))]) {
-                y = anchor.getTop() + lp.topMargin;
+        } else if (baselineId != 0) {
+            int anchorIndex = indexOfChildId(baselineId);
+            if (anchorIndex >= 0 && placed[anchorIndex]) {
+                y = ys[anchorIndex] + lp.topMargin;
             }
         } else if (ruleSet(rules, ALIGN_PARENT_BOTTOM)) {
-            y = innerBottom - h - lp.bottomMargin;
+            if (!unboundedHeight) y = innerBottom - h - lp.bottomMargin;
         } else if (ruleSet(rules, ALIGN_PARENT_TOP)) {
             y = innerTop + lp.topMargin;
         } else if (ruleSet(rules, CENTER_IN_PARENT, CENTER_VERTICAL)) {
-            y = innerTop + (innerBottom - innerTop - h) / 2;
+            if (!unboundedHeight) y = innerTop + (innerBottom - innerTop - h) / 2;
         }
-        child.layout(x, y, x + w, y + h);
+        return new int[]{x, y};
     }
 
     /** Rule value for a verb; 0 when unset. */

@@ -1,0 +1,4 @@
+TAP row1
+LONG row1
+PROBES: ['I/IsakaiProbe: performClick androidx.appcompat.view.menu.ActionMenuItemView id=2131296688', 'I/IsakaiProbe: overlayTouch action=2 x=320.0 y=318.0', 'I/IsakaiProbe: overlayTouch action=0 x=320.0 y=318.0', 'I/IsakaiProbe: dismissDialog showing=true']
+close exit: 0

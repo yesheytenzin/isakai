@@ -236,8 +236,10 @@ pub fn build(b: *std.Build) void {
         std.log.warn("bionic_translation artifacts not found under {s}; native-app loading stays disabled", .{bionic_dir});
     }
     // Framework: compile android.* + IsakaiMain with the host javac.
+    // Explicit -g: this JDK's --release omits LocalVariableTable by default,
+    // which leaves live JDWP inspection without parameter names.
     const fw = b.addSystemCommand(&.{
-        "javac", "--release", "17", "-d",
+        "javac", "--release", "17", "-g", "-d",
     });
     const fw_out = fw.addOutputDirectoryArg("framework");
     fw.addFileArg(b.path("framework/android/accessibilityservice/AccessibilityServiceInfo.java"));

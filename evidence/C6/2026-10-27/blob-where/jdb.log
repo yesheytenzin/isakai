@@ -1,0 +1,17 @@
+Set uncaught java.lang.Throwable
+Set deferred uncaught java.lang.Throwable
+Initializing jdb ...
+> Unable to set breakpoint android.graphics.Canvas.drawRoundRect : Method drawRoundRect is overloaded; specify arguments
+> > Nothing suspended.
+No thread specified.
+> > Nothing suspended.
+No thread specified.
+> > Nothing suspended.
+No thread specified.
+> > Nothing suspended.
+No thread specified.
+> > Nothing suspended.
+No thread specified.
+> > Nothing suspended.
+No thread specified.
+> > Nothing suspended.
