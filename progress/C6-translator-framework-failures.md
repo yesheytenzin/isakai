@@ -1616,6 +1616,15 @@ blue), erase-preserving whitewash, compose back-arrow/first-row,
 file-picker-cancel end-to-end, `getLocationInWindow` scroll, XKB stress,
 C7 default-isolation operator run.
 
+### 2026-10-28 — scroll-aware window coordinates landed (self-review)
+
+Worker `ade84ed` merged as `08fc2d3`. `getLocationInWindow` now
+subtracts each ancestor's scroll (own scroll correctly excluded);
+`getLocationOnScreen` documents the zero window-to-screen offset on this
+host. Probe agreement on the live pager: reported (0,97) == drawn == touch;
+page-0 descendants correctly report x=-640; zero-scroll walks bit-identical.
+Calculator + notes flows PASS. Full record: [WORKER-locwin](WORKER-locwin.md).
+
 ### 2026-10-28 — Canvas color filter landed, FAB blue (self-review)
 
 Worker `acdd5b8` merged as `eeae98e`. `paintColor()` now applies the
