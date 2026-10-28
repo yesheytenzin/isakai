@@ -355,6 +355,7 @@ public abstract class Context {
         if(type == android.view.inputmethod.InputMethodManager.class) return type.cast(new android.view.inputmethod.InputMethodManager());
         if(type == android.view.accessibility.AccessibilityManager.class) return type.cast(new android.view.accessibility.AccessibilityManager());
         if(type == android.view.autofill.AutofillManager.class) return type.cast(new android.view.autofill.AutofillManager());
+        if(type == android.os.Vibrator.class) return type.cast(getSystemService(VIBRATOR_SERVICE));
         return null;
     }
 
