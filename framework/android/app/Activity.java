@@ -263,6 +263,20 @@ public class Activity extends android.view.ContextThemeWrapper implements androi
         }
     }
 
+    /** Array/Bundle entry points (TaskStackBuilder, app-bundled androidx):
+     * ContextWrapper would hand these to the base context and drop them.
+     * Keep the single-intent rule so explicit intents reach the navigator. */
+    @Override
+    public void startActivity(Intent intent, android.os.Bundle options) {
+        startActivity(intent);
+    }
+
+    @Override
+    public void startActivities(Intent[] intents, android.os.Bundle options) {
+        if (intents == null) return;
+        for (Intent intent : intents) startActivity(intent);
+    }
+
     /** Launch a file picker; VIEW behaves like {@link #startActivity}. */
     public void startActivityForResult(Intent intent, int requestCode) {
         if (intent == null) return;

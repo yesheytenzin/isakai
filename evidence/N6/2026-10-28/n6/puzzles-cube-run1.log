@@ -1,0 +1,7 @@
+exited with code 0
+ndroid:appComponentFactory (direct instantiation)
+isakai: application android.app.Application onCreate
+isakai: activity name.boyle.chris.sgtpuzzles.SGTPuzzles runWindowed
+isakai: new root android.view.View bounds=0,0,0x0
+isakai: activity name.boyle.chris.sgtpuzzles.SGTPuzzles destroyed
+isakai: run complete
