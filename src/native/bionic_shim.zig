@@ -10,7 +10,8 @@
 //!     __android_log_vprint/__android_log_assert/__android_log_is_loggable
 //!   - sys/system_properties.h: property_get/property_set/property_list,
 //!     __system_property_get/__system_property_set
-//!   - android/dlext.h: android_dlopen_ext → dlopen (extinfo ignored)
+//!   - android/dlext.h: android_dlopen_ext validates extinfo, then dlopen
+//!     (unknown/namespace/RELRO bits fail loudly; NULL extinfo is plain dlopen)
 //! Deliberately NOT provided: ashmem/ASharedMemory, hardware/*.so entry
 //! points, media/NDK APIs. A lib needing those fails dlopen with a loud
 //! undefined-symbol error — the honest failure mode.
@@ -187,9 +188,62 @@ export fn __system_property_set(name: [*:0]const u8, value: [*:0]const u8) c_int
 }
 
 // --- dlext: NDK-adjacent code sometimes calls android_dlopen_ext ---
+//
+// Platform bionic validates extinfo before attempting any load, and NULL
+// extinfo is the legal plain-dlopen path. Mirror that here: every check
+// below runs before the host-first dlopen, so a request the host would
+// satisfy (e.g. USE_NAMESPACE) still fails when the contract says so.
+
+// NDK android/dlext.h values (retired ART bits 0x80/0x100 stay rejected).
+const dlext_valid: u64 = 0x67f; // RESERVED|HINT|WRELRO|URELRO|FD|OFFSET|FORCE|NS|RECURSIVE
+const dlext_reserved_relro: u64 = 0x40f; // 0x1|0x2|0x4|0x8|0x400
+const dlext_use_fd: u64 = 0x10;
+const dlext_use_fd_offset: u64 = 0x20;
+const dlext_use_namespace: u64 = 0x200;
+
+// Bionic's six accepted dlopen bits: LAZY|NOW|NOLOAD|GLOBAL|NODELETE
+// (LOCAL is 0). Anything else fails, as on platform.
+const dlopen_valid: c_uint = 0x1107;
+
+const AndroidDlextinfo = extern struct {
+    flags: u64,
+    reserved_addr: ?*anyopaque,
+    reserved_size: usize,
+    relro_fd: c_int,
+    library_fd: c_int,
+    library_fd_offset: i64,
+    library_namespace: ?*anyopaque,
+};
 
 export fn android_dlopen_ext(file_name: ?[*:0]const u8, flags: c_int, extinfo: ?*anyopaque) ?*anyopaque {
-    _ = extinfo;
+    if (extinfo) |raw| {
+        const info: *const AndroidDlextinfo = @ptrCast(@alignCast(raw));
+        const ext_flags = info.flags;
+        if (ext_flags & ~dlext_valid != 0) {
+            setError("isakai: invalid extended flags to android_dlopen_ext", .{});
+            return null;
+        }
+        if (ext_flags & dlext_use_fd_offset != 0 and ext_flags & dlext_use_fd == 0) {
+            setError("isakai: ANDROID_DLEXT_USE_LIBRARY_FD_OFFSET without ANDROID_DLEXT_USE_LIBRARY_FD", .{});
+            return null;
+        }
+        if (ext_flags & dlext_reserved_relro != 0) {
+            setError("isakai: reserved-address/RELRO extinfo needs the system loader and is rejected", .{});
+            return null;
+        }
+        if (ext_flags & dlext_use_namespace != 0) {
+            // Single namespace: no isolation to offer, so even a non-null
+            // namespace fails rather than loading visibly in the wrong one.
+            setError("isakai: ANDROID_DLEXT_USE_NAMESPACE rejected: one namespace only", .{});
+            return null;
+        }
+        // USE_LIBRARY_FD / FORCE_LOAD fall through: the filename still
+        // identifies the library and the host-first chain below loads it.
+    }
+    if (@as(c_uint, @bitCast(flags)) & ~dlopen_valid != 0) {
+        setError("isakai: invalid flags to dlopen", .{});
+        return null;
+    }
     return dlopen(file_name, flags);
 }
 
@@ -201,7 +255,11 @@ export fn android_dlopen_ext(file_name: ?[*:0]const u8, flags: c_int, extinfo: ?
 // any library glibc refuses is retried with bionic_dlopen from the pinned
 // ATL bionic_translation build; the returned handle is recognised by the
 // interposed dlsym, so HotSpot still resolves and calls JNI_OnLoad itself.
-// Normal host libraries keep going through glibc untouched.
+// Normal host libraries keep going through glibc untouched. Host-first
+// ordering is an isakai-only rule: platform bionic has no host/guest
+// split, so this order mirrors no platform behavior. It exists because
+// HotSpot and glibc-built JNI libraries need exact glibc semantics, and
+// only libraries glibc rejects can be Android DSOs.
 
 const DlInfo = extern struct {
     fname: ?[*:0]const u8,
@@ -352,6 +410,9 @@ fn clearError() void {
 }
 
 fn setError(comptime fmt: []const u8, args: anytype) void {
+    // A shim failure becomes the current error: drain any stale host
+    // message first so dlerror() returns this text, then NULL.
+    if (real_dlerror) |f| _ = f();
     const text = std.mem.printSentinel(&err_buf, fmt, args, 0) catch {
         err_buf[0] = 0;
         err_len = 1;
@@ -454,9 +515,13 @@ export fn dlopen(file_name: ?[*:0]const u8, flags: c_int) ?*anyopaque {
     // keep the normal path. Only a library glibc rejects is retried with the
     // Android loader.
     if (real_dlopen.?(file_name, flags)) |handle| {
-        clearError();
+        // Success preserves any pending error (bionic rule).
         return handle;
     }
+    // The host attempt failed and owns the fresh error in its own buffer.
+    // Drop any stale shim error so dlerror() surfaces the host message
+    // unless the bionic retry below overrides it with setError.
+    clearError();
     if (file_name == null) return null;
     if (!ensureLoader()) return null;
     in_bionic = true;
@@ -464,8 +529,12 @@ export fn dlopen(file_name: ?[*:0]const u8, flags: c_int) ?*anyopaque {
     in_bionic = false;
     const handle = maybe_handle orelse {
         if (bionic_dlerror) |f| {
-            if (f()) |message| setError("{s}", .{std.mem.sliceTo(message, 0)});
+            if (f()) |message| {
+                setError("{s}", .{std.mem.sliceTo(message, 0)});
+                return null;
+            }
         }
+        setError("isakai: bionic loader failed to load the library", .{});
         return null;
     };
     if (!trackHandle(handle)) {
@@ -473,7 +542,6 @@ export fn dlopen(file_name: ?[*:0]const u8, flags: c_int) ?*anyopaque {
         setError("isakai: out of memory tracking bionic library", .{});
         return null;
     }
-    clearError();
     return handle;
 }
 
@@ -481,18 +549,25 @@ export fn dlsym(handle: ?*anyopaque, symbol: [*:0]const u8) ?*anyopaque {
     resolveReal();
     if (handle) |h| {
         if (isTracked(h)) {
+            // Guest failure writes the shim thread-local buffer; guest
+            // success preserves any pending host error.
             const sym = bionic_dlsym.?(h, symbol) orelse {
                 if (bionic_dlerror) |f| {
-                    if (f()) |message| setError("{s}", .{std.mem.sliceTo(message, 0)});
+                    if (f()) |message| {
+                        setError("{s}", .{std.mem.sliceTo(message, 0)});
+                        return null;
+                    }
                 }
+                setError("isakai: bionic lookup of the symbol failed", .{});
                 return null;
             };
-            clearError();
             return sym;
         }
     }
     const sym = if (real_dlsym) |f| f(handle, symbol) else null;
-    if (sym != null) clearError();
+    // Host failure owns the fresh error: drop a stale shim error so the
+    // host message surfaces. Success preserves everything.
+    if (sym == null) clearError();
     return sym;
 }
 
@@ -501,12 +576,20 @@ export fn dlclose(handle: ?*anyopaque) c_int {
     if (handle) |h| {
         if (untrackHandle(h)) {
             const rc = if (bionic_dlclose) |f| f(h) else 0;
-            if (rc == 0) clearError();
+            if (rc != 0) {
+                if (bionic_dlerror) |f| {
+                    if (f()) |message| {
+                        setError("{s}", .{std.mem.sliceTo(message, 0)});
+                        return rc;
+                    }
+                }
+                setError("isakai: bionic close of the library failed", .{});
+            }
             return rc;
         }
     }
     const rc = if (real_dlclose) |f| f(handle) else -1;
-    if (rc == 0) clearError();
+    if (rc != 0) clearError();
     return rc;
 }
 
