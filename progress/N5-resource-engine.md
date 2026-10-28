@@ -1,12 +1,12 @@
 ---
 id: "N5"
-status: "in_progress"
+status: "done"
 phase: "RESOURCES"
 priority: "P1"
 size: "L"
-updated: "2026-10-26"
+updated: "2026-10-28"
 owner: "unassigned"
-next: "review the C8 AssetFileDescriptor repair and record actual caller evidence or the remaining verification limit"
+next: "none — done 2026-10-28; reopen on regression or when an openFd caller appears"
 ---
 
 # N5: Replace duplicate resource selection with a libandroidfw adapter
@@ -53,7 +53,18 @@ Planning estimate: 2–4 engineer-weeks for a bounded pilot.
 
 ## Blockers
 
-### Current acceptance boundary, 2026-10-26
+### Resolved 2026-10-28 — N5 done
+
+Review ([WORKER-n5](reports/WORKER-n5.md), evidence `evidence/N5/2026-10-28/n5/`)
+found no defect: all read paths enforce offset/length (incl. bulk
+overrides), ownership fail-closed, compressed entries rejected per AOSP.
+Direct byte-level proof on real APK bytes (OpenCalc `baseline.prof`
+start/len, sha-identical, over-read/skip/close behavior) plus a passing
+calculator flow with the repair in tree. No pinned app calls `openFd`,
+so the recorded remaining limit is: wrapper proven, app-driven bounded
+read unobserved; NDK fd interop belongs to N18 behind N6's loader.
+
+### Prior acceptance boundary, 2026-10-26
 
 [C8](archive/C8-shared-contracts.md) repairs the discovered Java AssetFileDescriptor range and backing
 file ownership defect (implemented, self-reviewed, exercised by the passing

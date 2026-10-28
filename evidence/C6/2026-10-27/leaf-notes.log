@@ -1,0 +1,28 @@
+FAIL: the reopened editor saved (10, 'N10', 'Isakai 日本語 – note') instead of (10, 'N10', 'Isakai 日本語 – noteX')
+tate() of 4 for g{31368b99} (fe184733-f370-4fd0-8636-495692d11d93 id=0x7f0903ca)
+D/FragmentManager: moveto ACTIVITY_CREATED: g{31368b99} (fe184733-f370-4fd0-8636-495692d11d93 id=0x7f0903ca)
+D/FragmentManager: moveto RESTORE_VIEW_STATE: g{31368b99} (fe184733-f370-4fd0-8636-495692d11d93 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 4 for g{31368b99} (fe184733-f370-4fd0-8636-495692d11d93 id=0x7f0903ca)
+V/FragmentManager: SpecialEffectsController: Enqueuing add operation for fragment g{31368b99} (fe184733-f370-4fd0-8636-495692d11d93 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 4 for g{31368b99} (fe184733-f370-4fd0-8636-495692d11d93 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 7 for g{588df31b} (2c9e836d-e3c4-4fc9-a794-7baff9e254d3 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 7 for g{33b37288} (b40ab6db-2731-4c68-882e-11c85be29f7d id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 4 for g{31368b99} (fe184733-f370-4fd0-8636-495692d11d93 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 7 for g{588df31b} (2c9e836d-e3c4-4fc9-a794-7baff9e254d3 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 7 for g{33b37288} (b40ab6db-2731-4c68-882e-11c85be29f7d id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 4 for g{31368b99} (fe184733-f370-4fd0-8636-495692d11d93 id=0x7f0903ca)
+V/FragmentManager: SpecialEffectsController: For fragment g{31368b99} (fe184733-f370-4fd0-8636-495692d11d93 id=0x7f0903ca) mFinalState = VISIBLE -> VISIBLE. 
+V/FragmentManager: SpecialEffectsController: For fragment g{31368b99} (fe184733-f370-4fd0-8636-495692d11d93 id=0x7f0903ca) mFinalState = VISIBLE -> VISIBLE. 
+V/FragmentManager: SpecialEffectsController: Operation {39529185} {mFinalState = VISIBLE} {mLifecycleImpact = ADDING} {mFragment = g{31368b99} (fe184733-f370-4fd0-8636-495692d11d93 id=0x7f0903ca)} has called complete.
+V/FragmentManager: SpecialEffectsController: Setting view android.widget.RelativeLayout@72f926e6 to VISIBLE
+V/FragmentManager: computeExpectedState() of 4 for g{31368b99} (fe184733-f370-4fd0-8636-495692d11d93 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 7 for g{31368b99} (fe184733-f370-4fd0-8636-495692d11d93 id=0x7f0903ca)
+D/FragmentManager: moveto STARTED: g{31368b99} (fe184733-f370-4fd0-8636-495692d11d93 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 7 for g{31368b99} (fe184733-f370-4fd0-8636-495692d11d93 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 7 for g{31368b99} (fe184733-f370-4fd0-8636-495692d11d93 id=0x7f0903ca)
+D/FragmentManager: moveto RESUMED: g{31368b99} (fe184733-f370-4fd0-8636-495692d11d93 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 7 for g{31368b99} (fe184733-f370-4fd0-8636-495692d11d93 id=0x7f0903ca)
+ISAKAI_UNSUPPORTED RippleDrawable.animation at h6.n.g bci=507
+D/ViewUtils: Could not find method makeOptionalFitsSystemWindows. Oh well...
+isakai: new root android.app.DialogOverlayGroup bounds=0,0,0x0
+
