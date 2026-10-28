@@ -18,4 +18,5 @@ public interface ViewParent {
     default void onNestedPreScroll(View target, int dx, int dy, int[] consumed) {}
     default boolean onNestedFling(View target, float velocityX, float velocityY, boolean consumed) { return false; }
     default boolean onNestedPreFling(View target, float velocityX, float velocityY) { return false; }
+    default void onDescendantInvalidated(View child, View target) { invalidateChild(child, null); }
 }
