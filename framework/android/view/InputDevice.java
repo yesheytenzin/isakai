@@ -12,4 +12,16 @@ public final class InputDevice {
     public boolean isVirtual(){return true;}
     public int getSources(){return SOURCE_KEYBOARD|SOURCE_MOUSE|SOURCE_TOUCHSCREEN;}
     public boolean supportsSource(int source){return (getSources() & source)==source;}
+    public MotionRange getMotionRange(int axis){return null;}
+    public MotionRange getMotionRange(int axis,int source){return null;}
+    /** Motion axis range: platform shape so translated inflation code links. No host ranges reported. */
+    public static final class MotionRange {
+        public int getAxis(){return 0;}
+        public int getSource(){return 0;}
+        public float getMin(){return 0;}
+        public float getMax(){return 0;}
+        public float getFlat(){return 0;}
+        public float getFuzz(){return 0;}
+        public float getResolution(){return 0;}
+    }
 }
