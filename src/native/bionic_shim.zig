@@ -341,6 +341,11 @@ fn untrackHandle(handle: *anyopaque) bool {
 
 threadlocal var err_buf: [512]u8 = undefined;
 threadlocal var err_len: usize = 0;
+// Set while inside bionic_dlopen on this thread. ATL's own
+// missing-dependency fallback calls the host dlopen, which lands back
+// here through the interposer; retrying bionic for that nested call
+// would recurse into the loader, so stay on the host path instead.
+threadlocal var in_bionic: bool = false;
 
 fn clearError() void {
     err_len = 0;
@@ -443,6 +448,8 @@ fn ensureLoader() bool {
 export fn dlopen(file_name: ?[*:0]const u8, flags: c_int) ?*anyopaque {
     resolveReal();
     if (real_dlopen == null) return null;
+    // Nested ATL fallback (see in_bionic): host path only, no bionic retry.
+    if (in_bionic) return real_dlopen.?(file_name, flags);
     // Host libraries (libjvm's own dependencies, JNI libs built for glibc)
     // keep the normal path. Only a library glibc rejects is retried with the
     // Android loader.
@@ -452,7 +459,10 @@ export fn dlopen(file_name: ?[*:0]const u8, flags: c_int) ?*anyopaque {
     }
     if (file_name == null) return null;
     if (!ensureLoader()) return null;
-    const handle = bionic_dlopen.?(file_name.?, flags) orelse {
+    in_bionic = true;
+    const maybe_handle = bionic_dlopen.?(file_name.?, flags);
+    in_bionic = false;
+    const handle = maybe_handle orelse {
         if (bionic_dlerror) |f| {
             if (f()) |message| setError("{s}", .{std.mem.sliceTo(message, 0)});
         }
