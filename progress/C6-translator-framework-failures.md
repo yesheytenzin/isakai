@@ -1627,6 +1627,17 @@ the black blob; plus still missing (FAB ImageView drawable null —
 keypad/settings pre/post pairs pixel-identical. Full record:
 [WORKER-canvasfilter](WORKER-canvasfilter.md).
 
+### 2026-10-28 — whitewash fixed with erase preserved (self-review)
+
+Worker `aa7778d` merged as `f8951db`. Per-view white fill now skipped
+only under drawable-backed ancestors (new `hasDrawableBackgroundAncestor`
+walk); everywhere else the fill stays as intra-frame erase. A census
+proved why the old fill was load-bearing (compose `r1.v2` redraws 321×
+per frame). Verified on screenshots: picker shows full-width periwinkle
+rows with text on top; settings pixel-identical after repeated toggles
+(0 diff pixels); glyph edges all zeros. All three flows PASS. Full record:
+[WORKER-erasefix](WORKER-erasefix.md).
+
 ### 2026-10-28 — web research + fix plan delivered (self-review)
 
 Five parallel researchers (official Android docs via Context7 + repo
