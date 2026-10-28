@@ -1,0 +1,4 @@
+puzzles sgtpuzzles_149 (final binary, translate-test, 0 failures):
+  post-classes: 118/3978 carry RuntimeVisibleAnnotations
+calculator (final binary, launch-time retranslation during flow; 10 android/ platform classes skipped by design):
+  flow tree: 20/5080 (DEX census: 21 runtime annotations on 20 classes)

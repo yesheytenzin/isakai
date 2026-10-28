@@ -3987,6 +3987,7 @@ const CpEntry = union(enum) {
     class: u16, // name_idx
     string: u16, // utf8 idx
     integer: i32,
+    float: u32, // bits (JVM tag 4)
     long: i64,
     double: u64, // bits
     pad: void, // second slot of a long/double (JVM 4.4.5: unusable index)
@@ -4067,6 +4068,12 @@ pub const ClassWriter = struct {
     pub fn integer(self: *ClassWriter, gpa: std.mem.Allocator, v: i32) !u16 {
         try self.reserve(1);
         try self.entries.append(gpa, .{ .integer = v });
+        return @intCast(self.entries.items.len);
+    }
+
+    pub fn float(self: *ClassWriter, gpa: std.mem.Allocator, bits: u32) !u16 {
+        try self.reserve(1);
+        try self.entries.append(gpa, .{ .float = bits });
         return @intCast(self.entries.items.len);
     }
 
@@ -4205,6 +4212,10 @@ pub const ClassWriter = struct {
                     try out.append(gpa, 3);
                     try appendU32BE(out, gpa, @bitCast(v));
                 },
+                .float => |b| {
+                    try out.append(gpa, 4);
+                    try appendU32BE(out, gpa, b);
+                },
                 .long => |v| try tag8(out, gpa, 5, @bitCast(v)),
                 .double => |b| try tag8(out, gpa, 6, b),
                 .pad => {},
@@ -4237,6 +4248,7 @@ pub fn dexFlagsToJvm(dex_flags: u32) u16 {
     if (dex_flags & 0x200 != 0) out |= 0x0200; // interface
     if (dex_flags & 0x400 != 0) out |= 0x0400; // abstract
     if (dex_flags & 0x1000 != 0) out |= 0x1000; // synthetic
+    if (dex_flags & 0x2000 != 0) out |= 0x2000; // annotation: same bit both worlds; without it translated annotation types fail isAnnotation and getAnnotation drops them
     if (dex_flags & 0x4000 != 0) out |= 0x4000; // enum
     return out;
 }
@@ -4417,6 +4429,403 @@ fn dexSuperInternal(gpa: std.mem.Allocator, d: dex.Dex, def: dex.ClassDef) Trans
     const sdesc = try d.getTypeDescriptor(gpa, def.superclass_idx);
     defer gpa.free(sdesc);
     return try descriptorToInternal(gpa, sdesc);
+}
+
+/// DEX class annotations carried into RuntimeVisibleAnnotations. JVM
+/// annotation encoding differs from DEX, so values decode to this IR and
+/// re-encode on emission; nothing here knows Kotlin or protobuf.
+const AnnValue = union(enum) {
+    byte: i8,
+    short: i16,
+    char: u16,
+    int: i32,
+    long: i64,
+    float: u32, // bits
+    double: u64, // bits
+    boolean: bool,
+    string: []u8,
+    type: []u8, // DEX descriptor, also the JVM annotation type form
+    @"enum": struct { type_desc: []u8, name: []u8 },
+    annotation: *Ann,
+    array: []AnnValue,
+
+    fn deinit(self: *AnnValue, gpa: std.mem.Allocator) void {
+        switch (self.*) {
+            .string => |s| gpa.free(s),
+            .type => |t| gpa.free(t),
+            .@"enum" => |*e| {
+                gpa.free(e.type_desc);
+                gpa.free(e.name);
+            },
+            .annotation => |a| {
+                a.deinit(gpa);
+                gpa.destroy(a);
+            },
+            .array => |items| {
+                for (items) |*v| v.deinit(gpa);
+                gpa.free(items);
+            },
+            else => {},
+        }
+    }
+};
+
+const AnnPair = struct {
+    name: []u8,
+    value: AnnValue,
+
+    fn deinit(self: *AnnPair, gpa: std.mem.Allocator) void {
+        gpa.free(self.name);
+        self.value.deinit(gpa);
+    }
+};
+
+const Ann = struct {
+    type_desc: []u8,
+    pairs: []AnnPair,
+
+    fn deinit(self: *Ann, gpa: std.mem.Allocator) void {
+        gpa.free(self.type_desc);
+        for (self.pairs) |*p| p.deinit(gpa);
+        gpa.free(self.pairs);
+    }
+};
+
+/// Annotation parse failures are malformed input; SkipAnnotation marks a
+/// value the JVM cannot spell (field/method ref, null) so the one
+/// annotation drops while the class still translates.
+const AnnParseError = TranslateError || error{SkipAnnotation};
+
+fn annU8(d: dex.Dex, pos: *usize) TranslateError!u8 {
+    if (pos.* >= d.data.len) return error.Truncated;
+    const b = d.data[pos.*];
+    pos.* += 1;
+    return b;
+}
+
+fn annU32(d: dex.Dex, pos: *usize) TranslateError!u32 {
+    if (pos.* + 4 > d.data.len) return error.Truncated;
+    const v = std.mem.readInt(u32, d.data[pos.*..][0..4], .little);
+    pos.* += 4;
+    return v;
+}
+
+/// Little-endian payload of `width` bytes (1..8) as u64.
+fn annUint(d: dex.Dex, pos: *usize, width: usize) TranslateError!u64 {
+    if (width == 0 or width > 8) return error.BadDescriptor;
+    if (pos.* + width > d.data.len) return error.Truncated;
+    var v: u64 = 0;
+    for (0..width) |i| v |= @as(u64, d.data[pos.* + i]) << @intCast(i * 8);
+    pos.* += width;
+    return v;
+}
+
+fn annInt(d: dex.Dex, pos: *usize, width: usize) TranslateError!i32 {
+    if (width == 0 or width > 4) return error.BadDescriptor;
+    const raw: u32 = @truncate(try annUint(d, pos, width));
+    const shift: u5 = @intCast(32 - width * 8);
+    return @as(i32, @bitCast(raw << shift)) >> shift;
+}
+
+fn annLong(d: dex.Dex, pos: *usize, width: usize) TranslateError!i64 {
+    if (width == 0 or width > 8) return error.BadDescriptor;
+    const raw = try annUint(d, pos, width);
+    const shift: u6 = @intCast(64 - width * 8);
+    return @as(i64, @bitCast(raw << shift)) >> shift;
+}
+
+fn readAnnValue(gpa: std.mem.Allocator, d: dex.Dex, pos: *usize, depth: u8) AnnParseError!AnnValue {
+    if (depth > 32) return error.BadSection;
+    const header = try annU8(d, pos);
+    const kind = header & 0x1f;
+    const arg = header >> 5;
+    const width: usize = @as(usize, arg) + 1;
+    switch (kind) {
+        0x00 => {
+            if (width != 1) return error.BadDescriptor;
+            return .{ .byte = @bitCast(@as(u8, @truncate(try annUint(d, pos, width)))) };
+        },
+        0x02 => {
+            const v = try annUint(d, pos, width);
+            if (width > 2) return error.BadDescriptor;
+            const shift: u5 = @intCast(32 - width * 8);
+            const s: i32 = @as(i32, @bitCast(@as(u32, @truncate(v)) << shift)) >> shift;
+            return .{ .short = @intCast(s) };
+        },
+        0x03 => {
+            if (width > 2) return error.BadDescriptor;
+            return .{ .char = @truncate(try annUint(d, pos, width)) };
+        },
+        0x04 => return .{ .int = try annInt(d, pos, width) },
+        0x06 => return .{ .long = try annLong(d, pos, width) },
+        0x10 => {
+            if (width > 4) return error.BadDescriptor;
+            return .{ .float = @truncate(try annUint(d, pos, width)) };
+        },
+        0x11 => {
+            if (width > 8) return error.BadDescriptor;
+            return .{ .double = try annUint(d, pos, width) };
+        },
+        0x17 => return .{ .string = try d.getString(gpa, @intCast(try annUint(d, pos, width))) },
+        0x18 => return .{ .type = try d.getTypeDescriptor(gpa, @intCast(try annUint(d, pos, width))) },
+        0x19, 0x1a => return error.SkipAnnotation, // field/method refs have no JVM annotation form
+        0x1b => {
+            // Enum constants encode as the constant's field_idx.
+            const fid = try d.fieldId(@intCast(try annUint(d, pos, width)));
+            const tdesc = try d.getTypeDescriptor(gpa, fid.class_idx);
+            errdefer gpa.free(tdesc);
+            const ename = try d.getString(gpa, fid.name_idx);
+            return .{ .@"enum" = .{ .type_desc = tdesc, .name = ename } };
+        },
+        0x1c => {
+            const n = try dex.readUleb128(d.data, pos);
+            if (n > 1 << 16) return error.BadSection;
+            const items = try gpa.alloc(AnnValue, n);
+            var done: usize = 0;
+            errdefer {
+                for (items[0..done]) |*v| v.deinit(gpa);
+                gpa.free(items);
+            }
+            for (items) |*v| {
+                v.* = try readAnnValue(gpa, d, pos, depth + 1);
+                done += 1;
+            }
+            return .{ .array = items };
+        },
+        0x1d => {
+            const nested = try gpa.create(Ann);
+            errdefer gpa.destroy(nested);
+            nested.* = try readEncodedAnn(gpa, d, pos, depth + 1);
+            return .{ .annotation = nested };
+        },
+        0x1e => {
+            if (arg != 0) return error.BadDescriptor;
+            return error.SkipAnnotation; // JVM annotations cannot hold null
+        },
+        0x1f => {
+            if (arg > 1) return error.BadDescriptor;
+            return .{ .boolean = arg == 1 };
+        },
+        else => return error.BadDescriptor,
+    }
+}
+
+fn readEncodedAnn(gpa: std.mem.Allocator, d: dex.Dex, pos: *usize, depth: u8) AnnParseError!Ann {
+    const type_idx = try dex.readUleb128(d.data, pos);
+    const size = try dex.readUleb128(d.data, pos);
+    if (size > 1 << 16) return error.BadSection;
+    const type_desc = try d.getTypeDescriptor(gpa, type_idx);
+    errdefer gpa.free(type_desc);
+    var pairs: std.ArrayListUnmanaged(AnnPair) = .empty;
+    errdefer {
+        for (pairs.items) |*p| p.deinit(gpa);
+        pairs.deinit(gpa);
+    }
+    for (0..size) |_| {
+        const name_idx = try dex.readUleb128(d.data, pos);
+        const name = try d.getString(gpa, name_idx);
+        errdefer gpa.free(name);
+        var value = try readAnnValue(gpa, d, pos, depth);
+        errdefer value.deinit(gpa);
+        try pairs.append(gpa, .{ .name = name, .value = value });
+    }
+    return .{ .type_desc = type_desc, .pairs = try pairs.toOwnedSlice(gpa) };
+}
+
+/// Upstream kotlin.Metadata element defaults (kotlin/Metadata.kt; confirmed
+/// against kotlinc 2.4.21 bytecode AnnotationDefaults: k=1, mv=[],
+/// bv=[1,0,3], d1=[], d2=[], xs="", pn="", xi=0). D8/R8 omit
+/// default-valued elements from the DEX annotation and drop the interface
+/// defaults, so a copied annotation missing pn/xs/bv throws
+/// IncompleteAnnotationException on first reflective read instead of
+/// decoding. Completing the copy with the documented defaults restores
+/// the read without changing any value the compiler emitted.
+fn metadataDefaultPair(gpa: std.mem.Allocator, name: []const u8) TranslateError!AnnPair {
+    if (std.mem.eql(u8, name, "k")) return .{ .name = try gpa.dupe(u8, name), .value = .{ .int = 1 } };
+    if (std.mem.eql(u8, name, "xi")) return .{ .name = try gpa.dupe(u8, name), .value = .{ .int = 0 } };
+    if (std.mem.eql(u8, name, "xs") or std.mem.eql(u8, name, "pn")) return .{
+        .name = try gpa.dupe(u8, name),
+        .value = .{ .string = try gpa.dupe(u8, "") },
+    };
+    if (std.mem.eql(u8, name, "bv")) {
+        const items = try gpa.alloc(AnnValue, 3);
+        items[0] = .{ .int = 1 };
+        items[1] = .{ .int = 0 };
+        items[2] = .{ .int = 3 };
+        return .{ .name = try gpa.dupe(u8, name), .value = .{ .array = items } };
+    }
+    // mv, d1, d2 default to empty arrays.
+    return .{
+        .name = try gpa.dupe(u8, name),
+        .value = .{ .array = try gpa.alloc(AnnValue, 0) },
+    };
+}
+
+fn completeMetadata(gpa: std.mem.Allocator, ann: *Ann) TranslateError!void {
+    const needed = [_][]const u8{ "k", "mv", "bv", "d1", "d2", "xs", "pn", "xi" };
+    var buf: [8]AnnPair = undefined;
+    var nbuf: usize = 0;
+    errdefer for (buf[0..nbuf]) |*p| p.deinit(gpa);
+    for (needed) |n| {
+        var found = false;
+        for (ann.pairs) |p| {
+            if (std.mem.eql(u8, p.name, n)) {
+                found = true;
+                break;
+            }
+        }
+        if (!found) {
+            buf[nbuf] = try metadataDefaultPair(gpa, n);
+            nbuf += 1;
+        }
+    }
+    if (nbuf == 0) return;
+    const grown = try gpa.alloc(AnnPair, ann.pairs.len + nbuf);
+    @memcpy(grown[0..ann.pairs.len], ann.pairs);
+    @memcpy(grown[ann.pairs.len..], buf[0..nbuf]);
+    gpa.free(ann.pairs);
+    ann.pairs = grown;
+}
+
+/// Runtime-visibility class annotations of one class_def. Build/system
+/// visibilities (dalvik MemberClasses/EnclosingClass/InnerClass) stay out.
+/// Caller owns the result.
+fn readRuntimeClassAnns(gpa: std.mem.Allocator, d: dex.Dex, annotations_off: u32) TranslateError![]Ann {
+    var out: std.ArrayListUnmanaged(Ann) = .empty;
+    errdefer {
+        for (out.items) |*a| a.deinit(gpa);
+        out.deinit(gpa);
+    }
+    if (annotations_off == 0) return out.toOwnedSlice(gpa) catch return error.OutOfMemory;
+    var dpos: usize = annotations_off;
+    const class_anno_off = try annU32(d, &dpos);
+    if (class_anno_off == 0) return out.toOwnedSlice(gpa) catch return error.OutOfMemory;
+    var spos: usize = class_anno_off;
+    const n = try annU32(d, &spos);
+    if (n > 1 << 20) return error.BadSection;
+    for (0..n) |_| {
+        const aoff = try annU32(d, &spos);
+        if (aoff == 0 or aoff + 1 > d.data.len) return error.BadSection;
+        const vis = d.data[aoff];
+        if (vis != 1) {
+            if (vis > 2) return error.BadDescriptor;
+            continue;
+        }
+        var apos: usize = aoff + 1;
+        var parsed: Ann = readEncodedAnn(gpa, d, &apos, 0) catch |err| switch (err) {
+            error.SkipAnnotation => {
+                std.debug.print("annotation skipped: unrepresentable value\n", .{});
+                continue;
+            },
+            else => |e| return e,
+        };
+        errdefer parsed.deinit(gpa);
+        if (std.mem.eql(u8, parsed.type_desc, "Lkotlin/Metadata;")) {
+            try completeMetadata(gpa, &parsed);
+        }
+        try out.append(gpa, parsed);
+    }
+    return out.toOwnedSlice(gpa) catch return error.OutOfMemory;
+}
+
+fn annU16BE(out: *std.ArrayListUnmanaged(u8), gpa: std.mem.Allocator, v: u16) !void {
+    try out.append(gpa, @intCast(v >> 8));
+    try out.append(gpa, @intCast(v & 0xFF));
+}
+
+fn emitAnnValue(gpa: std.mem.Allocator, cw: *ClassWriter, out: *std.ArrayListUnmanaged(u8), v: AnnValue) TranslateError!void {
+    switch (v) {
+        .byte => |b| {
+            try out.append(gpa, 'B');
+            try annU16BE(out, gpa, try cw.integer(gpa, b));
+        },
+        .short => |s| {
+            try out.append(gpa, 'S');
+            try annU16BE(out, gpa, try cw.integer(gpa, s));
+        },
+        .char => |c| {
+            try out.append(gpa, 'C');
+            try annU16BE(out, gpa, try cw.integer(gpa, c));
+        },
+        .int => |i| {
+            try out.append(gpa, 'I');
+            try annU16BE(out, gpa, try cw.integer(gpa, i));
+        },
+        .long => |l| {
+            try out.append(gpa, 'J');
+            try annU16BE(out, gpa, try cw.long(gpa, l));
+        },
+        .float => |f| {
+            try out.append(gpa, 'F');
+            try annU16BE(out, gpa, try cw.float(gpa, f));
+        },
+        .double => |bits| {
+            try out.append(gpa, 'D');
+            try annU16BE(out, gpa, try cw.double(gpa, bits));
+        },
+        .boolean => |b| {
+            try out.append(gpa, 'Z');
+            try annU16BE(out, gpa, try cw.integer(gpa, @intFromBool(b)));
+        },
+        .string => |s| {
+            try out.append(gpa, 's');
+            try annU16BE(out, gpa, try cw.utf8(gpa, s));
+        },
+        .type => |desc| {
+            const internal = try descriptorToInternal(gpa, desc);
+            defer gpa.free(internal);
+            try out.append(gpa, 'c');
+            try annU16BE(out, gpa, try cw.class(gpa, internal));
+        },
+        .@"enum" => |e| {
+            try out.append(gpa, 'e');
+            try annU16BE(out, gpa, try cw.utf8(gpa, e.type_desc));
+            try annU16BE(out, gpa, try cw.utf8(gpa, e.name));
+        },
+        .annotation => |a| {
+            try out.append(gpa, '@');
+            try emitAnn(gpa, cw, out, a.*);
+        },
+        .array => |items| {
+            if (items.len > 65535) return error.BadSection;
+            try out.append(gpa, '[');
+            try annU16BE(out, gpa, @intCast(items.len));
+            for (items) |item| try emitAnnValue(gpa, cw, out, item);
+        },
+    }
+}
+
+fn emitAnn(gpa: std.mem.Allocator, cw: *ClassWriter, out: *std.ArrayListUnmanaged(u8), ann: Ann) TranslateError!void {
+    if (ann.pairs.len > 65535) return error.BadSection;
+    try annU16BE(out, gpa, try cw.utf8(gpa, ann.type_desc));
+    try annU16BE(out, gpa, @intCast(ann.pairs.len));
+    for (ann.pairs) |p| {
+        try annU16BE(out, gpa, try cw.utf8(gpa, p.name));
+        try emitAnnValue(gpa, cw, out, p.value);
+    }
+}
+
+/// RuntimeVisibleAnnotations body (num_annotations + annotations) for one
+/// class, with pool entries registered. Null when no runtime annotation
+/// survives. Call before emitPool; flush the body after methods.
+const RuntimeAnns = struct { name_idx: u16, body: []u8 };
+
+fn buildRuntimeAnns(gpa: std.mem.Allocator, d: dex.Dex, cw: *ClassWriter, annotations_off: u32) TranslateError!?RuntimeAnns {
+    const anns = try readRuntimeClassAnns(gpa, d, annotations_off);
+    defer {
+        for (anns) |*a| a.deinit(gpa);
+        gpa.free(anns);
+    }
+    if (anns.len == 0) return null;
+    if (anns.len > 65535) return error.BadSection;
+    var body: std.ArrayListUnmanaged(u8) = .empty;
+    errdefer body.deinit(gpa);
+    try annU16BE(&body, gpa, @intCast(anns.len));
+    for (anns) |a| try emitAnn(gpa, cw, &body, a);
+    return .{
+        .name_idx = try cw.utf8(gpa, "RuntimeVisibleAnnotations"),
+        .body = try body.toOwnedSlice(gpa),
+    };
 }
 
 /// class_def index by internal name, for the driver's forward pass.
@@ -5069,6 +5478,13 @@ pub fn translateClass(
         }
     }
 
+    // Class annotations: RuntimeVisibleAnnotations carries every
+    // runtime-visibility DEX annotation (kotlin.Metadata included), so
+    // reflective sealed discovery survives translation. Pool entries
+    // register here (before emitPool); the body flushes after methods.
+    const runtime_anns = try buildRuntimeAnns(gpa, d, &cw, def.annotations_off);
+    defer if (runtime_anns) |ra| gpa.free(ra.body);
+
     // Emit the class file.
     var out: std.ArrayListUnmanaged(u8) = .empty;
     errdefer out.deinit(gpa);
@@ -5135,7 +5551,14 @@ pub fn translateClass(
             }
         }
     }
-    try ClassWriter.writeU16(&out, gpa, 0); // class attributes
+    if (runtime_anns) |ra| {
+        try ClassWriter.writeU16(&out, gpa, 1);
+        try ClassWriter.writeU16(&out, gpa, ra.name_idx);
+        try ClassWriter.writeU32(&out, gpa, @intCast(ra.body.len));
+        try out.appendSlice(gpa, ra.body);
+    } else {
+        try ClassWriter.writeU16(&out, gpa, 0); // class attributes
+    }
     return .{
         .internal_name = internal,
         .bytes = try out.toOwnedSlice(gpa),
