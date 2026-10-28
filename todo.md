@@ -21,6 +21,13 @@ Program: implement reports/Remaining N6 N18 fix plan.md. Four independent PRs of
 - [x] Independent review lane over merged stack: ships all four, no blockers.
 - [x] N18 proof complete. Stored fd plus offset verified. Zero NDK callers in pinned libs. Program closed.
 
+## N6 closeout
+
+- [ ] Step 3. Game start proof on fresh build (chooser to game, backend resolves, engine attempted).
+- [ ] Step 4. Engine stress behind step 3 (solved puzzle, threads, callbacks, GC, exceptions).
+- [ ] Step 5. Operator isolation run (human, command recorded by step 3 worker).
+- [ ] Step 6. N18 caller re-survey once N6 lands.
+
 ## Standing orders
 
 Full program objective: land all four PRs verified on real app surfaces. Verification rule: build green plus affected flows PASS on fresh trees plus regression flows PASS. Root merges. Done when all four are on main with evidence recorded.
