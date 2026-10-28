@@ -1395,15 +1395,27 @@ public class View {
     protected void dispatchDraw(Canvas canvas) {}
 
     protected void onDraw(Canvas canvas) {
-        // The fill stands in for a setBackgroundColor and doubles as the
-        // intra-frame erase between repeated passes. Only bounded views may
-        // fill: a zero-size view gets no clip of its own (drawAt skips the
-        // empty-bounds clip), so its fill would paint whole-canvas clips
-        // white and wipe content drawn before it (re-added compose hosts
-        // draw last with 0x0 bounds).
-        if (background == null && right > left && bottom > top) {
+        // A background-less view contributes no coverage of its own: whatever
+        // an ancestor already painted (window frame clear, parent art) shows
+        // through. Fill only when no ancestor supplies drawable art, where the
+        // fill doubles as the intra-frame erase between repeated passes of
+        // the same view (translated compose layers re-draw via drawChild, and
+        // translucent re-blends over stale glyphs darken without an opaque
+        // reset). Views under drawable-backed parents (e.g. picker rows over
+        // periwinkle) stay transparent so they cannot whitewash parent art.
+        if (background == null && right > left && bottom > top && !hasDrawableBackgroundAncestor()) {
             canvas.drawColor(backgroundColor);
         }
+    }
+
+    /** True when an ancestor paints drawable art this view must not cover. */
+    private boolean hasDrawableBackgroundAncestor() {
+        ViewParent p = getParent();
+        while (p instanceof View) {
+            if (((View) p).background != null) return true;
+            p = ((View) p).getParent();
+        }
+        return false;
     }
 
     /**
