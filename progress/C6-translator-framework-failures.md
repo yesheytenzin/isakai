@@ -1615,3 +1615,13 @@ Remaining open (no code this turn): Canvas color-filter follow-up (FAB
 blue), erase-preserving whitewash, compose back-arrow/first-row,
 file-picker-cancel end-to-end, `getLocationInWindow` scroll, XKB stress,
 C7 default-isolation operator run.
+
+### 2026-10-28 — web research + fix plan delivered (self-review)
+
+Five parallel researchers (official Android docs via Context7 + repo
+ground truth) + report writer. Full plan with cited contracts:
+[reports/isakai open defects fix plan.md](../reports/isakai%20open%20defects%20fix%20plan.md).
+Sequence: Canvas filter first, then erase-preserving View change with
+isolation repaints, then `getLocationInWindow` scroll math; compose
+arrow/duplicates need an instrumented translated-runtime session (proven
+not fixable framework-side); cancel e2e waits on a portal fixture.
