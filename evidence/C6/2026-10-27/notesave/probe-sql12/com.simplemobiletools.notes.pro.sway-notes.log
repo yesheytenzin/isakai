@@ -1,0 +1,642 @@
+warning: ignoring android:appComponentFactory (direct instantiation)
+info: desktop bridge ready at /tmp/isakai-1000-isosway/bridge.sock
+isakai: application com.simplemobiletools.notes.pro.App onCreate
+D/AppCompatDelegate: Checking for metadata for AppLocalesMetadataHolderService : Service not found
+isakai: activity com.simplemobiletools.notes.pro.activities.SplashActivity runWindowed
+D/ViewUtils: Could not find method computeFitSystemWindows. Oh well.
+D/ViewUtils: Could not find method makeOptionalFitsSystemWindows. Oh well...
+isakai: activity com.simplemobiletools.notes.pro.activities.MainActivity start
+ISAKAI_UNSUPPORTED android.view.View.tooltipRendering at androidx.appcompat.widget.e4.a bci=2
+ISAKAI_UNSUPPORTED android.graphics.Paint.xfermodeRendering at n6.h.<clinit> bci=55
+ISAKAI_EDITPROBE addWatcher com.simplemobiletools.commons.views.MyEditText@7a187f14 <- s3.j
+ISAKAI_TEXTPROBE setText com.simplemobiletools.commons.views.MyEditText@7a187f14 watchers=1 old= new=
+D/ViewUtils: Could not find method makeOptionalFitsSystemWindows. Oh well...
+ISAKAI_UNSUPPORTED android.os.Environment.sharedExternalStorage at t7.t.t bci=54
+ISAKAI_UNSUPPORTED android.view.View.androidSystemBars at f7.g.M bci=95
+ISAKAI_UNSUPPORTED android.app.Activity.taskIconAndColor at f7.g.H bci=24
+ISAKAI_EDITPROBE addWatcher com.simplemobiletools.commons.views.MyEditText@7a187f14 <- androidx.appcompat.widget.z2
+ISAKAI_UNSUPPORTED android.view.View.androidSystemBars at f7.g.onResume bci=629
+ISAKAI_UNSUPPORTED SQLiteDatabase.setMaxSqlCacheSize: prepared statements are not cached at i4.f.onConfigure bci=67
+ISAKAI_SQLPROBE execSQL CREATE TABLE IF NOT EXISTS `notes` (`id` INTEGER PRIMARY KEY AUTOINCREMENT, `title` TEXT NOT NULL, `value` TEXT NOT NULL, `type` INTEGER NOT NULL, `path` TEXT NOT NULL, `protection_type` INTEGER NOT NULL, `protection_hash` TEXT NOT NULL)
+ISAKAI_SQLPROBE execSQL CREATE UNIQUE INDEX IF NOT EXISTS `index_notes_id` ON `notes` (`id`)
+ISAKAI_SQLPROBE compile SELECT * FROM notes ORDER BY title COLLATE UNICODE ASC 
+ISAKAI_STACKPROBE java.base/java.lang.Thread.getStackTrace(Thread.java:2219)
+ISAKAI_STACKPROBE android.database.sqlite.SQLiteDatabase.compileStatement(SQLiteDatabase.java:338)
+ISAKAI_STACKPROBE android.database.sqlite.SQLiteQuery.<init>(SQLiteQuery.java:10)
+ISAKAI_STACKPROBE android.database.sqlite.SQLiteDatabase.rawQueryWithFactory(SQLiteDatabase.java:395)
+ISAKAI_STACKPROBE android.database.sqlite.SQLiteDatabase.rawQueryWithFactory(SQLiteDatabase.java:385)
+ISAKAI_STACKPROBE i4.b.f(Unknown Source)
+ISAKAI_STACKPROBE d4.v.l(Unknown Source)
+ISAKAI_STACKPROBE q5.a.m1(Unknown Source)
+ISAKAI_STACKPROBE i8.b.m(Unknown Source)
+ISAKAI_STACKPROBE h8.d.b(Unknown Source)
+ISAKAI_STACKPROBE h8.d.d(Unknown Source)
+ISAKAI_STACKPROBE p1.v.run(Unknown Source)
+ISAKAI_STACKPROBE java.base/java.lang.Thread.run(Thread.java:1527)
+ISAKAI_SQLPROBE compile SELECT * FROM notes ORDER BY title COLLATE UNICODE ASC 
+ISAKAI_STACKPROBE java.base/java.lang.Thread.getStackTrace(Thread.java:2219)
+ISAKAI_STACKPROBE android.database.sqlite.SQLiteDatabase.compileStatement(SQLiteDatabase.java:338)
+ISAKAI_STACKPROBE android.database.sqlite.SQLiteQuery.<init>(SQLiteQuery.java:10)
+ISAKAI_STACKPROBE android.database.sqlite.SQLiteDatabase.rawQueryWithFactory(SQLiteDatabase.java:395)
+ISAKAI_STACKPROBE android.database.sqlite.SQLiteDatabase.rawQueryWithFactory(SQLiteDatabase.java:385)
+ISAKAI_STACKPROBE i4.b.f(Unknown Source)
+ISAKAI_STACKPROBE d4.v.l(Unknown Source)
+ISAKAI_STACKPROBE q5.a.m1(Unknown Source)
+ISAKAI_STACKPROBE i8.b.m(Unknown Source)
+ISAKAI_STACKPROBE h8.d.b(Unknown Source)
+ISAKAI_STACKPROBE h8.d.d(Unknown Source)
+ISAKAI_UNSUPPORTED ShortcutManager.setDynamicShortcuts at a8.a.j bci=2
+ISAKAI_STACKPROBE p1.v.run(Unknown Source)
+ISAKAI_STACKPROBE java.base/java.lang.Thread.run(Thread.java:1527)
+ISAKAI_SQLPROBE compile INSERT OR REPLACE INTO `notes` (`id`,`title`,`value`,`type`,`path`,`protection_type`,`protection_hash`) VALUES (?,?,?,?,?,?,?)
+ISAKAI_SQLPROBE bind INSERT OR REPLACE INTO `notes` (`id`,`title`,`value`,`type`,`path`,`protection_type`,`protection_hash`) VALUES (?,?,?,?,?,?,?) [1]=null
+ISAKAI_SQLPROBE bind INSERT OR REPLACE INTO `notes` (`id`,`title`,`value`,`type`,`path`,`protection_type`,`protection_hash`) VALUES (?,?,?,?,?,?,?) [2]=General note
+ISAKAI_SQLPROBE bind INSERT OR REPLACE INTO `notes` (`id`,`title`,`value`,`type`,`path`,`protection_type`,`protection_hash`) VALUES (?,?,?,?,?,?,?) [3]=
+ISAKAI_SQLPROBE bind INSERT OR REPLACE INTO `notes` (`id`,`title`,`value`,`type`,`path`,`protection_type`,`protection_hash`) VALUES (?,?,?,?,?,?,?) [4]=0
+ISAKAI_SQLPROBE bind INSERT OR REPLACE INTO `notes` (`id`,`title`,`value`,`type`,`path`,`protection_type`,`protection_hash`) VALUES (?,?,?,?,?,?,?) [5]=
+ISAKAI_SQLPROBE bind INSERT OR REPLACE INTO `notes` (`id`,`title`,`value`,`type`,`path`,`protection_type`,`protection_hash`) VALUES (?,?,?,?,?,?,?) [6]=-1
+ISAKAI_SQLPROBE bind INSERT OR REPLACE INTO `notes` (`id`,`title`,`value`,`type`,`path`,`protection_type`,`protection_hash`) VALUES (?,?,?,?,?,?,?) [7]=
+ISAKAI_SQLPROBE executeInsert INSERT OR REPLACE INTO `notes` (`id`,`title`,`value`,`type`,`path`,`protection_type`,`protection_hash`) VALUES (?,?,?,?,?,?,?)
+D/FragmentManager: onCleared called for FragmentManagerViewModel{553a3d88} Fragments () Child Non Config () ViewModelStores ()
+ISAKAI_FRAMEPROBE drawFrame 640x480
+ISAKAI_POSTPROBE run g.r
+bridge: client uid 1000 connected
+ISAKAI_FRAMEPROBE drawFrame 640x800
+ISAKAI_SQLPROBE compile SELECT * FROM notes ORDER BY title COLLATE UNICODE ASC 
+ISAKAI_STACKPROBE java.base/java.lang.Thread.getStackTrace(Thread.java:2219)
+ISAKAI_STACKPROBE android.database.sqlite.SQLiteDatabase.compileStatement(SQLiteDatabase.java:338)
+ISAKAI_STACKPROBE android.database.sqlite.SQLiteQuery.<init>(SQLiteQuery.java:10)
+ISAKAI_STACKPROBE android.database.sqlite.SQLiteDatabase.rawQueryWithFactory(SQLiteDatabase.java:395)
+ISAKAI_STACKPROBE android.database.sqlite.SQLiteDatabase.rawQueryWithFactory(SQLiteDatabase.java:385)
+ISAKAI_STACKPROBE i4.b.f(Unknown Source)
+ISAKAI_STACKPROBE d4.v.l(Unknown Source)
+ISAKAI_STACKPROBE q5.a.m1(Unknown Source)
+ISAKAI_STACKPROBE i8.b.m(Unknown Source)
+ISAKAI_STACKPROBE h8.d.b(Unknown Source)
+ISAKAI_STACKPROBE h8.d.d(Unknown Source)
+ISAKAI_STACKPROBE p1.v.run(Unknown Source)
+ISAKAI_STACKPROBE java.base/java.lang.Thread.run(Thread.java:1527)
+ISAKAI_SQLPROBE compile SELECT * FROM notes ORDER BY title COLLATE UNICODE ASC 
+ISAKAI_STACKPROBE java.base/java.lang.Thread.getStackTrace(Thread.java:2219)
+ISAKAI_STACKPROBE android.database.sqlite.SQLiteDatabase.compileStatement(SQLiteDatabase.java:338)
+ISAKAI_STACKPROBE android.database.sqlite.SQLiteQuery.<init>(SQLiteQuery.java:10)
+ISAKAI_STACKPROBE android.database.sqlite.SQLiteDatabase.rawQueryWithFactory(SQLiteDatabase.java:395)
+ISAKAI_STACKPROBE android.database.sqlite.SQLiteDatabase.rawQueryWithFactory(SQLiteDatabase.java:385)
+ISAKAI_STACKPROBE i4.b.f(Unknown Source)
+ISAKAI_STACKPROBE d4.v.l(Unknown Source)
+ISAKAI_STACKPROBE q5.a.m1(Unknown Source)
+ISAKAI_STACKPROBE i8.b.m(Unknown Source)
+ISAKAI_STACKPROBE h8.d.b(Unknown Source)
+ISAKAI_STACKPROBE h8.d.d(Unknown Source)
+ISAKAI_STACKPROBE p1.v.run(Unknown Source)
+ISAKAI_STACKPROBE java.base/java.lang.Thread.run(Thread.java:1527)
+ISAKAI_SQLPROBE compile SELECT * FROM notes ORDER BY title COLLATE UNICODE ASC 
+ISAKAI_STACKPROBE java.base/java.lang.Thread.getStackTrace(Thread.java:2219)
+ISAKAI_STACKPROBE android.database.sqlite.SQLiteDatabase.compileStatement(SQLiteDatabase.java:338)
+ISAKAI_STACKPROBE android.database.sqlite.SQLiteQuery.<init>(SQLiteQuery.java:10)
+ISAKAI_STACKPROBE android.database.sqlite.SQLiteDatabase.rawQueryWithFactory(SQLiteDatabase.java:395)
+ISAKAI_STACKPROBE android.database.sqlite.SQLiteDatabase.rawQueryWithFactory(SQLiteDatabase.java:385)
+ISAKAI_STACKPROBE i4.b.f(Unknown Source)
+ISAKAI_STACKPROBE d4.v.l(Unknown Source)
+ISAKAI_STACKPROBE q5.a.m1(Unknown Source)
+ISAKAI_STACKPROBE i8.b.m(Unknown Source)
+ISAKAI_STACKPROBE h8.d.b(Unknown Source)
+ISAKAI_STACKPROBE h8.d.d(Unknown Source)
+ISAKAI_STACKPROBE p1.v.run(Unknown Source)
+ISAKAI_STACKPROBE java.base/java.lang.Thread.run(Thread.java:1527)
+V/FragmentManager: Run: BackStackEntry{35a50a4c}
+V/FragmentManager: Added fragment to active set g{103f852} (16648287-3e09-4e82-a932-2509e43f7774 id=0x7f0903ca)
+V/FragmentManager: add: g{103f852} (16648287-3e09-4e82-a932-2509e43f7774 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 7 for g{103f852} (16648287-3e09-4e82-a932-2509e43f7774 id=0x7f0903ca)
+D/FragmentManager: moveto ATTACHED: g{103f852} (16648287-3e09-4e82-a932-2509e43f7774 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 7 for g{103f852} (16648287-3e09-4e82-a932-2509e43f7774 id=0x7f0903ca)
+D/FragmentManager: moveto CREATED: g{103f852} (16648287-3e09-4e82-a932-2509e43f7774 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 7 for g{103f852} (16648287-3e09-4e82-a932-2509e43f7774 id=0x7f0903ca)
+D/FragmentManager: moveto CREATE_VIEW: g{103f852} (16648287-3e09-4e82-a932-2509e43f7774 id=0x7f0903ca)
+V/FragmentManager: Updating retained Fragments: Added g{103f852} (16648287-3e09-4e82-a932-2509e43f7774 id=0x7f0903ca)
+ISAKAI_EDITPROBE addWatcher com.simplemobiletools.commons.views.MyEditText@134593bf <- s3.j
+ISAKAI_TEXTPROBE setText com.simplemobiletools.commons.views.MyEditText@134593bf watchers=1 old= new=
+V/FragmentManager: computeExpectedState() of 7 for g{103f852} (16648287-3e09-4e82-a932-2509e43f7774 id=0x7f0903ca)
+D/FragmentManager: moveto ACTIVITY_CREATED: g{103f852} (16648287-3e09-4e82-a932-2509e43f7774 id=0x7f0903ca)
+D/FragmentManager: moveto RESTORE_VIEW_STATE: g{103f852} (16648287-3e09-4e82-a932-2509e43f7774 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 7 for g{103f852} (16648287-3e09-4e82-a932-2509e43f7774 id=0x7f0903ca)
+V/FragmentManager: SpecialEffectsController: Enqueuing add operation for fragment g{103f852} (16648287-3e09-4e82-a932-2509e43f7774 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 6 for g{103f852} (16648287-3e09-4e82-a932-2509e43f7774 id=0x7f0903ca)
+D/FragmentManager: moveto STARTED: g{103f852} (16648287-3e09-4e82-a932-2509e43f7774 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 6 for g{103f852} (16648287-3e09-4e82-a932-2509e43f7774 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 6 for g{103f852} (16648287-3e09-4e82-a932-2509e43f7774 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 6 for g{103f852} (16648287-3e09-4e82-a932-2509e43f7774 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 6 for g{103f852} (16648287-3e09-4e82-a932-2509e43f7774 id=0x7f0903ca)
+V/FragmentManager: SpecialEffectsController: For fragment g{103f852} (16648287-3e09-4e82-a932-2509e43f7774 id=0x7f0903ca) mFinalState = VISIBLE -> VISIBLE. 
+V/FragmentManager: SpecialEffectsController: For fragment g{103f852} (16648287-3e09-4e82-a932-2509e43f7774 id=0x7f0903ca) mFinalState = VISIBLE -> VISIBLE. 
+V/FragmentManager: SpecialEffectsController: Operation {43d7741f} {mFinalState = VISIBLE} {mLifecycleImpact = ADDING} {mFragment = g{103f852} (16648287-3e09-4e82-a932-2509e43f7774 id=0x7f0903ca)} has called complete.
+V/FragmentManager: SpecialEffectsController: Setting view android.widget.RelativeLayout@17baae6e to VISIBLE
+V/FragmentManager: computeExpectedState() of 7 for g{103f852} (16648287-3e09-4e82-a932-2509e43f7774 id=0x7f0903ca)
+D/FragmentManager: moveto RESUMED: g{103f852} (16648287-3e09-4e82-a932-2509e43f7774 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 7 for g{103f852} (16648287-3e09-4e82-a932-2509e43f7774 id=0x7f0903ca)
+ISAKAI_SQLPROBE compile SELECT * FROM notes WHERE id = ?
+ISAKAI_SQLPROBE bind SELECT * FROM notes WHERE id = ? [1]=1
+ISAKAI_POSTPROBE post g.n0
+ISAKAI_POSTPROBE run g.n0
+ISAKAI_EDITPROBE addWatcher com.simplemobiletools.commons.views.MyEditText@134593bf <- g8.f
+ISAKAI_SQLPROBE compile SELECT * FROM notes ORDER BY title COLLATE UNICODE ASC 
+ISAKAI_STACKPROBE java.base/java.lang.Thread.getStackTrace(Thread.java:2219)
+ISAKAI_STACKPROBE android.database.sqlite.SQLiteDatabase.compileStatement(SQLiteDatabase.java:338)
+ISAKAI_STACKPROBE android.database.sqlite.SQLiteQuery.<init>(SQLiteQuery.java:10)
+ISAKAI_STACKPROBE android.database.sqlite.SQLiteDatabase.rawQueryWithFactory(SQLiteDatabase.java:395)
+ISAKAI_STACKPROBE android.database.sqlite.SQLiteDatabase.rawQueryWithFactory(SQLiteDatabase.java:385)
+ISAKAI_STACKPROBE i4.b.f(Unknown Source)
+ISAKAI_STACKPROBE d4.v.l(Unknown Source)
+ISAKAI_STACKPROBE q5.a.m1(Unknown Source)
+ISAKAI_STACKPROBE i8.b.m(Unknown Source)
+ISAKAI_STACKPROBE h8.d.b(Unknown Source)
+ISAKAI_STACKPROBE h8.d.d(Unknown Source)
+ISAKAI_STACKPROBE p1.v.run(Unknown Source)
+ISAKAI_STACKPROBE java.base/java.lang.Thread.run(Thread.java:1527)
+ISAKAI_FRAMEPROBE drawFrame 640x800
+V/FragmentManager: saveAllState: no fragments!
+V/FragmentManager: Run: BackStackEntry{47af7f3d}
+V/FragmentManager: remove: g{103f852} (16648287-3e09-4e82-a932-2509e43f7774 id=0x7f0903ca) nesting=0
+V/FragmentManager: computeExpectedState() of -1 for g{103f852} (16648287-3e09-4e82-a932-2509e43f7774 id=0x7f0903ca)
+D/FragmentManager: movefrom RESUMED: g{103f852} (16648287-3e09-4e82-a932-2509e43f7774 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of -1 for g{103f852} (16648287-3e09-4e82-a932-2509e43f7774 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of -1 for g{103f852} (16648287-3e09-4e82-a932-2509e43f7774 id=0x7f0903ca)
+D/FragmentManager: movefrom STARTED: g{103f852} (16648287-3e09-4e82-a932-2509e43f7774 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of -1 for g{103f852} (16648287-3e09-4e82-a932-2509e43f7774 id=0x7f0903ca)
+D/FragmentManager: movefrom ACTIVITY_CREATED: g{103f852} (16648287-3e09-4e82-a932-2509e43f7774 id=0x7f0903ca)
+V/FragmentManager: SpecialEffectsController: Enqueuing remove operation for fragment g{103f852} (16648287-3e09-4e82-a932-2509e43f7774 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 3 for g{103f852} (16648287-3e09-4e82-a932-2509e43f7774 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 3 for g{103f852} (16648287-3e09-4e82-a932-2509e43f7774 id=0x7f0903ca)
+V/FragmentManager: Updating retained Fragments: Removed g{103f852} (16648287-3e09-4e82-a932-2509e43f7774 id=0x7f0903ca)
+V/FragmentManager: Removed fragment from active set g{103f852} (16648287-3e09-4e82-a932-2509e43f7774 id=0x7f0903ca)
+V/FragmentManager: SpecialEffectsController: Operation {694abbdc} {mFinalState = REMOVED} {mLifecycleImpact = REMOVING} {mFragment = g{103f852} (16648287-3e09-4e82-a932-2509e43f7774 id=0x7f0903ca)} has called complete.
+V/FragmentManager: SpecialEffectsController: Removing view android.widget.RelativeLayout@17baae6e from container com.simplemobiletools.commons.views.MyViewPager@2e005c4b
+V/FragmentManager: computeExpectedState() of -1 for g{103f852} (16648287-3e09-4e82-a932-2509e43f7774 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of -1 for g{103f852} (16648287-3e09-4e82-a932-2509e43f7774 id=0x7f0903ca)
+D/FragmentManager: movefrom CREATE_VIEW: g{103f852} (16648287-3e09-4e82-a932-2509e43f7774 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of -1 for g{103f852} (16648287-3e09-4e82-a932-2509e43f7774 id=0x7f0903ca)
+D/FragmentManager: movefrom CREATED: g{103f852} (16648287-3e09-4e82-a932-2509e43f7774 id=0x7f0903ca)
+D/FragmentManager: Clearing non-config state for g{103f852} (16648287-3e09-4e82-a932-2509e43f7774 id=0x7f0903ca)
+D/FragmentManager: onCleared called for FragmentManagerViewModel{1fa268de} Fragments () Child Non Config () ViewModelStores ()
+V/FragmentManager: computeExpectedState() of -1 for g{103f852} (16648287-3e09-4e82-a932-2509e43f7774 id=0x7f0903ca)
+D/FragmentManager: movefrom ATTACHED: g{103f852} (16648287-3e09-4e82-a932-2509e43f7774 id=0x7f0903ca)
+D/FragmentManager: initState called for fragment: g{103f852} (16648287-3e09-4e82-a932-2509e43f7774 id=0x7f0903ca)
+V/FragmentManager: Run: BackStackEntry{4466af20}
+V/FragmentManager: Added fragment to active set g{a514af7} (4f5700f4-9526-4874-928a-048c6cf59152 id=0x7f0903ca)
+V/FragmentManager: add: g{a514af7} (4f5700f4-9526-4874-928a-048c6cf59152 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 7 for g{a514af7} (4f5700f4-9526-4874-928a-048c6cf59152 id=0x7f0903ca)
+D/FragmentManager: moveto ATTACHED: g{a514af7} (4f5700f4-9526-4874-928a-048c6cf59152 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 7 for g{a514af7} (4f5700f4-9526-4874-928a-048c6cf59152 id=0x7f0903ca)
+D/FragmentManager: moveto CREATED: g{a514af7} (4f5700f4-9526-4874-928a-048c6cf59152 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 7 for g{a514af7} (4f5700f4-9526-4874-928a-048c6cf59152 id=0x7f0903ca)
+D/FragmentManager: moveto CREATE_VIEW: g{a514af7} (4f5700f4-9526-4874-928a-048c6cf59152 id=0x7f0903ca)
+V/FragmentManager: Updating retained Fragments: Added g{a514af7} (4f5700f4-9526-4874-928a-048c6cf59152 id=0x7f0903ca)
+ISAKAI_EDITPROBE addWatcher com.simplemobiletools.commons.views.MyEditText@7b9a4292 <- s3.j
+ISAKAI_TEXTPROBE setText com.simplemobiletools.commons.views.MyEditText@7b9a4292 watchers=1 old= new=
+V/FragmentManager: computeExpectedState() of 7 for g{a514af7} (4f5700f4-9526-4874-928a-048c6cf59152 id=0x7f0903ca)
+D/FragmentManager: moveto ACTIVITY_CREATED: g{a514af7} (4f5700f4-9526-4874-928a-048c6cf59152 id=0x7f0903ca)
+D/FragmentManager: moveto RESTORE_VIEW_STATE: g{a514af7} (4f5700f4-9526-4874-928a-048c6cf59152 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 7 for g{a514af7} (4f5700f4-9526-4874-928a-048c6cf59152 id=0x7f0903ca)
+V/FragmentManager: SpecialEffectsController: Enqueuing add operation for fragment g{a514af7} (4f5700f4-9526-4874-928a-048c6cf59152 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 6 for g{a514af7} (4f5700f4-9526-4874-928a-048c6cf59152 id=0x7f0903ca)
+D/FragmentManager: moveto STARTED: g{a514af7} (4f5700f4-9526-4874-928a-048c6cf59152 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 6 for g{a514af7} (4f5700f4-9526-4874-928a-048c6cf59152 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 6 for g{a514af7} (4f5700f4-9526-4874-928a-048c6cf59152 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 6 for g{a514af7} (4f5700f4-9526-4874-928a-048c6cf59152 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 6 for g{a514af7} (4f5700f4-9526-4874-928a-048c6cf59152 id=0x7f0903ca)
+V/FragmentManager: SpecialEffectsController: For fragment g{a514af7} (4f5700f4-9526-4874-928a-048c6cf59152 id=0x7f0903ca) mFinalState = VISIBLE -> VISIBLE. 
+V/FragmentManager: SpecialEffectsController: For fragment g{a514af7} (4f5700f4-9526-4874-928a-048c6cf59152 id=0x7f0903ca) mFinalState = VISIBLE -> VISIBLE. 
+V/FragmentManager: SpecialEffectsController: Operation {59309333} {mFinalState = VISIBLE} {mLifecycleImpact = ADDING} {mFragment = g{a514af7} (4f5700f4-9526-4874-928a-048c6cf59152 id=0x7f0903ca)} has called complete.
+V/FragmentManager: SpecialEffectsController: Setting view android.widget.RelativeLayout@5876a9af to VISIBLE
+V/FragmentManager: computeExpectedState() of 7 for g{a514af7} (4f5700f4-9526-4874-928a-048c6cf59152 id=0x7f0903ca)
+D/FragmentManager: moveto RESUMED: g{a514af7} (4f5700f4-9526-4874-928a-048c6cf59152 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 7 for g{a514af7} (4f5700f4-9526-4874-928a-048c6cf59152 id=0x7f0903ca)
+ISAKAI_SQLPROBE compile SELECT * FROM notes WHERE id = ?
+ISAKAI_SQLPROBE bind SELECT * FROM notes WHERE id = ? [1]=1
+ISAKAI_POSTPROBE post g.n0
+ISAKAI_POSTPROBE run g.n0
+ISAKAI_EDITPROBE addWatcher com.simplemobiletools.commons.views.MyEditText@7b9a4292 <- g8.f
+ISAKAI_FRAMEPROBE drawFrame 640x800
+ISAKAI_FRAMEPROBE drawFrame 640x800
+ISAKAI_TOUCHPROBE action=2 x=600.0 y=15.0
+ISAKAI_TOUCHPROBE action=0 x=600.0 y=15.0
+ISAKAI_FRAMEPROBE drawFrame 640x800
+ISAKAI_TOUCHPROBE action=1 x=600.0 y=15.0
+ISAKAI_EDITPROBE addWatcher com.google.android.material.textfield.TextInputEditText@74f0ea28 <- s3.j
+ISAKAI_TEXTPROBE setText com.google.android.material.textfield.TextInputEditText@74f0ea28 watchers=1 old= new=
+ISAKAI_UNSUPPORTED AnimatedStateListDrawable.transitions at w2.c.b bci=2
+ISAKAI_TEXTPROBE setText com.google.android.material.textfield.TextInputEditText@74f0ea28 watchers=1 old= new=
+ISAKAI_UNSUPPORTED Drawable.tint: unsupported android.graphics.drawable.StateListDrawable; solid, gradient, bitmap, and vector path drawables support SRC_IN tint at z2.b.h bci=2
+D/ViewUtils: Could not find method makeOptionalFitsSystemWindows. Oh well...
+ISAKAI_FRAMEPROBE drawFrame 640x800
+ISAKAI_POSTPROBE run g.r
+isakai: new root android.app.DialogOverlayGroup bounds=0,0,0x0
+ISAKAI_FRAMEPROBE drawFrame 640x800
+ISAKAI_FRAMEPROBE drawFrame 640x800
+ISAKAI_TOUCHPROBE action=2 x=300.0 y=345.0
+ISAKAI_TOUCHPROBE action=0 x=300.0 y=345.0
+ISAKAI_FRAMEPROBE drawFrame 640x800
+ISAKAI_TOUCHPROBE action=1 x=300.0 y=345.0
+ISAKAI_FRAMEPROBE drawFrame 640x800
+ISAKAI_TEXTPROBE setText com.google.android.material.textfield.TextInputEditText@74f0ea28 watchers=1 old= new=N
+ISAKAI_FRAMEPROBE drawFrame 640x800
+ISAKAI_TEXTPROBE setText com.google.android.material.textfield.TextInputEditText@74f0ea28 watchers=1 old=N new=N2
+ISAKAI_FRAMEPROBE drawFrame 640x800
+ISAKAI_TOUCHPROBE action=2 x=282.0 y=461.0
+ISAKAI_TOUCHPROBE action=0 x=282.0 y=461.0
+ISAKAI_FRAMEPROBE drawFrame 640x800
+ISAKAI_TOUCHPROBE action=1 x=282.0 y=461.0
+ISAKAI_FRAMEPROBE drawFrame 640x800
+ISAKAI_SQLPROBE compile SELECT id FROM notes WHERE title = ? COLLATE NOCASE
+ISAKAI_SQLPROBE bind SELECT id FROM notes WHERE title = ? COLLATE NOCASE [1]=N2
+ISAKAI_SQLPROBE bind INSERT OR REPLACE INTO `notes` (`id`,`title`,`value`,`type`,`path`,`protection_type`,`protection_hash`) VALUES (?,?,?,?,?,?,?) [1]=null
+ISAKAI_SQLPROBE bind INSERT OR REPLACE INTO `notes` (`id`,`title`,`value`,`type`,`path`,`protection_type`,`protection_hash`) VALUES (?,?,?,?,?,?,?) [2]=N2
+ISAKAI_SQLPROBE bind INSERT OR REPLACE INTO `notes` (`id`,`title`,`value`,`type`,`path`,`protection_type`,`protection_hash`) VALUES (?,?,?,?,?,?,?) [3]=
+ISAKAI_SQLPROBE bind INSERT OR REPLACE INTO `notes` (`id`,`title`,`value`,`type`,`path`,`protection_type`,`protection_hash`) VALUES (?,?,?,?,?,?,?) [4]=0
+ISAKAI_SQLPROBE bind INSERT OR REPLACE INTO `notes` (`id`,`title`,`value`,`type`,`path`,`protection_type`,`protection_hash`) VALUES (?,?,?,?,?,?,?) [5]=
+ISAKAI_SQLPROBE bind INSERT OR REPLACE INTO `notes` (`id`,`title`,`value`,`type`,`path`,`protection_type`,`protection_hash`) VALUES (?,?,?,?,?,?,?) [6]=-1
+ISAKAI_SQLPROBE bind INSERT OR REPLACE INTO `notes` (`id`,`title`,`value`,`type`,`path`,`protection_type`,`protection_hash`) VALUES (?,?,?,?,?,?,?) [7]=
+ISAKAI_SQLPROBE executeInsert INSERT OR REPLACE INTO `notes` (`id`,`title`,`value`,`type`,`path`,`protection_type`,`protection_hash`) VALUES (?,?,?,?,?,?,?)
+ISAKAI_SQLPROBE compile SELECT * FROM notes ORDER BY title COLLATE UNICODE ASC 
+ISAKAI_STACKPROBE java.base/java.lang.Thread.getStackTrace(Thread.java:2219)
+ISAKAI_STACKPROBE android.database.sqlite.SQLiteDatabase.compileStatement(SQLiteDatabase.java:338)
+ISAKAI_STACKPROBE android.database.sqlite.SQLiteQuery.<init>(SQLiteQuery.java:10)
+ISAKAI_STACKPROBE android.database.sqlite.SQLiteDatabase.rawQueryWithFactory(SQLiteDatabase.java:395)
+ISAKAI_STACKPROBE android.database.sqlite.SQLiteDatabase.rawQueryWithFactory(SQLiteDatabase.java:385)
+ISAKAI_STACKPROBE i4.b.f(Unknown Source)
+ISAKAI_STACKPROBE d4.v.l(Unknown Source)
+ISAKAI_STACKPROBE q5.a.m1(Unknown Source)
+ISAKAI_STACKPROBE i8.b.m(Unknown Source)
+ISAKAI_STACKPROBE h8.d.b(Unknown Source)
+ISAKAI_STACKPROBE h8.d.d(Unknown Source)
+ISAKAI_STACKPROBE p1.v.run(Unknown Source)
+ISAKAI_STACKPROBE java.base/java.lang.Thread.run(Thread.java:1527)
+isakai: new root android.app.HeadlessWindow$2 bounds=0,0,640x800
+ISAKAI_FRAMEPROBE drawFrame 640x800
+ISAKAI_FRAMEPROBE drawFrame 640x800
+ISAKAI_SQLPROBE compile SELECT * FROM notes ORDER BY title COLLATE UNICODE ASC 
+ISAKAI_STACKPROBE java.base/java.lang.Thread.getStackTrace(Thread.java:2219)
+ISAKAI_STACKPROBE android.database.sqlite.SQLiteDatabase.compileStatement(SQLiteDatabase.java:338)
+ISAKAI_STACKPROBE android.database.sqlite.SQLiteQuery.<init>(SQLiteQuery.java:10)
+ISAKAI_STACKPROBE android.database.sqlite.SQLiteDatabase.rawQueryWithFactory(SQLiteDatabase.java:395)
+ISAKAI_STACKPROBE android.database.sqlite.SQLiteDatabase.rawQueryWithFactory(SQLiteDatabase.java:385)
+ISAKAI_STACKPROBE i4.b.f(Unknown Source)
+ISAKAI_STACKPROBE d4.v.l(Unknown Source)
+ISAKAI_STACKPROBE q5.a.m1(Unknown Source)
+ISAKAI_STACKPROBE i8.b.m(Unknown Source)
+ISAKAI_STACKPROBE h8.d.b(Unknown Source)
+ISAKAI_STACKPROBE h8.d.d(Unknown Source)
+ISAKAI_STACKPROBE p1.v.run(Unknown Source)
+ISAKAI_STACKPROBE java.base/java.lang.Thread.run(Thread.java:1527)
+V/FragmentManager: saveAllState: no fragments!
+V/FragmentManager: Run: BackStackEntry{3d34d211}
+V/FragmentManager: remove: g{a514af7} (4f5700f4-9526-4874-928a-048c6cf59152 id=0x7f0903ca) nesting=0
+V/FragmentManager: computeExpectedState() of -1 for g{a514af7} (4f5700f4-9526-4874-928a-048c6cf59152 id=0x7f0903ca)
+D/FragmentManager: movefrom RESUMED: g{a514af7} (4f5700f4-9526-4874-928a-048c6cf59152 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of -1 for g{a514af7} (4f5700f4-9526-4874-928a-048c6cf59152 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of -1 for g{a514af7} (4f5700f4-9526-4874-928a-048c6cf59152 id=0x7f0903ca)
+D/FragmentManager: movefrom STARTED: g{a514af7} (4f5700f4-9526-4874-928a-048c6cf59152 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of -1 for g{a514af7} (4f5700f4-9526-4874-928a-048c6cf59152 id=0x7f0903ca)
+D/FragmentManager: movefrom ACTIVITY_CREATED: g{a514af7} (4f5700f4-9526-4874-928a-048c6cf59152 id=0x7f0903ca)
+V/FragmentManager: SpecialEffectsController: Enqueuing remove operation for fragment g{a514af7} (4f5700f4-9526-4874-928a-048c6cf59152 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 3 for g{a514af7} (4f5700f4-9526-4874-928a-048c6cf59152 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 3 for g{a514af7} (4f5700f4-9526-4874-928a-048c6cf59152 id=0x7f0903ca)
+V/FragmentManager: Updating retained Fragments: Removed g{a514af7} (4f5700f4-9526-4874-928a-048c6cf59152 id=0x7f0903ca)
+V/FragmentManager: Removed fragment from active set g{a514af7} (4f5700f4-9526-4874-928a-048c6cf59152 id=0x7f0903ca)
+V/FragmentManager: SpecialEffectsController: Operation {63475ace} {mFinalState = REMOVED} {mLifecycleImpact = REMOVING} {mFragment = g{a514af7} (4f5700f4-9526-4874-928a-048c6cf59152 id=0x7f0903ca)} has called complete.
+V/FragmentManager: SpecialEffectsController: Removing view android.widget.RelativeLayout@5876a9af from container com.simplemobiletools.commons.views.MyViewPager@2e005c4b
+V/FragmentManager: computeExpectedState() of -1 for g{a514af7} (4f5700f4-9526-4874-928a-048c6cf59152 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of -1 for g{a514af7} (4f5700f4-9526-4874-928a-048c6cf59152 id=0x7f0903ca)
+D/FragmentManager: movefrom CREATE_VIEW: g{a514af7} (4f5700f4-9526-4874-928a-048c6cf59152 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of -1 for g{a514af7} (4f5700f4-9526-4874-928a-048c6cf59152 id=0x7f0903ca)
+D/FragmentManager: movefrom CREATED: g{a514af7} (4f5700f4-9526-4874-928a-048c6cf59152 id=0x7f0903ca)
+D/FragmentManager: Clearing non-config state for g{a514af7} (4f5700f4-9526-4874-928a-048c6cf59152 id=0x7f0903ca)
+D/FragmentManager: onCleared called for FragmentManagerViewModel{305b7c14} Fragments () Child Non Config () ViewModelStores ()
+V/FragmentManager: computeExpectedState() of -1 for g{a514af7} (4f5700f4-9526-4874-928a-048c6cf59152 id=0x7f0903ca)
+D/FragmentManager: movefrom ATTACHED: g{a514af7} (4f5700f4-9526-4874-928a-048c6cf59152 id=0x7f0903ca)
+D/FragmentManager: initState called for fragment: g{a514af7} (4f5700f4-9526-4874-928a-048c6cf59152 id=0x7f0903ca)
+V/FragmentManager: Run: BackStackEntry{66d18979}
+V/FragmentManager: Added fragment to active set g{bccb269} (c94e5adc-30c8-497a-aed1-dafef65b3c72 id=0x7f0903ca)
+V/FragmentManager: Added fragment to active set g{609cd4d8} (d9b9708b-d2e3-48e3-a308-911ee767712b id=0x7f0903ca)
+V/FragmentManager: add: g{bccb269} (c94e5adc-30c8-497a-aed1-dafef65b3c72 id=0x7f0903ca)
+V/FragmentManager: add: g{609cd4d8} (d9b9708b-d2e3-48e3-a308-911ee767712b id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 7 for g{bccb269} (c94e5adc-30c8-497a-aed1-dafef65b3c72 id=0x7f0903ca)
+D/FragmentManager: moveto ATTACHED: g{bccb269} (c94e5adc-30c8-497a-aed1-dafef65b3c72 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 7 for g{bccb269} (c94e5adc-30c8-497a-aed1-dafef65b3c72 id=0x7f0903ca)
+D/FragmentManager: moveto CREATED: g{bccb269} (c94e5adc-30c8-497a-aed1-dafef65b3c72 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 7 for g{bccb269} (c94e5adc-30c8-497a-aed1-dafef65b3c72 id=0x7f0903ca)
+D/FragmentManager: moveto CREATE_VIEW: g{bccb269} (c94e5adc-30c8-497a-aed1-dafef65b3c72 id=0x7f0903ca)
+V/FragmentManager: Updating retained Fragments: Added g{bccb269} (c94e5adc-30c8-497a-aed1-dafef65b3c72 id=0x7f0903ca)
+ISAKAI_EDITPROBE addWatcher com.simplemobiletools.commons.views.MyEditText@79d8407f <- s3.j
+ISAKAI_TEXTPROBE setText com.simplemobiletools.commons.views.MyEditText@79d8407f watchers=1 old= new=
+V/FragmentManager: computeExpectedState() of 7 for g{bccb269} (c94e5adc-30c8-497a-aed1-dafef65b3c72 id=0x7f0903ca)
+D/FragmentManager: moveto ACTIVITY_CREATED: g{bccb269} (c94e5adc-30c8-497a-aed1-dafef65b3c72 id=0x7f0903ca)
+D/FragmentManager: moveto RESTORE_VIEW_STATE: g{bccb269} (c94e5adc-30c8-497a-aed1-dafef65b3c72 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 7 for g{bccb269} (c94e5adc-30c8-497a-aed1-dafef65b3c72 id=0x7f0903ca)
+V/FragmentManager: SpecialEffectsController: Enqueuing add operation for fragment g{bccb269} (c94e5adc-30c8-497a-aed1-dafef65b3c72 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 6 for g{bccb269} (c94e5adc-30c8-497a-aed1-dafef65b3c72 id=0x7f0903ca)
+D/FragmentManager: moveto STARTED: g{bccb269} (c94e5adc-30c8-497a-aed1-dafef65b3c72 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 6 for g{bccb269} (c94e5adc-30c8-497a-aed1-dafef65b3c72 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 6 for g{bccb269} (c94e5adc-30c8-497a-aed1-dafef65b3c72 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 4 for g{609cd4d8} (d9b9708b-d2e3-48e3-a308-911ee767712b id=0x7f0903ca)
+D/FragmentManager: moveto ATTACHED: g{609cd4d8} (d9b9708b-d2e3-48e3-a308-911ee767712b id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 4 for g{609cd4d8} (d9b9708b-d2e3-48e3-a308-911ee767712b id=0x7f0903ca)
+D/FragmentManager: moveto CREATED: g{609cd4d8} (d9b9708b-d2e3-48e3-a308-911ee767712b id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 4 for g{609cd4d8} (d9b9708b-d2e3-48e3-a308-911ee767712b id=0x7f0903ca)
+D/FragmentManager: moveto CREATE_VIEW: g{609cd4d8} (d9b9708b-d2e3-48e3-a308-911ee767712b id=0x7f0903ca)
+V/FragmentManager: Updating retained Fragments: Added g{609cd4d8} (d9b9708b-d2e3-48e3-a308-911ee767712b id=0x7f0903ca)
+ISAKAI_EDITPROBE addWatcher com.simplemobiletools.commons.views.MyEditText@75db5df9 <- s3.j
+ISAKAI_TEXTPROBE setText com.simplemobiletools.commons.views.MyEditText@75db5df9 watchers=1 old= new=
+V/FragmentManager: computeExpectedState() of 4 for g{609cd4d8} (d9b9708b-d2e3-48e3-a308-911ee767712b id=0x7f0903ca)
+D/FragmentManager: moveto ACTIVITY_CREATED: g{609cd4d8} (d9b9708b-d2e3-48e3-a308-911ee767712b id=0x7f0903ca)
+D/FragmentManager: moveto RESTORE_VIEW_STATE: g{609cd4d8} (d9b9708b-d2e3-48e3-a308-911ee767712b id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 4 for g{609cd4d8} (d9b9708b-d2e3-48e3-a308-911ee767712b id=0x7f0903ca)
+V/FragmentManager: SpecialEffectsController: Enqueuing add operation for fragment g{609cd4d8} (d9b9708b-d2e3-48e3-a308-911ee767712b id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 4 for g{609cd4d8} (d9b9708b-d2e3-48e3-a308-911ee767712b id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 6 for g{bccb269} (c94e5adc-30c8-497a-aed1-dafef65b3c72 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 4 for g{609cd4d8} (d9b9708b-d2e3-48e3-a308-911ee767712b id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 6 for g{bccb269} (c94e5adc-30c8-497a-aed1-dafef65b3c72 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 4 for g{609cd4d8} (d9b9708b-d2e3-48e3-a308-911ee767712b id=0x7f0903ca)
+V/FragmentManager: SpecialEffectsController: For fragment g{bccb269} (c94e5adc-30c8-497a-aed1-dafef65b3c72 id=0x7f0903ca) mFinalState = VISIBLE -> VISIBLE. 
+V/FragmentManager: SpecialEffectsController: For fragment g{609cd4d8} (d9b9708b-d2e3-48e3-a308-911ee767712b id=0x7f0903ca) mFinalState = VISIBLE -> VISIBLE. 
+V/FragmentManager: SpecialEffectsController: For fragment g{bccb269} (c94e5adc-30c8-497a-aed1-dafef65b3c72 id=0x7f0903ca) mFinalState = VISIBLE -> VISIBLE. 
+V/FragmentManager: SpecialEffectsController: For fragment g{609cd4d8} (d9b9708b-d2e3-48e3-a308-911ee767712b id=0x7f0903ca) mFinalState = VISIBLE -> VISIBLE. 
+V/FragmentManager: SpecialEffectsController: Operation {8c3b9d} {mFinalState = VISIBLE} {mLifecycleImpact = ADDING} {mFragment = g{bccb269} (c94e5adc-30c8-497a-aed1-dafef65b3c72 id=0x7f0903ca)} has called complete.
+V/FragmentManager: SpecialEffectsController: Setting view android.widget.RelativeLayout@f79e to VISIBLE
+V/FragmentManager: computeExpectedState() of 7 for g{bccb269} (c94e5adc-30c8-497a-aed1-dafef65b3c72 id=0x7f0903ca)
+D/FragmentManager: moveto RESUMED: g{bccb269} (c94e5adc-30c8-497a-aed1-dafef65b3c72 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 7 for g{bccb269} (c94e5adc-30c8-497a-aed1-dafef65b3c72 id=0x7f0903ca)
+V/FragmentManager: SpecialEffectsController: Operation {4c39bec8} {mFinalState = VISIBLE} {mLifecycleImpact = ADDING} {mFragment = g{609cd4d8} (d9b9708b-d2e3-48e3-a308-911ee767712b id=0x7f0903ca)} has called complete.
+V/FragmentManager: SpecialEffectsController: Setting view android.widget.RelativeLayout@1e178745 to VISIBLE
+V/FragmentManager: computeExpectedState() of 4 for g{609cd4d8} (d9b9708b-d2e3-48e3-a308-911ee767712b id=0x7f0903ca)
+ISAKAI_SQLPROBE compile SELECT * FROM notes WHERE id = ?
+V/FragmentManager: computeExpectedState() of 7 for g{609cd4d8} (d9b9708b-d2e3-48e3-a308-911ee767712b id=0x7f0903ca)
+D/FragmentManager: moveto STARTED: g{609cd4d8} (d9b9708b-d2e3-48e3-a308-911ee767712b id=0x7f0903ca)
+ISAKAI_SQLPROBE bind SELECT * FROM notes WHERE id = ? [1]=1
+V/FragmentManager: computeExpectedState() of 7 for g{609cd4d8} (d9b9708b-d2e3-48e3-a308-911ee767712b id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 7 for g{609cd4d8} (d9b9708b-d2e3-48e3-a308-911ee767712b id=0x7f0903ca)
+D/FragmentManager: moveto RESUMED: g{609cd4d8} (d9b9708b-d2e3-48e3-a308-911ee767712b id=0x7f0903ca)
+ISAKAI_POSTPROBE post g.n0
+V/FragmentManager: computeExpectedState() of 7 for g{609cd4d8} (d9b9708b-d2e3-48e3-a308-911ee767712b id=0x7f0903ca)
+ISAKAI_SQLPROBE compile SELECT * FROM notes WHERE id = ?
+ISAKAI_SQLPROBE bind SELECT * FROM notes WHERE id = ? [1]=2
+ISAKAI_POSTPROBE post g.n0
+ISAKAI_EDITPROBE addWatcher com.simplemobiletools.commons.views.MyEditText@75db5df9 <- g8.f
+ISAKAI_POSTPROBE run g.n0
+ISAKAI_EDITPROBE addWatcher com.simplemobiletools.commons.views.MyEditText@79d8407f <- g8.f
+ISAKAI_POSTPROBE run g.n0
+ISAKAI_EDITPROBE addWatcher com.simplemobiletools.commons.views.MyEditText@75db5df9 <- g8.f
+ISAKAI_TOUCHPROBE action=2 x=40.0 y=110.0
+ISAKAI_FRAMEPROBE drawFrame 640x800
+ISAKAI_SCROLLPROBE com.simplemobiletools.commons.views.MyViewPager@2e005c4b 0,0 -> 640,0
+ISAKAI_TOUCHPROBE action=0 x=40.0 y=110.0
+ISAKAI_TOUCHPROBE action=1 x=40.0 y=110.0
+ISAKAI_FRAMEPROBE drawFrame 640x800
+ISAKAI_FRAMEPROBE drawFrame 640x800
+ISAKAI_FRAMEPROBE drawFrame 640x800
+ISAKAI_FRAMEPROBE drawFrame 640x800
+ISAKAI_FRAMEPROBE drawFrame 640x800
+ISAKAI_TEXTPROBE setText com.simplemobiletools.commons.views.MyEditText@79d8407f watchers=2 old= new=Isakai 日本語 – note
+ISAKAI_FRAMEPROBE drawFrame 640x800
+ISAKAI_FRAMEPROBE drawFrame 640x800
+ISAKAI_FRAMEPROBE drawFrame 640x800
+ISAKAI_FRAMEPROBE drawFrame 640x800
+ISAKAI_FRAMEPROBE drawFrame 640x800
+ISAKAI_FRAMEPROBE drawFrame 640x800
+ISAKAI_FRAMEPROBE drawFrame 640x800
+ISAKAI_FRAMEPROBE drawFrame 640x800
+ISAKAI_FRAMEPROBE drawFrame 640x800
+ISAKAI_FRAMEPROBE drawFrame 640x800
+ISAKAI_FRAMEPROBE drawFrame 640x800
+ISAKAI_FRAMEPROBE drawFrame 640x800
+ISAKAI_FRAMEPROBE drawFrame 640x800
+ISAKAI_FRAMEPROBE drawFrame 640x800
+ISAKAI_FRAMEPROBE drawFrame 640x800
+ISAKAI_FRAMEPROBE drawFrame 640x800
+ISAKAI_FRAMEPROBE drawFrame 640x800
+ISAKAI_FRAMEPROBE drawFrame 640x800
+ISAKAI_FRAMEPROBE drawFrame 640x800
+ISAKAI_FRAMEPROBE drawFrame 640x800
+ISAKAI_FRAMEPROBE drawFrame 640x800
+ISAKAI_FRAMEPROBE drawFrame 640x800
+ISAKAI_FRAMEPROBE drawFrame 640x800
+ISAKAI_FRAMEPROBE drawFrame 640x800
+ISAKAI_FRAMEPROBE drawFrame 640x800
+ISAKAI_FRAMEPROBE drawFrame 640x800
+ISAKAI_TOUCHPROBE action=2 x=488.0 y=15.0
+ISAKAI_FRAMEPROBE drawFrame 640x800
+ISAKAI_TOUCHPROBE action=0 x=488.0 y=15.0
+ISAKAI_CLICKSTACK java.base/java.lang.Thread.getStackTrace(Thread.java:2219)
+ISAKAI_CLICKSTACK android.app.Activity.dispatchTouchEvent(Activity.java:874)
+ISAKAI_CLICKSTACK android.app.Activity.dispatchBatch(Activity.java:1190)
+ISAKAI_CLICKSTACK android.app.Activity.runWindowed(Activity.java:1108)
+ISAKAI_CLICKSTACK org.isakai.runtime.IsakaiMain.main(IsakaiMain.java:86)
+ISAKAI_CLICKSTACK focus=com.simplemobiletools.commons.views.MyEditText@79d8407f text=Isakai 日本語 – note
+ISAKAI_PAGERPROBE pager@2e005c4b scrollX=640 currentItem=1 width=640
+ISAKAI_TREEPROBE edit androidx.appcompat.view.menu.ActionMenuItemView@65b3f4a4 focused=false vis=0 b=[0,0,48x25] text= parents=<-androidx.appcompat.widget.ActionMenuView<-com.google.android.material.appbar.MaterialToolbar<-androidx.coordinatorlayout.widget.CoordinatorLayout<-androidx.appcompat.widget.ContentFrameLayout
+ISAKAI_TREEPROBE abs androidx.appcompat.view.menu.ActionMenuItemView@65b3f4a4 [424,0]
+ISAKAI_TREEPROBE edit androidx.appcompat.view.menu.ActionMenuItemView@ba54932 focused=false vis=0 b=[48,0,48x25] text= parents=<-androidx.appcompat.widget.ActionMenuView<-com.google.android.material.appbar.MaterialToolbar<-androidx.coordinatorlayout.widget.CoordinatorLayout<-androidx.appcompat.widget.ContentFrameLayout
+ISAKAI_TREEPROBE abs androidx.appcompat.view.menu.ActionMenuItemView@ba54932 [472,0]
+ISAKAI_TREEPROBE edit androidx.appcompat.view.menu.ActionMenuItemView@28975c28 focused=false vis=0 b=[96,0,48x25] text= parents=<-androidx.appcompat.widget.ActionMenuView<-com.google.android.material.appbar.MaterialToolbar<-androidx.coordinatorlayout.widget.CoordinatorLayout<-androidx.appcompat.widget.ContentFrameLayout
+ISAKAI_TREEPROBE abs androidx.appcompat.view.menu.ActionMenuItemView@28975c28 [520,0]
+ISAKAI_TREEPROBE edit androidx.appcompat.view.menu.ActionMenuItemView@3943a2be focused=false vis=0 b=[144,0,48x25] text= parents=<-androidx.appcompat.widget.ActionMenuView<-com.google.android.material.appbar.MaterialToolbar<-androidx.coordinatorlayout.widget.CoordinatorLayout<-androidx.appcompat.widget.ContentFrameLayout
+ISAKAI_TREEPROBE abs androidx.appcompat.view.menu.ActionMenuItemView@3943a2be [568,0]
+ISAKAI_TREEPROBE edit com.simplemobiletools.commons.views.MyEditText@7a187f14 focused=false vis=0 b=[0,0,0x0] text= parents=<-android.widget.LinearLayout<-android.widget.FrameLayout<-android.widget.LinearLayout<-androidx.coordinatorlayout.widget.CoordinatorLayout
+ISAKAI_TREEPROBE abs com.simplemobiletools.commons.views.MyEditText@7a187f14 [0,64]
+ISAKAI_TREEPROBE edit com.simplemobiletools.commons.views.MyTextView@343570b7 focused=false vis=8 b=[0,0,0x0] text=4 parents=<-android.widget.RelativeLayout<-com.simplemobiletools.commons.views.MyViewPager<-android.widget.LinearLayout<-androidx.coordinatorlayout.widget.CoordinatorLayout
+ISAKAI_TREEPROBE abs com.simplemobiletools.commons.views.MyTextView@343570b7 [0,97]
+ISAKAI_TREEPROBE edit com.simplemobiletools.commons.views.MyTextView@157853da focused=false vis=8 b=[0,0,0x0] text= parents=<-android.widget.RelativeLayout<-com.simplemobiletools.commons.views.MyViewPager<-android.widget.LinearLayout<-androidx.coordinatorlayout.widget.CoordinatorLayout
+ISAKAI_TREEPROBE abs com.simplemobiletools.commons.views.MyTextView@157853da [640,97]
+ISAKAI_TREEPROBE edit android.widget.TextView@71c3b41 focused=false vis=0 b=[0,0,107x27] text=General note parents=<-androidx.viewpager.widget.PagerTabStrip<-com.simplemobiletools.commons.views.MyViewPager<-android.widget.LinearLayout<-androidx.coordinatorlayout.widget.CoordinatorLayout
+ISAKAI_TREEPROBE abs android.widget.TextView@71c3b41 [640,64]
+ISAKAI_TREEPROBE edit android.widget.TextView@236e3f4e focused=false vis=0 b=[305,0,30x27] text=N2 parents=<-androidx.viewpager.widget.PagerTabStrip<-com.simplemobiletools.commons.views.MyViewPager<-android.widget.LinearLayout<-androidx.coordinatorlayout.widget.CoordinatorLayout
+ISAKAI_TREEPROBE abs android.widget.TextView@236e3f4e [945,64]
+ISAKAI_TREEPROBE edit android.widget.TextView@3cc1435c focused=false vis=0 b=[632,0,8x27] text= parents=<-androidx.viewpager.widget.PagerTabStrip<-com.simplemobiletools.commons.views.MyViewPager<-android.widget.LinearLayout<-androidx.coordinatorlayout.widget.CoordinatorLayout
+ISAKAI_TREEPROBE abs android.widget.TextView@3cc1435c [1272,64]
+ISAKAI_TREEPROBE edit com.simplemobiletools.commons.views.MyTextView@6bf0219d focused=false vis=0 b=[0,0,0x0] text=The notes' content is locked. parents=<-android.widget.RelativeLayout<-android.widget.RelativeLayout<-com.simplemobiletools.commons.views.MyViewPager<-android.widget.LinearLayout
+ISAKAI_TREEPROBE abs com.simplemobiletools.commons.views.MyTextView@6bf0219d [0,97]
+ISAKAI_TREEPROBE edit android.widget.TextView@dd0c991 focused=false vis=0 b=[0,0,0x0] text=Show content parents=<-android.widget.RelativeLayout<-android.widget.RelativeLayout<-com.simplemobiletools.commons.views.MyViewPager<-android.widget.LinearLayout
+ISAKAI_TREEPROBE abs android.widget.TextView@dd0c991 [0,97]
+ISAKAI_TREEPROBE edit com.simplemobiletools.commons.views.MyTextView@5f16132a focused=false vis=0 b=[0,0,0x0] text=The notes' content is locked. parents=<-android.widget.RelativeLayout<-android.widget.RelativeLayout<-com.simplemobiletools.commons.views.MyViewPager<-android.widget.LinearLayout
+ISAKAI_TREEPROBE abs com.simplemobiletools.commons.views.MyTextView@5f16132a [640,97]
+ISAKAI_TREEPROBE edit android.widget.TextView@69fb6037 focused=false vis=0 b=[0,0,0x0] text=Show content parents=<-android.widget.RelativeLayout<-android.widget.RelativeLayout<-com.simplemobiletools.commons.views.MyViewPager<-android.widget.LinearLayout
+ISAKAI_TREEPROBE abs android.widget.TextView@69fb6037 [640,97]
+ISAKAI_TREEPROBE edit com.simplemobiletools.commons.views.MyEditText@79d8407f focused=true vis=0 b=[0,0,161x28] text=Isakai 日本語 – note parents=<-android.widget.RelativeLayout<-android.widget.ScrollView<-android.widget.RelativeLayout<-com.simplemobiletools.commons.views.MyViewPager
+ISAKAI_TREEPROBE abs com.simplemobiletools.commons.views.MyEditText@79d8407f [0,97]
+ISAKAI_TREEPROBE edit com.simplemobiletools.commons.views.MyEditText@75db5df9 focused=false vis=0 b=[0,0,122x28] text= parents=<-android.widget.RelativeLayout<-android.widget.ScrollView<-android.widget.RelativeLayout<-com.simplemobiletools.commons.views.MyViewPager
+ISAKAI_TREEPROBE abs com.simplemobiletools.commons.views.MyEditText@75db5df9 [640,97]
+ISAKAI_TOUCHPROBE action=1 x=488.0 y=15.0
+ISAKAI_CLICKSTACK java.base/java.lang.Thread.getStackTrace(Thread.java:2219)
+ISAKAI_CLICKSTACK android.app.Activity.dispatchTouchEvent(Activity.java:874)
+ISAKAI_CLICKSTACK android.app.Activity.dispatchBatch(Activity.java:1190)
+ISAKAI_CLICKSTACK android.app.Activity.runWindowed(Activity.java:1108)
+ISAKAI_CLICKSTACK org.isakai.runtime.IsakaiMain.main(IsakaiMain.java:86)
+ISAKAI_CLICKSTACK focus=com.simplemobiletools.commons.views.MyEditText@79d8407f text=Isakai 日本語 – note
+ISAKAI_PAGERPROBE pager@2e005c4b scrollX=640 currentItem=1 width=640
+ISAKAI_TREEPROBE edit androidx.appcompat.view.menu.ActionMenuItemView@65b3f4a4 focused=false vis=0 b=[0,0,48x25] text= parents=<-androidx.appcompat.widget.ActionMenuView<-com.google.android.material.appbar.MaterialToolbar<-androidx.coordinatorlayout.widget.CoordinatorLayout<-androidx.appcompat.widget.ContentFrameLayout
+ISAKAI_TREEPROBE abs androidx.appcompat.view.menu.ActionMenuItemView@65b3f4a4 [424,0]
+ISAKAI_TREEPROBE edit androidx.appcompat.view.menu.ActionMenuItemView@ba54932 focused=false vis=0 b=[48,0,48x25] text= parents=<-androidx.appcompat.widget.ActionMenuView<-com.google.android.material.appbar.MaterialToolbar<-androidx.coordinatorlayout.widget.CoordinatorLayout<-androidx.appcompat.widget.ContentFrameLayout
+ISAKAI_TREEPROBE abs androidx.appcompat.view.menu.ActionMenuItemView@ba54932 [472,0]
+ISAKAI_TREEPROBE edit androidx.appcompat.view.menu.ActionMenuItemView@28975c28 focused=false vis=0 b=[96,0,48x25] text= parents=<-androidx.appcompat.widget.ActionMenuView<-com.google.android.material.appbar.MaterialToolbar<-androidx.coordinatorlayout.widget.CoordinatorLayout<-androidx.appcompat.widget.ContentFrameLayout
+ISAKAI_TREEPROBE abs androidx.appcompat.view.menu.ActionMenuItemView@28975c28 [520,0]
+ISAKAI_TREEPROBE edit androidx.appcompat.view.menu.ActionMenuItemView@3943a2be focused=false vis=0 b=[144,0,48x25] text= parents=<-androidx.appcompat.widget.ActionMenuView<-com.google.android.material.appbar.MaterialToolbar<-androidx.coordinatorlayout.widget.CoordinatorLayout<-androidx.appcompat.widget.ContentFrameLayout
+ISAKAI_TREEPROBE abs androidx.appcompat.view.menu.ActionMenuItemView@3943a2be [568,0]
+ISAKAI_TREEPROBE edit com.simplemobiletools.commons.views.MyEditText@7a187f14 focused=false vis=0 b=[0,0,0x0] text= parents=<-android.widget.LinearLayout<-android.widget.FrameLayout<-android.widget.LinearLayout<-androidx.coordinatorlayout.widget.CoordinatorLayout
+ISAKAI_TREEPROBE abs com.simplemobiletools.commons.views.MyEditText@7a187f14 [0,64]
+ISAKAI_TREEPROBE edit com.simplemobiletools.commons.views.MyTextView@343570b7 focused=false vis=8 b=[0,0,0x0] text=4 parents=<-android.widget.RelativeLayout<-com.simplemobiletools.commons.views.MyViewPager<-android.widget.LinearLayout<-androidx.coordinatorlayout.widget.CoordinatorLayout
+ISAKAI_TREEPROBE abs com.simplemobiletools.commons.views.MyTextView@343570b7 [0,97]
+ISAKAI_TREEPROBE edit com.simplemobiletools.commons.views.MyTextView@157853da focused=false vis=8 b=[0,0,0x0] text= parents=<-android.widget.RelativeLayout<-com.simplemobiletools.commons.views.MyViewPager<-android.widget.LinearLayout<-androidx.coordinatorlayout.widget.CoordinatorLayout
+ISAKAI_TREEPROBE abs com.simplemobiletools.commons.views.MyTextView@157853da [640,97]
+ISAKAI_TREEPROBE edit android.widget.TextView@71c3b41 focused=false vis=0 b=[0,0,107x27] text=General note parents=<-androidx.viewpager.widget.PagerTabStrip<-com.simplemobiletools.commons.views.MyViewPager<-android.widget.LinearLayout<-androidx.coordinatorlayout.widget.CoordinatorLayout
+ISAKAI_TREEPROBE abs android.widget.TextView@71c3b41 [640,64]
+ISAKAI_TREEPROBE edit android.widget.TextView@236e3f4e focused=false vis=0 b=[305,0,30x27] text=N2 parents=<-androidx.viewpager.widget.PagerTabStrip<-com.simplemobiletools.commons.views.MyViewPager<-android.widget.LinearLayout<-androidx.coordinatorlayout.widget.CoordinatorLayout
+ISAKAI_TREEPROBE abs android.widget.TextView@236e3f4e [945,64]
+ISAKAI_TREEPROBE edit android.widget.TextView@3cc1435c focused=false vis=0 b=[632,0,8x27] text= parents=<-androidx.viewpager.widget.PagerTabStrip<-com.simplemobiletools.commons.views.MyViewPager<-android.widget.LinearLayout<-androidx.coordinatorlayout.widget.CoordinatorLayout
+ISAKAI_TREEPROBE abs android.widget.TextView@3cc1435c [1272,64]
+ISAKAI_TREEPROBE edit com.simplemobiletools.commons.views.MyTextView@6bf0219d focused=false vis=0 b=[0,0,0x0] text=The notes' content is locked. parents=<-android.widget.RelativeLayout<-android.widget.RelativeLayout<-com.simplemobiletools.commons.views.MyViewPager<-android.widget.LinearLayout
+ISAKAI_TREEPROBE abs com.simplemobiletools.commons.views.MyTextView@6bf0219d [0,97]
+ISAKAI_TREEPROBE edit android.widget.TextView@dd0c991 focused=false vis=0 b=[0,0,0x0] text=Show content parents=<-android.widget.RelativeLayout<-android.widget.RelativeLayout<-com.simplemobiletools.commons.views.MyViewPager<-android.widget.LinearLayout
+ISAKAI_TREEPROBE abs android.widget.TextView@dd0c991 [0,97]
+ISAKAI_TREEPROBE edit com.simplemobiletools.commons.views.MyTextView@5f16132a focused=false vis=0 b=[0,0,0x0] text=The notes' content is locked. parents=<-android.widget.RelativeLayout<-android.widget.RelativeLayout<-com.simplemobiletools.commons.views.MyViewPager<-android.widget.LinearLayout
+ISAKAI_TREEPROBE abs com.simplemobiletools.commons.views.MyTextView@5f16132a [640,97]
+ISAKAI_TREEPROBE edit android.widget.TextView@69fb6037 focused=false vis=0 b=[0,0,0x0] text=Show content parents=<-android.widget.RelativeLayout<-android.widget.RelativeLayout<-com.simplemobiletools.commons.views.MyViewPager<-android.widget.LinearLayout
+ISAKAI_TREEPROBE abs android.widget.TextView@69fb6037 [640,97]
+ISAKAI_TREEPROBE edit com.simplemobiletools.commons.views.MyEditText@79d8407f focused=true vis=0 b=[0,0,161x28] text=Isakai 日本語 – note parents=<-android.widget.RelativeLayout<-android.widget.ScrollView<-android.widget.RelativeLayout<-com.simplemobiletools.commons.views.MyViewPager
+ISAKAI_TREEPROBE abs com.simplemobiletools.commons.views.MyEditText@79d8407f [0,97]
+ISAKAI_TREEPROBE edit com.simplemobiletools.commons.views.MyEditText@75db5df9 focused=false vis=0 b=[0,0,122x28] text= parents=<-android.widget.RelativeLayout<-android.widget.ScrollView<-android.widget.RelativeLayout<-com.simplemobiletools.commons.views.MyViewPager
+ISAKAI_TREEPROBE abs com.simplemobiletools.commons.views.MyEditText@75db5df9 [640,97]
+ISAKAI_UNSUPPORTED RippleDrawable.animation at h6.n.g bci=507
+ISAKAI_FRAMEPROBE drawFrame 640x800
+ISAKAI_SQLPROBE compile SELECT * FROM notes ORDER BY title COLLATE UNICODE ASC 
+ISAKAI_STACKPROBE java.base/java.lang.Thread.getStackTrace(Thread.java:2219)
+ISAKAI_STACKPROBE android.database.sqlite.SQLiteDatabase.compileStatement(SQLiteDatabase.java:338)
+ISAKAI_STACKPROBE android.database.sqlite.SQLiteQuery.<init>(SQLiteQuery.java:10)
+ISAKAI_STACKPROBE android.database.sqlite.SQLiteDatabase.rawQueryWithFactory(SQLiteDatabase.java:395)
+ISAKAI_STACKPROBE android.database.sqlite.SQLiteDatabase.rawQueryWithFactory(SQLiteDatabase.java:385)
+ISAKAI_STACKPROBE i4.b.f(Unknown Source)
+ISAKAI_STACKPROBE d4.v.l(Unknown Source)
+ISAKAI_STACKPROBE q5.a.m1(Unknown Source)
+ISAKAI_STACKPROBE i8.b.m(Unknown Source)
+ISAKAI_STACKPROBE h8.d.b(Unknown Source)
+ISAKAI_STACKPROBE h8.d.d(Unknown Source)
+ISAKAI_STACKPROBE p1.v.run(Unknown Source)
+ISAKAI_STACKPROBE java.base/java.lang.Thread.run(Thread.java:1527)
+ISAKAI_FRAMEPROBE drawFrame 640x800
+ISAKAI_SQLPROBE compile SELECT * FROM notes ORDER BY title COLLATE UNICODE ASC 
+ISAKAI_STACKPROBE java.base/java.lang.Thread.getStackTrace(Thread.java:2219)
+ISAKAI_STACKPROBE android.database.sqlite.SQLiteDatabase.compileStatement(SQLiteDatabase.java:338)
+ISAKAI_STACKPROBE android.database.sqlite.SQLiteQuery.<init>(SQLiteQuery.java:10)
+ISAKAI_STACKPROBE android.database.sqlite.SQLiteDatabase.rawQueryWithFactory(SQLiteDatabase.java:395)
+ISAKAI_STACKPROBE android.database.sqlite.SQLiteDatabase.rawQueryWithFactory(SQLiteDatabase.java:385)
+ISAKAI_STACKPROBE i4.b.f(Unknown Source)
+ISAKAI_STACKPROBE d4.v.l(Unknown Source)
+ISAKAI_STACKPROBE q5.a.m1(Unknown Source)
+ISAKAI_STACKPROBE i8.b.m(Unknown Source)
+ISAKAI_STACKPROBE h8.d.b(Unknown Source)
+ISAKAI_STACKPROBE h8.d.d(Unknown Source)
+ISAKAI_STACKPROBE p1.v.run(Unknown Source)
+ISAKAI_STACKPROBE java.base/java.lang.Thread.run(Thread.java:1527)
+ISAKAI_FRAMEPROBE drawFrame 640x800
+D/ViewUtils: Could not find method makeOptionalFitsSystemWindows. Oh well...
+ISAKAI_POSTPROBE run g.r
+isakai: new root android.app.DialogOverlayGroup bounds=0,0,0x0
+ISAKAI_FRAMEPROBE drawFrame 640x800
+ISAKAI_FRAMEPROBE drawFrame 640x800
+ISAKAI_FRAMEPROBE drawFrame 640x800
+ISAKAI_FRAMEPROBE drawFrame 640x800
+ISAKAI_FRAMEPROBE drawFrame 640x800
+ISAKAI_FRAMEPROBE drawFrame 640x800
+ISAKAI_FRAMEPROBE drawFrame 640x800
+ISAKAI_FRAMEPROBE drawFrame 640x800
+ISAKAI_FRAMEPROBE drawFrame 640x800
+ISAKAI_FRAMEPROBE drawFrame 640x800
+ISAKAI_FRAMEPROBE drawFrame 640x800
+ISAKAI_FRAMEPROBE drawFrame 640x800
+ISAKAI_FRAMEPROBE drawFrame 640x800
+ISAKAI_FRAMEPROBE drawFrame 640x800
+ISAKAI_FRAMEPROBE drawFrame 640x800
+ISAKAI_FRAMEPROBE drawFrame 640x800
+ISAKAI_FRAMEPROBE drawFrame 640x800
+ISAKAI_FRAMEPROBE drawFrame 640x800
+ISAKAI_FRAMEPROBE drawFrame 640x800
+ISAKAI_FRAMEPROBE drawFrame 640x800
+ISAKAI_FRAMEPROBE drawFrame 640x800
+ISAKAI_FRAMEPROBE drawFrame 640x800
+ISAKAI_FRAMEPROBE drawFrame 640x800
+ISAKAI_FRAMEPROBE drawFrame 640x800
+ISAKAI_FRAMEPROBE drawFrame 640x800
+ISAKAI_FRAMEPROBE drawFrame 640x800
+ISAKAI_FRAMEPROBE drawFrame 640x800
+ISAKAI_FRAMEPROBE drawFrame 640x800
+ISAKAI_FRAMEPROBE drawFrame 640x800
+ISAKAI_FRAMEPROBE drawFrame 640x800
+ISAKAI_FRAMEPROBE drawFrame 640x800
+ISAKAI_FRAMEPROBE drawFrame 640x800
+ISAKAI_FRAMEPROBE drawFrame 640x800
+ISAKAI_FRAMEPROBE drawFrame 640x800
+ISAKAI_FRAMEPROBE drawFrame 640x800
+ISAKAI_FRAMEPROBE drawFrame 640x800
+ISAKAI_FRAMEPROBE drawFrame 640x800
+ISAKAI_FRAMEPROBE drawFrame 640x800
+ISAKAI_FRAMEPROBE drawFrame 640x800
+ISAKAI_FRAMEPROBE drawFrame 640x800
+ISAKAI_FRAMEPROBE drawFrame 640x800
+ISAKAI_FRAMEPROBE drawFrame 640x800
+ISAKAI_FRAMEPROBE drawFrame 640x800
+ISAKAI_FRAMEPROBE drawFrame 640x800
+ISAKAI_FRAMEPROBE drawFrame 640x800
+ISAKAI_FRAMEPROBE drawFrame 640x800
+ISAKAI_FRAMEPROBE drawFrame 640x800
+ISAKAI_FRAMEPROBE drawFrame 640x800
+ISAKAI_FRAMEPROBE drawFrame 640x800
+ISAKAI_FRAMEPROBE drawFrame 640x800
+ISAKAI_FRAMEPROBE drawFrame 640x800
+ISAKAI_FRAMEPROBE drawFrame 640x800
+ISAKAI_FRAMEPROBE drawFrame 640x800
+ISAKAI_FRAMEPROBE drawFrame 640x800
+ISAKAI_FRAMEPROBE drawFrame 640x800
+ISAKAI_FRAMEPROBE drawFrame 640x800
+ISAKAI_FRAMEPROBE drawFrame 640x800
+ISAKAI_FRAMEPROBE drawFrame 640x800
+ISAKAI_FRAMEPROBE drawFrame 640x800
+ISAKAI_FRAMEPROBE drawFrame 640x800
+ISAKAI_FRAMEPROBE drawFrame 640x800
+ISAKAI_FRAMEPROBE drawFrame 640x800
+ISAKAI_FRAMEPROBE drawFrame 640x800
+ISAKAI_FRAMEPROBE drawFrame 640x800
+ISAKAI_FRAMEPROBE drawFrame 640x800
+ISAKAI_FRAMEPROBE drawFrame 640x800
+ISAKAI_FRAMEPROBE drawFrame 640x800
+ISAKAI_FRAMEPROBE drawFrame 640x800
+ISAKAI_FRAMEPROBE drawFrame 640x800
+ISAKAI_FRAMEPROBE drawFrame 640x800
+ISAKAI_FRAMEPROBE drawFrame 640x800
+ISAKAI_FRAMEPROBE drawFrame 640x800
+ISAKAI_FRAMEPROBE drawFrame 640x800
+ISAKAI_FRAMEPROBE drawFrame 640x800
+ISAKAI_FRAMEPROBE drawFrame 640x800
+ISAKAI_FRAMEPROBE drawFrame 640x800
+ISAKAI_FRAMEPROBE drawFrame 640x800
+ISAKAI_FRAMEPROBE drawFrame 640x800
+ISAKAI_FRAMEPROBE drawFrame 640x800
+ISAKAI_FRAMEPROBE drawFrame 640x800
+ISAKAI_FRAMEPROBE drawFrame 640x800
+ISAKAI_FRAMEPROBE drawFrame 640x800
+ISAKAI_FRAMEPROBE drawFrame 640x800
+ISAKAI_FRAMEPROBE drawFrame 640x800
+ISAKAI_FRAMEPROBE drawFrame 640x800
+ISAKAI_FRAMEPROBE drawFrame 640x800
+ISAKAI_FRAMEPROBE drawFrame 640x800
+ISAKAI_FRAMEPROBE drawFrame 640x800
+ISAKAI_FRAMEPROBE drawFrame 640x800
+ISAKAI_FRAMEPROBE drawFrame 640x800
+ISAKAI_FRAMEPROBE drawFrame 640x800
+ISAKAI_FRAMEPROBE drawFrame 640x800
+ISAKAI_FRAMEPROBE drawFrame 640x800
+ISAKAI_FRAMEPROBE drawFrame 640x800
+ISAKAI_FRAMEPROBE drawFrame 640x800
+ISAKAI_FRAMEPROBE drawFrame 640x800
+ISAKAI_FRAMEPROBE drawFrame 640x800
+ISAKAI_FRAMEPROBE drawFrame 640x800
+ISAKAI_FRAMEPROBE drawFrame 640x800
+ISAKAI_FRAMEPROBE drawFrame 640x800

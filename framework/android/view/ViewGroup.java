@@ -516,24 +516,31 @@ public class ViewGroup extends View implements ViewParent {
 
     public boolean dispatchTouchEvent(MotionEvent event) {
         int action = event.getActionMasked();
+        // AOSP parity: touch coordinates are in the scrolled content frame.
+        // A child laid out at (left, top) displays shifted by this group's
+        // scroll, so hit-testing and descending offsets must add it back:
+        // contentX = eventXY - groupXY + groupScroll (ViewGroup
+        // .dispatchTransformedTouchEvent uses offsetX = mScrollX - child.mLeft).
+        float scrollX = getScrollX();
+        float scrollY = getScrollY();
         if (action == MotionEvent.ACTION_DOWN) {
             touchTarget = null;
             if (onInterceptTouchEvent(event)) {
                 return super.dispatchTouchEvent(event);
             }
             // Reverse paint order: topmost child first (drawing-order aware).
-            float localX = event.getX() - getLeft();
-            float localY = event.getY() - getTop();
+            float localX = event.getX() - getLeft() + scrollX;
+            float localY = event.getY() - getTop() + scrollY;
             for (int index : hitOrder()) {
                 View child = children.get(index);
                 if (child.getVisibility() != View.VISIBLE) continue;
                 if (!child.containsPoint(localX, localY)) continue;
-                event.offsetLocation(-getLeft(), -getTop());
+                event.offsetLocation(-getLeft() + scrollX, -getTop() + scrollY);
                 boolean handled;
                 try {
                     handled = child.dispatchTouchEvent(event);
                 } finally {
-                    event.offsetLocation(getLeft(), getTop());
+                    event.offsetLocation(getLeft() - scrollX, getTop() - scrollY);
                 }
                 if (handled) {
                     touchTarget = child;
@@ -546,19 +553,19 @@ public class ViewGroup extends View implements ViewParent {
             if (touchTarget != null) {
                 MotionEvent cancel = MotionEvent.obtain(event);
                 cancel.setAction(MotionEvent.ACTION_CANCEL);
-                cancel.offsetLocation(-getLeft(), -getTop());
+                cancel.offsetLocation(-getLeft() + scrollX, -getTop() + scrollY);
                 touchTarget.dispatchTouchEvent(cancel);
                 touchTarget = null;
             }
             return super.dispatchTouchEvent(event);
         }
         if (touchTarget != null) {
-            event.offsetLocation(-getLeft(), -getTop());
+            event.offsetLocation(-getLeft() + scrollX, -getTop() + scrollY);
             boolean handled;
             try {
                 handled = touchTarget.dispatchTouchEvent(event);
             } finally {
-                event.offsetLocation(getLeft(), getTop());
+                event.offsetLocation(getLeft() - scrollX, getTop() - scrollY);
             }
             if (action == MotionEvent.ACTION_UP || action == MotionEvent.ACTION_CANCEL) {
                 touchTarget = null;
@@ -570,18 +577,18 @@ public class ViewGroup extends View implements ViewParent {
         if (action == MotionEvent.ACTION_POINTER_DOWN) {
             int idx = event.getActionIndex();
             if (idx >= 0 && idx < event.getPointerCount()) {
-                float px = event.getX(idx) - getLeft();
-                float py = event.getY(idx) - getTop();
+                float px = event.getX(idx) - getLeft() + scrollX;
+                float py = event.getY(idx) - getTop() + scrollY;
                 for (int i = children.size() - 1; i >= 0; i--) {
                     View child = children.get(i);
                     if (child.getVisibility() != View.VISIBLE) continue;
                     if (!child.containsPoint(px, py)) continue;
-                    event.offsetLocation(-getLeft(), -getTop());
+                    event.offsetLocation(-getLeft() + scrollX, -getTop() + scrollY);
                     boolean handled;
                     try {
                         handled = child.dispatchTouchEvent(event);
                     } finally {
-                        event.offsetLocation(getLeft(), getTop());
+                        event.offsetLocation(getLeft() - scrollX, getTop() - scrollY);
                     }
                     if (handled) {
                         touchTarget = child;
@@ -757,8 +764,15 @@ public class ViewGroup extends View implements ViewParent {
 
     @Override
     protected void dispatchDrawAt(Canvas canvas, int offsetX, int offsetY) {
+        // AOSP parity: scrolled content paints shifted by -scroll, so the
+        // viewport (this group's own bounds, already clipped by the caller)
+        // shows the scrolled page. Without this, scrolled children paint at
+        // their unscrolled layout positions and touch (which is scroll-aware
+        // in dispatchTouchEvent above) disagrees with what is displayed.
+        int baseX = offsetX - getScrollX();
+        int baseY = offsetY - getScrollY();
         for (int index : drawOrder()) {
-            children.get(index).drawAt(canvas, offsetX, offsetY);
+            children.get(index).drawAt(canvas, baseX, baseY);
         }
     }
 
