@@ -14,7 +14,7 @@ Program: implement reports/Remaining N6 N18 fix plan.md. Four independent PRs of
 
 ## PRs
 
-- [ ] PR1 translator sealed metadata. File: src/translate.zig. Verify: javap shows kotlin.Metadata, jshell annotation non-null, byLowerCase/getAll resolve, calculator flow PASS.
+- [x] PR1 translator sealed metadata. Merged. byLowerCase plus getAll resolve on jshell evidence. Calculator PASS on retranslated classes.
 - [x] PR2 loader extinfo plus dlerror. File: src/native/bionic_shim.zig. Merged as 55c656c. Matrix observed message-then-NULL. Chooser maps. Calculator PASS.
 - [x] PR3 appcompat icon plus Up navigation plus density. Merged. FAB blue with white plus on screenshot. Up single-intent rule. Calculator PASS.
 - [ ] PR4 text watchers on all mutations. Files: framework/android/widget/TextView.java, framework/android/widget/EditText.java, framework/android/view/inputmethod/BaseInputConnection.java. Verify: 6-run notes save series, calculator regression.
