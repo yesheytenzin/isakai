@@ -37,17 +37,115 @@ public class ImageView extends View {
         super(context, attrs, defStyleAttr);
         if (attrs != null) {
             // AOSP parity: android:src inflates the image (e.g. the FAB plus
-            // icon, which no code path sets programmatically).
+            // icon, which no code path sets programmatically). Stored
+            // directly: setImageResource is virtual and the AppCompat
+            // override dereferences helpers that do not exist yet.
             int src = attrs.getAttributeResourceValue(
                     "http://schemas.android.com/apk/res/android", "src", 0);
             if (src == 0) src = attrs.getAttributeResourceValue(null, "src", 0);
             if (src != 0) {
                 try {
-                    setImageResource(src);
+                    Drawable d = getResources().getDrawable(src);
+                    if (d != null) {
+                        drawable = d;
+                        invalidate();
+                    }
                 } catch (RuntimeException e) {
                 }
             }
+            // AppCompat parity: app:srcCompat wins when present, stored
+            // directly for the same override reason; unknown ids throw
+            // NotFoundException out of getDrawable per the platform contract.
+            Drawable compat = loadSrcCompat(context, attrs);
+            if (compat != null) {
+                drawable = compat;
+                invalidate();
+            }
         }
+    }
+
+    /**
+     * AppCompat srcCompat: the tag literal wins, resolved by raw binary
+     * type (?attr/ through the theme, @ref directly, unknown ids throw
+     * NotFoundException out of getDrawable). Null when unset or dangling.
+     */
+    private static Drawable loadSrcCompat(Context context, android.util.AttributeSet attrs) {
+        if (context == null) return null;
+        int count;
+        try {
+            count = attrs.getAttributeCount();
+        } catch (RuntimeException e) {
+            return null;
+        }
+        for (int i = 0; i < count; i++) {
+            String name;
+            try {
+                name = attrs.getAttributeName(i);
+            } catch (RuntimeException e) {
+                continue;
+            }
+            if (!"srcCompat".equals(name)) continue;
+            if (attrs instanceof android.content.res.XmlResourceParser) {
+                int[] raw;
+                try {
+                    raw = ((android.content.res.XmlResourceParser) attrs).getAttributeRawValue(i);
+                } catch (RuntimeException e) {
+                    raw = null;
+                }
+                if (raw != null && raw.length == 2) {
+                    if (raw[0] == android.util.TypedValue.TYPE_REFERENCE) {
+                        if (raw[1] == 0) return null;
+                        return context.getResources().getDrawable(raw[1]);
+                    }
+                    if (raw[0] == android.util.TypedValue.TYPE_ATTRIBUTE) {
+                        if (raw[1] == 0) return null;
+                        return resolveAttrDrawable(context, raw[1]);
+                    }
+                }
+            }
+            String value;
+            try {
+                value = attrs.getAttributeValue(i);
+            } catch (RuntimeException e) {
+                return null;
+            }
+            if (value == null) return null;
+            value = value.trim();
+            if (value.startsWith("?")) {
+                int attr;
+                try {
+                    attr = (int) Long.parseLong(value.substring(value.startsWith("?0x") ? 3 : 1), 16);
+                } catch (NumberFormatException e) {
+                    return null;
+                }
+                if (attr == 0) return null;
+                return resolveAttrDrawable(context, attr);
+            }
+            if (value.startsWith("@")) {
+                int id;
+                try {
+                    id = (int) Long.parseLong(value.substring(value.startsWith("@0x") ? 3 : 1), 16);
+                } catch (NumberFormatException e) {
+                    return null;
+                }
+                if (id == 0) return null;
+                return context.getResources().getDrawable(id);
+            }
+            return null;
+        }
+        return null;
+    }
+
+    /** Theme ?attr/ to drawable: reference loads, color wraps, else null. */
+    private static Drawable resolveAttrDrawable(Context context, int attr) {
+        android.util.TypedValue tv = new android.util.TypedValue();
+        if (!context.getTheme().resolveAttribute(attr, tv, true)) return null;
+        if (tv.resourceId != 0) return context.getResources().getDrawable(tv.resourceId);
+        if (tv.type >= android.util.TypedValue.TYPE_FIRST_COLOR_INT
+                && tv.type <= android.util.TypedValue.TYPE_LAST_COLOR_INT) {
+            return new android.graphics.drawable.ColorDrawable(tv.data);
+        }
+        return null;
     }
 
     public void setImageDrawable(Drawable drawable) {
