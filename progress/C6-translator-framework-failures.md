@@ -1535,3 +1535,16 @@ follow-up, not attempted here (needs a focused session). Evidence:
 [quiet-calc](../evidence/C6/2026-10-27/quiet-calc.log),
 [quiet-ocalc](../evidence/C6/2026-10-27/quiet-ocalc.log),
 [quiet-notes](../evidence/C6/2026-10-27/quiet-notes.log).
+
+### 2026-10-28 — independent review merged, no blockers (self-review)
+
+Thermo-nuclear review of the stacked diffs merged as `1a87a7d`
+(full report: [WORKER-review](WORKER-review.md)). Verdicts: bridge poll
+drain CORRECT (no busy-spin; cancel strictly improves; `run(100)` sets
+the pickup bound), harness hardening CORRECT (PASS still requires durable
+app state; failures fail loud; no-double-commit reasoning sound),
+leaves-dispatch CORRECT as base (picker handoff confirmed not landed).
+Notes-save flakiness and C7 tap-routing failures explicitly predate the
+stack and stay with their owners. Nothing blocks. (Note: main history
+shows rebased hashes for the two prior record commits — content verified
+identical, lint clean.)
