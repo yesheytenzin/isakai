@@ -1616,6 +1616,17 @@ blue), erase-preserving whitewash, compose back-arrow/first-row,
 file-picker-cancel end-to-end, `getLocationInWindow` scroll, XKB stress,
 C7 default-isolation operator run.
 
+### 2026-10-28 — Canvas color filter landed, FAB blue (self-review)
+
+Worker `acdd5b8` merged as `eeae98e`. `paintColor()` now applies the
+paint's filter before blending; Paint-taking bitmap paths filter
+per-texel with a null fast path (no change for filterless paints).
+Verified on screenshots: picker FAB renders container blue instead of
+the black blob; plus still missing (FAB ImageView drawable null —
+`srcCompat` res gap, follow-up for the res owner). All three flows PASS;
+keypad/settings pre/post pairs pixel-identical. Full record:
+[WORKER-canvasfilter](WORKER-canvasfilter.md).
+
 ### 2026-10-28 — web research + fix plan delivered (self-review)
 
 Five parallel researchers (official Android docs via Context7 + repo
