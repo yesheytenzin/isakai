@@ -1,0 +1,32 @@
+|  Welcome to JShell -- Version 27.0.1.0.2
+|  For an introduction type: /help intro
+
+jshell> 
+jshell> re ==> class android.content.res.ResEngine
+
+jshell> mOpen ==> static android.content.res.ResEngine android.cont ... va.io.File,java.io.File[])
+
+jshell> eng ==> android.content.res.ResEngine@46f7f36a
+
+jshell> ctor ==> android.content.res.AssetManager(android.content.res.ResEngine)
+
+jshell> am ==> android.content.res.AssetManager@3eb07fd3
+
+jshell> mFd ==> public android.content.res.AssetFileDescriptor an ... throws java.io.IOException
+
+jshell> compressed: throws FileNotFoundException: This file can not be opened as a file descriptor; it is probably compressed
+
+jshell> afd ==> android.content.res.AssetFileDescriptor@4b9af9a9
+
+jshell> fdroid-stored: start=9856 len=1415
+
+jshell> s ==> android.content.res.AssetFileDescriptor$AutoCloseInputStream@46fbb2c1
+
+jshell> single-reads: 112 114 109 avail=1412
+
+jshell> rest ==> byte[1412] { 0, 48, 48, 50, 0, 2, 0, 55, 49, 0, 0 ... 0, 31, -64, 26, 59, -122 }
+
+jshell> readNBytes(2000)->1412 then=-1
+
+jshell> 
+jshell> |  Goodbye

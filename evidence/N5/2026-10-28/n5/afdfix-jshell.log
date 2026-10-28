@@ -1,0 +1,48 @@
+|  Welcome to JShell -- Version 27.0.1.0.2
+|  For an introduction type: /help intro
+
+jshell> 
+jshell> re ==> class android.content.res.ResEngine
+
+jshell> mOpen ==> static android.content.res.ResEngine android.cont ... va.io.File,java.io.File[])
+
+jshell> eng ==> android.content.res.ResEngine@46f7f36a
+
+jshell> engine=true
+
+jshell> ctor ==> android.content.res.AssetManager(android.content.res.ResEngine)
+
+jshell> am ==> android.content.res.AssetManager@446cdf90
+
+jshell> mFd ==> public android.content.res.AssetFileDescriptor an ... throws java.io.IOException
+
+jshell> afd ==> android.content.res.AssetFileDescriptor@1de0aca6
+
+jshell> stored: start=384 len=2286
+
+jshell> in ==> android.content.res.AssetFileDescriptor$AutoCloseInputStream@2cdf8d8a
+
+jshell> got ==> byte[2286] { 112, 114, 111, 0, 48, 49, 48, 0, 1,  ... , -65, 1, 6, -76, 75, 74 }
+
+jshell> md ==> SHA-256 Message Digest from SUN, <initialized>
+
+
+jshell> h ==> byte[32] { 110, 54, 75, -88, -94, 67, 90, -47, 20 ...  -39, 72, -120, 33, -105 }
+
+jshell> sb ==> 
+
+jshell> stored: bytes=2286 sha256=6e364ba8a2435ad114560dc598e409ba7728d3730dfcb8a3659b42d948882197 first=112 last=74
+
+jshell> stored: read-past-end=-1 available=0
+
+jshell> in2 ==> android.content.res.AssetFileDescriptor$AutoCloseInputStream@5e91993f
+
+jshell> skipped ==> 2286
+
+jshell> stored: skip(100000)=2286 then-read=-1
+
+jshell> 
+jshell> 
+jshell> closed: throws IOException: closed
+
+jshell> |  Goodbye
