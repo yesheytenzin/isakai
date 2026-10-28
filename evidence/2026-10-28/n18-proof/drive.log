@@ -1,0 +1,14 @@
+res_open ok
+STORED fd=4 start=384 length=4312 len=4312
+pread n=4312
+pread sum=578800 first=112 last=-92
+stored fd closed by caller ok
+DEFLATED fd=-1 (expect negative)
+stream got=4290 of 4290
+stream sum=363884 first=60 last=10
+ndk len=4290
+NDK-EXPORT profm fd=4 start=4756 length=462
+AAsset_close ok
+repeat 50x open/read/close ok
+res_close ok
+e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  -

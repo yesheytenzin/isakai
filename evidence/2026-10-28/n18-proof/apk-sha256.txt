@@ -1,0 +1,5 @@
+092629deaeaaea824dbf0cd824989e80b498b1fa07ad5b4c3e744fc64ce5ab2f  .cache/isakai/apks/calculator-fdroid-release.apk
+bbc4a34a7f65b200f9e40c4c74af4745de5cdbff45752ac0172916deb9f3c97d  .cache/isakai/apks/fdroid-basic_2000052.apk
+d3064ad405e3488d0b4676dd547d9ea2d337fcc5def2a91dd09974ece50b0575  .cache/isakai/apks/notes-fdroid-release.apk
+43b6befd1fecc686ba1611bbda18896cc26d966047e788be995def569a4510f3  .cache/isakai/apks/OpenCalc.v3.2.1.apk
+6b36d5537984523c57984a784156eb853a92c940fded286483687484f3d652e4  .cache/isakai/apks/sgtpuzzles_149.apk

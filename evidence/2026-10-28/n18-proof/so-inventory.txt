@@ -1,0 +1,10 @@
+-- OpenCalc.v3.2.1:
+   (no x86_64 .so)
+-- calculator-fdroid-release:
+   (no x86_64 .so)
+-- notes-fdroid-release:
+   (no x86_64 .so)
+-- sgtpuzzles_149:
+    10760  1981-01-01 01:01   lib/x86_64/libandroidx.graphics.path.so
+  1412744  1981-01-01 01:01   lib/x86_64/libpuzzles.so
+     6536  1981-01-01 01:01   lib/x86_64/libpuzzlesgen.so
