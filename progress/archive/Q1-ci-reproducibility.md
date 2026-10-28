@@ -93,7 +93,7 @@ The two open stop-gate items are fixed and the N1-owned blocker is resolved.
   `/tmp/isakai-wayland-<uid>`, overridable with `ISAKAI_WAYLAND_DIR`, created
   per run rather than a fixed shared suffix.
 - Blocker `B-current-privileged-harness` (N1) is resolved: the required
-  privileged gate runs via pkexec (see [N1](N1-evidence-reproducibility.md) and
+  privileged gate runs via pkexec (see [N1](archive/N1-evidence-reproducibility.md) and
   [C7](C7-acceptance-gate.md#2026-10-23--required-host-gate-rerun-on-the-hardened-harness)).
 
 Reverified today:

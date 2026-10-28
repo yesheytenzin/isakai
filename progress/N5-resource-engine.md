@@ -13,8 +13,8 @@ next: "review the C8 AssetFileDescriptor repair and record actual caller evidenc
 
 ## Dependencies
 
-- [N3](N3-trusted-runtime.md)
-- [N4](N4-upstream-pins.md)
+- [N3](archive/N3-trusted-runtime.md)
+- [N4](archive/N4-upstream-pins.md)
 
 ## Code and documentation
 
@@ -24,7 +24,7 @@ next: "review the C8 AssetFileDescriptor repair and record actual caller evidenc
 - [framework/android/content/res/ResEngine.java](../framework/android/content/res/ResEngine.java), [AndroidfwTable.java](../framework/android/content/res/AndroidfwTable.java), [ResXmlParser.java](../framework/android/content/res/ResXmlParser.java), [ResourceTable.java](../framework/android/content/res/ResourceTable.java)
 - [framework/android/content/res/Resources.java](../framework/android/content/res/Resources.java) (legacy `Table`/`LegacyTheme` behind `ISAKAI_RESOURCES=legacy`), [AssetManager.java](../framework/android/content/res/AssetManager.java), [TypedArray.java](../framework/android/content/res/TypedArray.java)
 - [src/install.zig](../src/install.zig) — retained `base.apk`; `src/arsc.zig` removed
-- [build.zig](../build.zig), [build.zig.zon](../build.zig.zon), [DEPENDENCIES.md](DEPENDENCIES.md#built--resource-engine-n5)
+- [build.zig](../build.zig), [build.zig.zon](../build.zig.zon), [DEPENDENCIES.md](REFERENCE.md#built--resource-engine-n5)
 
 ## Implementation
 
@@ -55,7 +55,7 @@ Planning estimate: 2–4 engineer-weeks for a bounded pilot.
 
 ### Current acceptance boundary, 2026-10-26
 
-[C8](C8-shared-contracts.md) repairs the discovered Java AssetFileDescriptor range and backing
+[C8](archive/C8-shared-contracts.md) repairs the discovered Java AssetFileDescriptor range and backing
 file ownership defect (implemented, self-reviewed, exercised by the passing
 pinned flows; a directly observed bounded-range asset read is still
 unverified). Earlier resource-selection evidence does not prove this
@@ -105,7 +105,7 @@ trail `.audit/n5.tsv`.
   returning, so it cannot back `AAsset_openFileDescriptor` as written. This
   adapter is small and designed (see the session design note), but writing it
   before a loader and an app exist would be unverifiable beyond compiling, so
-  it is deferred to [N15](N15-native-windows.md) where a real caller can exercise it.
+  it is deferred to [N15](ROADMAP.md#N15) where a real caller can exercise it.
 - **Privileged evidence is extra, not an N5 acceptance bullet.** The supported
   `pkexec` route needs operator authentication (`sudo -n` requires a password
   in this session). Default-isolation evidence is required once the selected
@@ -113,7 +113,7 @@ trail `.audit/n5.tsv`.
   is never replaced by a same-UID claim.
 
 **Next action.** Do [N6](N6-bionic-jni.md) (same-ISA Bionic loading and JNI ownership),
-then [N15](N15-native-windows.md)'s NDK asset adapter over `ResEngine.NativeAsset` and a real
+then [N15](ROADMAP.md#N15)'s NDK asset adapter over `ResEngine.NativeAsset` and a real
 fd-returning `isakai_asset_*`, then drive a selected existing NDK app and record
 its stream and fd/offset asset reads here to close the third bullet.
 
@@ -300,7 +300,7 @@ gated on an operator-supplied app that uses the NDK asset API, an NDK
 toolchain, and operator `sudo`.
 
 **2026-10-25 update — a native x86_64 app is now pinned, but not for this
-bullet.** Simon Tatham's Puzzles ([APPS.md](APPS.md) index 3) is pinned as the
+bullet.** Simon Tatham's Puzzles ([APPS.md](REFERENCE.md) index 3) is pinned as the
 same-ISA target for [N6](N6-bionic-jni.md); its `lib/x86_64/libpuzzles.so` is a genuine JNI
 library but imports no `AAsset*`/`AAssetManager_*` symbol (it reads assets via
 the Java layer), so it still does **not** exercise N5's third (asset fd/offset)

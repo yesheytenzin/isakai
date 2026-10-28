@@ -85,7 +85,7 @@ python3 verify-isakai/sway-flow.py opencalc --work .cache/isakai/recheck/opencal
 ### 2026-10-23 — close-out
 
 Acceptance met and reverified on the current build. All three apps are pinned
-with immutable sha256 identity in [APPS.md](APPS.md) (OpenCalc, Simple
+with immutable sha256 identity in [APPS.md](REFERENCE.md) (OpenCalc, Simple
 Calculator, Simple Notes). The three isolated-sway flows pass fresh single runs
 today, each asserting repeatable visible interaction plus persistence:
 
@@ -99,7 +99,7 @@ python3 verify-isakai/sway-flow.py notes      --work .cache/isakai/recheck/notes
   commits a new history row; Notes restores its exact Unicode note after
   restart and append.
 - Internal screen navigation: Calculator opens SettingsActivity and returns via
-  back (the one-navigation requirement; see [C4](C4-activity-navigation.md)).
+  back (the one-navigation requirement; see [C4](archive/C4-activity-navigation.md)).
 - Unicode editing: Notes creates and persists `Isakai 日本語 – note`.
 
 The fuller default-confinement proof is recorded in
@@ -109,7 +109,7 @@ The fuller default-confinement proof is recorded in
 
 ### 2026-10-23 — close-out (self-review)
 
-C1 owns the pinned-app records ([APPS.md](APPS.md)), not production code. The
+C1 owns the pinned-app records ([APPS.md](REFERENCE.md)), not production code. The
 three records carry immutable sha256 identity matching the installed APKs, and
 each flow asserts against app-owned persisted state (Room rows, prefs, the note
 DB) rather than screenshots alone. The one-navigation and one-Unicode-editing

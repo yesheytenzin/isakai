@@ -13,7 +13,7 @@ next: "none — privileged gate passed 2026-10-27 with evidence retained; reopen
 
 ## Dependencies
 
-- [N2](N2-abi-selection.md)
+- [N2](archive/N2-abi-selection.md)
 
 ## Code and documentation
 

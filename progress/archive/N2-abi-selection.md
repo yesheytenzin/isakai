@@ -60,7 +60,7 @@ bytecode-only). Resolved by pinning a real, reputable multi-ABI native
 application rather than synthesizing one: **F-Droid Basic 2.0.2** (`org.fdroid.basic`,
 versionCode 2000052, sha256 `bbc4a34a7f65b200f9e40c4c74af4745de5cdbff45752ac0172916deb9f3c97d`),
 a 4-ABI fat APK (arm64-v8a / armeabi-v7a / x86 / x86_64) from the official
-F-Droid repo, ledgered in [DEPENDENCIES.md](DEPENDENCIES.md). It drives the
+F-Droid repo, ledgered in [DEPENDENCIES.md](REFERENCE.md). It drives the
 mixed-ABI diagnostic and slice-selection paths. Standalone malformed and
 wrong-machine APK artifacts are still not pinned; the fat APK's non-x86_64
 slices and the existing `validateNativeHeader` checks cover the wrong-machine

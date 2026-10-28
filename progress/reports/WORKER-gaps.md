@@ -20,16 +20,16 @@ then press at (320,318). Three launches, screenshots per outcome, app
 alive throughout, compositor close exit 0 in every run:
 
 - 80ms tap: dialog open
-  ([open](../evidence/C6/2026-10-27/gaps-scrim/calculator-gaps-tap-open.png))
+  ([open](../../evidence/C6/2026-10-27/gaps-scrim/calculator-gaps-tap-open.png))
   → main calculator, no dialog/scrim
-  ([after](../evidence/C6/2026-10-27/gaps-scrim/calculator-gaps-after-tap.png)).
+  ([after](../../evidence/C6/2026-10-27/gaps-scrim/calculator-gaps-after-tap.png)).
 - 1500ms hold: dialog open
-  ([open](../evidence/C6/2026-10-27/gaps-scrim/calculator-gaps-hold-open.png))
+  ([open](../../evidence/C6/2026-10-27/gaps-scrim/calculator-gaps-hold-open.png))
   → main calculator, no dialog/scrim
-  ([after](../evidence/C6/2026-10-27/gaps-scrim/calculator-gaps-after-hold.png)).
+  ([after](../../evidence/C6/2026-10-27/gaps-scrim/calculator-gaps-after-hold.png)).
 - 80ms tap repeat: same dismissal
-  ([open](../evidence/C6/2026-10-27/gaps-scrim/calculator-gaps-tap2-open.png) /
-  [after](../evidence/C6/2026-10-27/gaps-scrim/calculator-gaps-after-tap2.png)).
+  ([open](../../evidence/C6/2026-10-27/gaps-scrim/calculator-gaps-tap2-open.png) /
+  [after](../../evidence/C6/2026-10-27/gaps-scrim/calculator-gaps-after-tap2.png)).
 
 Verdict: both tap and hold at (320,318) cancel the dialog via the normal
 cancel-on-outside path — correct behavior, no hold-to-dismiss needed.

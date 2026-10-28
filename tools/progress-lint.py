@@ -30,8 +30,8 @@ def fail(msg):
     print("FAIL: " + msg)
 
 
-# 1. Task-file frontmatter.
-for path in sorted((ROOT / "progress").glob("*.md")):
+# 1. Task-file frontmatter (progress/ root plus archive/).
+for path in sorted((ROOT / "progress").glob("*.md")) + sorted((ROOT / "progress" / "archive").glob("*.md")):
     text = path.read_text(encoding="utf-8")
     m = re.match(r"---\n(.*?)\n---\n?", text, re.DOTALL)
     if not m or not re.search(r"^id:", m.group(1), re.MULTILINE):
@@ -98,7 +98,8 @@ for tsv in sorted((ROOT / ".audit").glob("*.tsv")):
             fail("%s:%d: row missing task value" % (tsv.name, n))
 
 # 5. STATUS.md must match frontmatter. The status script is the only
-# writer; hand edits or stale commits fail here. Rerun
+# writer (it reads progress/*.md, progress/archive/*.md and ROADMAP.md
+# sections); hand edits or stale commits fail here. Rerun
 # tools/progress-status.py and commit both files.
 import importlib.util as _ilu
 _spec = _ilu.spec_from_file_location(
@@ -109,6 +110,24 @@ _expected = _ps.render(_ps.tasks())
 _actual = (ROOT / "progress" / "STATUS.md").read_text(encoding="utf-8")
 if _actual != _expected:
     fail("progress/STATUS.md is stale: rerun tools/progress-status.py")
+
+# 6. ROADMAP.md sections carry machine-readable status lines so the
+# pending/deferred lane has one source. Each `## <ID>` header must be
+# followed by `Status: <status> — <next>` with a known status.
+_roadmap = ROOT / "progress" / "ROADMAP.md"
+if _roadmap.exists():
+    _rlines = _roadmap.read_text(encoding="utf-8").splitlines()
+    for _n, _line in enumerate(_rlines, 1):
+        _m = re.match(r"^## ([A-Z]+\d+)\b", _line)
+        if not _m:
+            continue
+        _j = _n
+        while _j < len(_rlines) and not _rlines[_j].strip():
+            _j += 1
+        _sm = re.match(r"^Status: (\w+) \u2014 (.*\S)\s*$",
+                       _rlines[_j] if _j < len(_rlines) else "")
+        if not _sm or _sm.group(1) not in KNOWN_STATUSES:
+            fail("ROADMAP.md:%d: header %s lacks a valid `Status:` line" % (_n, _m.group(1)))
 
 print("%d violation(s)" % len(errors))
 sys.exit(1 if errors else 0)

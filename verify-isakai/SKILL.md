@@ -34,7 +34,7 @@ defines the completion procedure, not a second progress checklist.
 
 ## Completing a task
 
-1. Open the owning `progress/<ID>.md` before starting. Read its acceptance
+1. Open the owning task file before starting (`progress/<ID>.md` for N5/N6/N18, `progress/archive/<ID>.md` for done tasks, `progress/ROADMAP.md` for roadmap tasks). Read its acceptance
    criteria, dependencies and blockers, then set its frontmatter `status`
    to `in_progress` when work begins.
 2. Implement the task and drive its affected real app flow. Record exact
@@ -81,7 +81,7 @@ compiler; host system libraries are listed in
 | Isolated pinned-app flow | `python3 verify-isakai/sway-flow.py {opencalc\|calculator\|notes} --work <dir>` | OpenCalc calculates/copies/resizes and stays alive; Calculator reaches settings, persists the preference and returns via back; Notes edits a Unicode note, saves it and returns to the list. Retains screenshots and app logs under `--evidence`. |
 | Live-compositor drive | `python3 verify-isakai/flow-drive.py <opencalc\|calculator\|notes> [--work DIR]` | Same flows under the live compositor with per-action focus guards. Needs a workspace not shared with interactive work. |
 | App observer | `python3 verify-isakai/observe-app.py <0\|1\|2> --work <dir>` | Startup screenshots and failures; does not establish useful interaction. |
-| Live window | `python3 verify-isakai/window-flow.py --unprivileged --required` | Real fixture stays open >30 seconds, closes through the compositor and Escape/back, records exit zero and removes data. Does not assert typed text: the host keyboard text path does not reach the fixture EditText (see [N1](../progress/N1-evidence-reproducibility.md)); the pinned app flows prove text input. |
+| Live window | `python3 verify-isakai/window-flow.py --unprivileged --required` | Real fixture stays open >30 seconds, closes through the compositor and Escape/back, records exit zero and removes data. Does not assert typed text: the host keyboard text path does not reach the fixture EditText (see [N1](../progress/archive/N1-evidence-reproducibility.md)); the pinned app flows prove text input. |
 | Full privileged flow | `tools/e2e-privileged.sh --required` | Fresh fixture and peer app install; app-side UID/GID, empty groups, NNP, seccomp, distinct mount namespace and filesystem assertions pass; real surface/lifetime/close/back pass; users/data removed. Typed text is covered by the pinned app flows, not this fixture gate. |
 
 Without prerequisites, the privileged script returns 77 with SKIP; `--required`

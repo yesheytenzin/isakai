@@ -17,10 +17,10 @@ None.
 
 ## Code and documentation
 
-- [progress/DEPENDENCIES.md](DEPENDENCIES.md) — the ledger this task delivers
+- [progress/DEPENDENCIES.md](REFERENCE.md) — the ledger this task delivers
 - [tools/dependencies.json](../tools/dependencies.json) — toolchain hash lock
 - [verify-isakai/compositor/DEPS.lock](../verify-isakai/compositor/DEPS.lock) — fixture hash lock
-- [progress/APPS.md](APPS.md) — pinned APK hashes
+- [progress/APPS.md](REFERENCE.md) — pinned APK hashes
 - [tools/bootstrap.py](../tools/bootstrap.py)
 - [LICENSE](../LICENSE)
 - [LICENSES/Apache-2.0.txt](../LICENSES/Apache-2.0.txt)
@@ -56,7 +56,7 @@ Planning estimate: 2–5 engineer-days initial ledger; recurring security and pa
 
 ### 2026-10-24 — ledger delivered
 
-[progress/DEPENDENCIES.md](DEPENDENCIES.md) is the source/dependency/reuse
+[progress/DEPENDENCIES.md](REFERENCE.md) is the source/dependency/reuse
 ledger. Acceptance checks:
 
 - **No mutable branch-head assumptions.** Every entry is an immutable pin: Zig

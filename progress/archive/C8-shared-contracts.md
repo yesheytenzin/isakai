@@ -13,7 +13,7 @@ next: "record affected app-flow evidence for the source replacement; blank Compo
 
 ## Dependencies
 
-- [C6](C6-translator-framework-failures.md)
+- [C6](archive/C6-translator-framework-failures.md)
 - [N5](N5-resource-engine.md) for the APK-backed asset implementation, not completion of its native caller gate
 
 ## Scope and execution plan

@@ -13,8 +13,8 @@ next: "verify default-isolated useful actions plus thread/callback/GC/exception 
 
 ## Dependencies
 
-- [N3](N3-trusted-runtime.md)
-- [N4](N4-upstream-pins.md)
+- [N3](archive/N3-trusted-runtime.md)
+- [N4](archive/N4-upstream-pins.md)
 
 ## Code and documentation
 
@@ -81,7 +81,7 @@ policy forbids authoring fixture libraries. Loader correctness therefore has
 to be proven by Isakai integration against a real app, not by this suite.
 
 **2026-10-25 — step 3 input resolved: a clean x86_64 NDK app is now pinned.**
-Simon Tatham's Puzzles (F-Droid, MIT, pinned at [APPS.md](APPS.md) index 3,
+Simon Tatham's Puzzles (F-Droid, MIT, pinned at [APPS.md](REFERENCE.md) index 3,
 `name.boyle.chris.sgtpuzzles` v149, sha256 `6b36d55…3d652e4`,
 `.cache/isakai/apks/sgtpuzzles_149.apk`) replaces the unusable GLES game as the
 same-ISA target. Static analysis of its `lib/x86_64/libpuzzles.so` (NDK r28c,
@@ -196,7 +196,7 @@ is not explicit host/guest classification. Possible fallback re-entry is a
 source-based risk, not a reproduced crash. Native capability still depends on
 external build artifacts whose availability and provenance are not part of the
 runtime selection contract. Do not claim general native support or distribution
-readiness until these are resolved and verified. See [DEPENDENCIES.md](DEPENDENCIES.md#experimental-bionic-integration).
+readiness until these are resolved and verified. See [DEPENDENCIES.md](REFERENCE.md#experimental-bionic-integration).
 
 Native asset C ABI acceptance belongs to [N18](N18-ndk-assets.md), independently of N15's
 graphics work. Java descriptor repairs in C8 do not establish NDK support.

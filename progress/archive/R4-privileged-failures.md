@@ -13,9 +13,9 @@ next: "none — done; privileged-harness residual is owned by N1"
 
 ## Dependencies
 
-- [R1](R1-window-timeout.md)
-- [R2](R2-confinement-proof.md)
-- [R3](R3-packaging-install.md)
+- [R1](archive/R1-window-timeout.md)
+- [R2](archive/R2-confinement-proof.md)
+- [R3](archive/R3-packaging-install.md)
 
 ## Code and documentation
 
@@ -57,7 +57,7 @@ Next action (owned by N1): remove the harness dependency on the deleted `Runtime
 
 The `B-current-privileged-harness` blocker is resolved: the gate no longer
 references the deleted `RuntimeProbe.java` and runs end to end through the
-pkexec elevation this host supports (see [N1](N1-evidence-reproducibility.md) and
+pkexec elevation this host supports (see [N1](archive/N1-evidence-reproducibility.md) and
 [C7](C7-acceptance-gate.md#2026-10-23--required-host-gate-rerun-on-the-hardened-harness)).
 Both halves of the acceptance now hold on the current harness.
 

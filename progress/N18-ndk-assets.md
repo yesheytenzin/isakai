@@ -23,7 +23,7 @@ resource engine. Define Java-to-native manager ownership, asset lifetime,
 stream operations and uncompressed archive descriptors with real fd, offset
 and length ownership. Existing exports do not by themselves establish caller
 compatibility.
-Keep graphics and native-window adoption in [N15](N15-native-windows.md). This task does not
+Keep graphics and native-window adoption in [N15](ROADMAP.md#N15). This task does not
 depend on Skia or GPU support.
 
 ## Acceptance

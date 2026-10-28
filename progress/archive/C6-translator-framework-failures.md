@@ -13,8 +13,8 @@ next: "none — N3 privileged gate passed 2026-10-27 with retained evidence; def
 
 ## Dependencies
 
-- [C1](C1-target-apps.md)
-- [C2](C2-apk-diagnostics.md)
+- [C1](archive/C1-target-apps.md)
+- [C2](archive/C2-apk-diagnostics.md)
 
 ## Code and documentation
 
@@ -42,7 +42,7 @@ Each fixed failure is proven by the affected real visible flow. Unresolved failu
 ## Blockers
 
 2026-10-26 source and UI audit: shared-contract repairs and removal of APK-private
-lifecycle/layout workarounds are owned by [C8](C8-shared-contracts.md). Fresh Calculator baseline
+lifecycle/layout workarounds are owned by [C8](archive/C8-shared-contracts.md). Fresh Calculator baseline
 settings screenshots are blank; N5 records fresh Notes and intermittent OpenCalc
 failures. The dated completion claims below describe their original runs only.
 Do not attribute the RecyclerView failure solely to AndroidX bytecode without a
@@ -141,7 +141,7 @@ Artifacts:
 - [.cache/isakai/evidence/c7final-ocalc10-20261019/](../.cache/isakai/evidence/c7final-ocalc10-20261019/)
 - [.cache/isakai/evidence/c7final-ocalc-fresh-20261019/](../.cache/isakai/evidence/c7final-ocalc-fresh-20261019/)
 
-Related tasks: [C6](C6-translator-framework-failures.md), [C7](C7-acceptance-gate.md), [N1](N1-evidence-reproducibility.md).
+Related tasks: [C6](archive/C6-translator-framework-failures.md), [C7](archive/C7-acceptance-gate.md), [N1](archive/N1-evidence-reproducibility.md).
 
 ### B-calculator-compose
 
@@ -160,7 +160,7 @@ Artifacts:
 
 Deferred defect (2026-10-16, unfixed): Compose draw passes and pointer/layout space disagree by about 60px in the Calculator settings screen — rows that visibly sit at screen y≈281/331/402 respond to taps only near y≈340/380/440 at x=320. Budget decision: drive the flow with measured interactive coordinates and leave the offset repair open rather than change the harness window contract.
 
-Related tasks: [C6](C6-translator-framework-failures.md), [C7](C7-acceptance-gate.md).
+Related tasks: [C6](archive/C6-translator-framework-failures.md), [C7](archive/C7-acceptance-gate.md).
 
 ### B-notes-dialog-window
 
@@ -174,7 +174,7 @@ Artifacts:
 - [.cache/isakai/evidence/c7final-notes/simple-01-initial.png](../.cache/isakai/evidence/c7final-notes/simple-01-initial.png)
 - [.cache/isakai/evidence/c7final-notes-20261019/](../.cache/isakai/evidence/c7final-notes-20261019/) (dialog, picker, restart and final-edit shots on the stripped build)
 
-Related tasks: [C6](C6-translator-framework-failures.md), [C7](C7-acceptance-gate.md).
+Related tasks: [C6](archive/C6-translator-framework-failures.md), [C7](archive/C7-acceptance-gate.md).
 
 
 ## Verification evidence

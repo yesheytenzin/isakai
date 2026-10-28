@@ -13,12 +13,12 @@ next: "optional: privileged per-app pinned runs (same-UID flows green on main); 
 
 ## Dependencies
 
-- [R4](R4-privileged-failures.md)
-- [C3](C3-main-thread-queue.md)
-- [C4](C4-activity-navigation.md)
-- [C5](C5-layouts-text.md)
-- [C6](C6-translator-framework-failures.md)
-- [Q1](Q1-ci-reproducibility.md)
+- [R4](archive/R4-privileged-failures.md)
+- [C3](archive/C3-main-thread-queue.md)
+- [C4](archive/C4-activity-navigation.md)
+- [C5](archive/C5-layouts-text.md)
+- [C6](archive/C6-translator-framework-failures.md)
+- [Q1](archive/Q1-ci-reproducibility.md)
 
 ## Code and documentation
 
@@ -27,7 +27,7 @@ next: "optional: privileged per-app pinned runs (same-UID flows green on main); 
 
 ## Delivery review details
 
-Restore default-confined isolation proof for the gate without authoring a replacement fixture: per [N1](N1-evidence-reproducibility.md) remove the harness dependency on the deleted RuntimeProbe.java using existing runtime/application diagnostics and observable isolation state, prove the gate fails for real isolation errors, then rerun all three workflows using default per-app UID/confinement, signed APK policy and clean installs/upgrades.
+Restore default-confined isolation proof for the gate without authoring a replacement fixture: per [N1](archive/N1-evidence-reproducibility.md) remove the harness dependency on the deleted RuntimeProbe.java using existing runtime/application diagnostics and observable isolation state, prove the gate fails for real isolation errors, then rerun all three workflows using default per-app UID/confinement, signed APK policy and clean installs/upgrades.
 
 **Additional acceptance / stop gate:** Three useful flows, persistence, >30 seconds, exit zero, no leaked children/UIDs; changed signer rejected; rollback leaves prior app/data usable. Any isolation bypass fails release.
 
@@ -40,7 +40,7 @@ All three apps complete their defined flows with expected saved results, remain 
 
 ## Blockers
 
-2026-10-26 current-state audit: [C8](C8-shared-contracts.md) is rerunning the current implementation
+2026-10-26 current-state audit: [C8](archive/C8-shared-contracts.md) is rerunning the current implementation
 with fresh data. Its pre-change Calculator settings and toggled screenshots are
 blank (`.cache/isakai/evidence/c8-before-calculator/simple-03-settings.png` and
 `simple-04-toggled.png`), despite activity startup and preference operations.
@@ -70,7 +70,7 @@ closing this gate again. C8 records the new runs and shared-contract repairs.
 - [x] Implement and drive Notes dialog, Unicode editing, save, modal-picker return, restart and reopen. This does not close editor-to-list navigation.
 - [x] Recheck OpenCalc with retained state and investigate any observed failure without suppressing it.
 - [x] Drive signed installation, upgrade, rollback and signer rejection with existing CLI commands and real APKs.
-- [x] Run required default-isolation acceptance. A same-UID run cannot satisfy this item; the required gate passed for real on 2026-10-19 via the pkexec elevation the host actually supports (see the 2026-10-19 evidence below and [N1](N1-evidence-reproducibility.md)).
+- [x] Run required default-isolation acceptance. A same-UID run cannot satisfy this item; the required gate passed for real on 2026-10-19 via the pkexec elevation the host actually supports (see the 2026-10-19 evidence below and [N1](archive/N1-evidence-reproducibility.md)).
 - [x] Run all three pinned acceptance flows under default per-app confinement (real uids 200000-200002) and record app-owned evidence; see the 2026-10-20 section below.
 - [x] Confirm the Notes editor's supported route to the note list: the toolbar folder icon opens the modal picker from the active editor (captured), while the app's back action (Escape) finishes the process and has no editor-to-list branch. No framework navigation was invented; the picker's overlapping row rendering stays a C6 defect.
 - [x] Append evidence and decisions as each unit completes.
@@ -625,7 +625,7 @@ this update and its honest outcome recorded there, not baked into this pass.
 
 ### OpenCalc v3.2.1
 
-Artifact identity is maintained in [APPS.md](APPS.md).
+Artifact identity is maintained in [APPS.md](REFERENCE.md).
 
 #### 2026-10-11 — partial
 
@@ -669,7 +669,7 @@ Artifacts:
 
 ### Simple Calculator 5.12.0
 
-Artifact identity is maintained in [APPS.md](APPS.md).
+Artifact identity is maintained in [APPS.md](REFERENCE.md).
 
 #### 2026-10-11 — failed
 
@@ -690,7 +690,7 @@ Artifacts:
 
 ### Simple Notes 6.17.0
 
-Artifact identity is maintained in [APPS.md](APPS.md).
+Artifact identity is maintained in [APPS.md](REFERENCE.md).
 
 #### 2026-10-11 — failed
 

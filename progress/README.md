@@ -4,22 +4,22 @@ The `progress/` folder is the single planning and progress source. Each task fil
 
 ## Start here
 
-Start with [C8](C8-shared-contracts.md) for the cross-app compatibility audit and repairs,
-[C7](C7-acceptance-gate.md) for the pinned-flow acceptance record, and [C6](C6-translator-framework-failures.md) for
+Start with [C8](archive/C8-shared-contracts.md) for the cross-app compatibility audit and repairs,
+[C7](archive/C7-acceptance-gate.md) for the pinned-flow acceptance record, and [C6](archive/C6-translator-framework-failures.md) for
 translator/framework failures. Resource and native work belongs to [N5](N5-resource-engine.md),
 [N6](N6-bionic-jni.md) and [N18](N18-ndk-assets.md). Read each task for its current status and evidence;
 historical app passes do not establish support for the current implementation.
 
-- [Shared delivery plan and design rationale](PLAN.md)
-- [Pinned app manifest](APPS.md)
+- [Shared delivery plan and design rationale](REFERENCE.md)
+- [Pinned app manifest](APPS.md)  <!-- machine-read by tools/pinned_apps.py; do not merge elsewhere -->
 - [Historical evidence and research](HISTORY.md)
 - [Verification and completion procedure](../verify-isakai/SKILL.md)
 
 ## Roadmap
 
-Milestones map to PLAN.md's four release decisions. A task's fine-grained `phase:` label groups under the milestone shown here. Open a task for its status; the state below is milestone-level orientation only.
+Milestones map to the four release decisions in [REFERENCE.md](REFERENCE.md#delivery-plan). A task's fine-grained `phase:` label groups under the milestone shown here. Open a task for its status; the state below is milestone-level orientation only.
 
-| Milestone | Outcome (PLAN.md release decision) |
+| Milestone | Outcome (REFERENCE.md release decision) |
 |---|---|
 | **M1 — x86_64 bytecode compatibility** | Pinned apps complete useful flows, persist data, and run under default isolation. |
 | **M2 — Reuse & same-ISA native foundation** | Trusted runtime execution, resource and Bionic/JNI ownership, and bounded runtime comparisons. |
@@ -27,69 +27,29 @@ Milestones map to PLAN.md's four release decisions. A task's fine-grained `phase
 | **M4 — Foreign-ISA execution** | A foreign-ISA backend passes a named corpus; accelerator choices follow measured fidelity. |
 | **Capability expansion** | Media, WebView, sensors and hardware enter with motivating apps and maintenance owners. |
 
-## Tasks by milestone
+## Open work
 
-Listed in dependency order within each milestone (a task's `Dependencies` section is authoritative). Open a task for its status. This index never states statuses; any status word here is a bug.
-
-### M1 — x86_64 bytecode compatibility
-
-Runtime hardening and isolation:
-- [R1: Remove the production window timeout](R1-window-timeout.md)
-- [R2: Repair and prove confinement](R2-confinement-proof.md)
-- [R3: Verify policy packaging and clean installation](R3-packaging-install.md)
-- [R4: Make privileged E2E failures authoritative](R4-privileged-failures.md)
-
-App compatibility:
-- [C1: Pin three target apps and useful flows](C1-target-apps.md)
-- [C2: Add APK compatibility diagnostics](C2-apk-diagnostics.md)
-- [C3: Implement the main-thread message queue](C3-main-thread-queue.md)
-- [C4: Support in-app activity navigation](C4-activity-navigation.md)
-- [C5: Make target layouts and text usable](C5-layouts-text.md)
-- [C6: Close measured translator and framework failures](C6-translator-framework-failures.md)
-- [C7: Pass the three-app acceptance gate](C7-acceptance-gate.md)
-- [C8: Replace app accommodations with shared compatibility contracts](C8-shared-contracts.md)
-
-Verification, release evidence and project hygiene:
-- [Q1: Make local checks and CI reproducible](Q1-ci-reproducibility.md)
-- [Q2: Align APK limits and test ABI selection](Q2-apk-limits.md)
-- [Q3: Automate API catalog and build inventory checks](Q3-api-catalog.md)
-- [N1: Make private-compositor release evidence reproducible](N1-evidence-reproducibility.md)
-- [D1: Consolidate plans and establish one progress tracker](D1-progress-tracker.md)
-- [D2: Enforce artifact policy and remove obsolete project files](D2-artifact-policy.md)
-
-### M2 — Reuse & same-ISA native foundation
-
-- [N4: Pin upstream source, licenses, builds and maintenance ownership](N4-upstream-pins.md)
-- [N2: Select explicit APK ABI and inventory ELF dependency compatibility](N2-abi-selection.md)
-- [N3: Expose a trusted runtime preparation and execution interface](N3-trusted-runtime.md)
 - [N5: Replace duplicate resource selection with a libandroidfw adapter](N5-resource-engine.md)
 - [N6: Prove same-ISA Android Bionic loading and complete JNI ownership](N6-bionic-jni.md)
-- [N11: Compare ART Standalone against the existing JVM backend](N11-art-compare.md)
-- [N12: Compare Robolectric Simulator and dex2jar for APK execution](N12-robolectric-compare.md)
-
-### M3 — Native host architectures & release
-
-- [N7: Deliver native AArch64 host builds, packaging and audited confinement](N7-aarch64-release.md)
-- [N13: Use apksig verification and atomic signed split-set installation](N13-signed-splits.md)
-- [N14: Introduce CPU Skia rendering and consistent Unicode text layout](N14-skia-text.md)
 - [N18: Provide NDK asset ownership and fd/offset access](N18-ndk-assets.md)
-- [N15: Provide native windows and Mesa graphics adapters](N15-native-windows.md)
-- [N16: Publish exact compatibility and performance evidence by backend](N16-compatibility-evidence.md)
 
-### M4 — Foreign-ISA execution
+## Roadmap
 
-- [N8: Establish whole-guest QEMU ARM64 application execution on x86_64](N8-qemu-arm64-guest.md)
-- [N9: Compare FEX and Box64 for x86 guest execution on ARM64](N9-fex-box64-compare.md)
-- [N10: Time-box Digitalis ARM64-to-x86_64 mixed-ISA feasibility](N10-digitalis-feasibility.md)
-- [N17: Decide and prove independent x86 and ARMv7 32-bit support](N17-32bit-support.md)
+Pending and deferred task definitions live in [ROADMAP.md](ROADMAP.md);
+restore a task's file from git history when its phase opens. Deferred
+tasks (F1–F5) need explicit promotion.
 
-### Capability expansion (on demand, deferred)
+## Done, archived
 
-- [F1: Harden media for a selected app](F1-media-hardening.md)
-- [F2: Integrate a real WebView engine](F2-webview-engine.md)
-- [F3: Prove ARM native execution before broad integration](F3-arm-native-proof.md)
-- [F4: Expose honest sensors and location capabilities](F4-sensors-location.md)
-- [F5: Expand native, hardware and signature coverage on demand](F5-native-hardware-coverage.md)
+Completed tasks live in [archive/](archive/) with their evidence;
+per-task state in [STATUS.md](STATUS.md).
+
+## Reference
+
+- [REFERENCE.md](REFERENCE.md) (delivery plan, dependencies)
+- [APPS.md](APPS.md) (pinned APKs — machine-read single source)
+- [FINDINGS.md](FINDINGS.md) (triage inbox, one owning task per item)
+- [HISTORY.md](HISTORY.md) (immutable record)
 
 ## Task status meanings
 
@@ -101,9 +61,9 @@ Verification, release evidence and project hygiene:
 
 ## Current blocker owners
 
-Open the owning blocker sections in [C8](C8-shared-contracts.md#blockers-and-remaining-work),
-[C6](C6-translator-framework-failures.md#blockers), [N5](N5-resource-engine.md#blockers), [N6](N6-bionic-jni.md#blockers),
-[N18](N18-ndk-assets.md#blockers) and [N1](N1-evidence-reproducibility.md). Keep causes and required next actions
+Open the owning blocker sections in [C8](archive/C8-shared-contracts.md#blockers-and-remaining-work),
+[C6](archive/C6-translator-framework-failures.md#blockers), [N5](N5-resource-engine.md#blockers), [N6](N6-bionic-jni.md#blockers),
+[N18](N18-ndk-assets.md#blockers) and [N1](archive/N1-evidence-reproducibility.md). Keep causes and required next actions
 there rather than copying mutable blocker conclusions into this index.
 
 The blockers-and-status view is generated, never hand-edited:
@@ -112,4 +72,4 @@ frontmatter via `tools/progress-status.py` (lint fails when stale).
 
 ## Maintenance
 
-Keep shared architecture/reuse rationale in PLAN.md, APK pins in APPS.md, and mutable task information in exactly one `progress/<ID>.md`. Preserve dated history without treating it as current status. Add or rename a task by updating its milestone group here; do not maintain a separate JSON tracker, status table or duplicate task file. When a task's milestone changes, move its link to the right group. Technical guides outside this folder are reference-only. Never state a task's status in body prose — frontmatter owns status and STATUS.md renders it. Research outputs land under progress/reports/ (finals, including WORKER completion reports) and progress/research-notes/<title>/ (notes).
+Keep shared rationale, pins and dependencies in REFERENCE.md; mutable open-task information in exactly one place (`progress/<ID>.md` for N5/N6/N18, `progress/ROADMAP.md` sections for roadmap tasks, `progress/archive/<ID>.md` for done tasks). Preserve dated history without treating it as current status. Add or rename a task by updating its milestone group here; do not maintain a separate JSON tracker, status table or duplicate task file. When a task's milestone changes, move its link to the right group. Technical guides outside this folder are reference-only. Never state a task's status in body prose — frontmatter owns status and STATUS.md renders it. Research outputs land under progress/reports/ (finals, including WORKER completion reports) and progress/research-notes/<title>/ (notes).

@@ -13,7 +13,7 @@ next: "none — done; reopen only if a regression invalidates acceptance"
 
 ## Dependencies
 
-- [C1](C1-target-apps.md)
+- [C1](archive/C1-target-apps.md)
 
 ## Code and documentation
 

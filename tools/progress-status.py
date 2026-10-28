@@ -21,25 +21,63 @@ LANES = (
 )
 
 
+def frontmatter_task(path, rel):
+    text = path.read_text(encoding="utf-8")
+    m = re.match(r"---\n(.*?)\n---\n?", text, re.DOTALL)
+    if not m or not re.search(r"^id:", m.group(1), re.MULTILINE):
+        return None
+    front = m.group(1)
+
+    def field(name):
+        mm = re.search(r"^%s:\s*\"([^\"]+)\"" % name, front, re.MULTILINE)
+        return mm.group(1) if mm else ""
+
+    return {
+        "id": field("id"),
+        "status": field("status"),
+        "next": field("next"),
+        "file": rel,
+    }
+
+
+def roadmap_tasks():
+    # ROADMAP.md sections: `## <ID>...` immediately followed by
+    # `Status: <status> — <next>`. Single source for pending/deferred tasks.
+    path = PROGRESS / "ROADMAP.md"
+    if not path.exists():
+        return []
+    lines = path.read_text(encoding="utf-8").splitlines()
+    found = []
+    for i, line in enumerate(lines):
+        m = re.match(r"^## ([A-Z]+\d+)\b", line)
+        if not m:
+            continue
+        j = i + 1
+        while j < len(lines) and not lines[j].strip():
+            j += 1
+        sm = re.match(r"^Status: (\w+) \u2014 (.*)$", lines[j] if j < len(lines) else "")
+        if not sm:
+            continue
+        found.append({
+            "id": m.group(1),
+            "status": sm.group(1),
+            "next": sm.group(2).strip(),
+            "file": "ROADMAP.md",
+        })
+    return found
+
+
 def tasks():
     found = []
     for path in sorted(PROGRESS.glob("*.md")):
-        text = path.read_text(encoding="utf-8")
-        m = re.match(r"---\n(.*?)\n---\n?", text, re.DOTALL)
-        if not m or not re.search(r"^id:", m.group(1), re.MULTILINE):
-            continue
-        front = m.group(1)
-
-        def field(name):
-            mm = re.search(r"^%s:\s*\"([^\"]+)\"" % name, front, re.MULTILINE)
-            return mm.group(1) if mm else ""
-
-        found.append({
-            "id": field("id"),
-            "status": field("status"),
-            "next": field("next"),
-            "file": path.name,
-        })
+        t = frontmatter_task(path, path.name)
+        if t:
+            found.append(t)
+    for path in sorted((PROGRESS / "archive").glob("*.md")):
+        t = frontmatter_task(path, "archive/" + path.name)
+        if t:
+            found.append(t)
+    found.extend(roadmap_tasks())
     return found
 
 

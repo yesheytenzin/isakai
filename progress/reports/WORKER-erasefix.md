@@ -7,7 +7,7 @@ Status: **done** — implemented, verified, isolation repaints clean. Picker whi
 - `framework/android/view/View.java` background default/fill only.
 - `framework/android/app/Activity.java` paintRoot/frame-clear only.
 - Goal: narrower fix per [reports/isakai open defects fix plan.md](../reports/isakai%20open%20defects%20fix%20plan.md)
-  (whitewash section) + [research_notes/.../background-erase.md](../research_notes/isakai%20open%20defects%20fix%20plan/background-erase.md):
+  (whitewash section) + [research_notes/.../background-erase.md](../research-notes/isakai%20open%20defects%20fix%20plan/background-erase.md):
   keep the opaque frame clear as the once-per-presented-frame base, shrink
   per-view fills from unconditional erase to actual background styling
   (or isOpaque-driven hints). Must fix picker-row whitewash WITHOUT

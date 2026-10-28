@@ -1,3 +1,10 @@
+# Project reference: plan, pins, dependencies
+
+Concatenated live reference (none frozen). Edit the owning section in
+place; keep one fact in one section.
+
+## Delivery plan
+
 # Isakai delivery plan (live)
 
 This is the live plan. Task status, implementation details, acceptance gates
@@ -19,7 +26,7 @@ Run supported Android APKs for x86_64, x86, arm64-v8a and armeabi-v7a as ordinar
 
 Four milestones carry the immediate goal to the long-term goal, one per release decision below. The [progress index](README.md#roadmap) groups every task under its milestone; this section defines them and their order. Release promotion follows these milestones. Implementation follows each task's explicit dependencies. Bounded runtime comparisons in N11/N12 may run once N3/N4 are met, before more custom runtime investment; an experiment is not release acceptance.
 
-- **M1 — x86_64 bytecode compatibility.** The three pinned apps complete useful flows, persist data, navigate, and run under default per-app isolation on x86_64. Delivering now; the acceptance gate is [C7](C7-acceptance-gate.md#acceptance). This is release decision one.
+- **M1 — x86_64 bytecode compatibility.** The three pinned apps complete useful flows, persist data, navigate, and run under default per-app isolation on x86_64. Delivering now; the acceptance gate is [C7](archive/C7-acceptance-gate.md#acceptance). This is release decision one.
 - **M2 — Reuse and same-ISA native foundation.** Decide and pin upstream reuse, expose a trusted runtime/execution interface, take ownership of ABI selection, resource resolution and Bionic/JNI loading for the host ISA, and run bounded N11/N12 runtime comparisons. This is the base every native backend builds on; nothing in M3/M4 is sound without it.
 - **M3 — Native host architectures and release.** Both native host architectures reproduce the pinned flows and the same-ISA corpus, with signed split-set installs, CPU rendering, graphics adapters and a published per-backend evidence matrix. This is release decision two.
 - **M4 — Foreign-ISA execution.** A foreign-ISA backend passes a separately named corpus and publishes its overhead and limits; foreign-ISA accelerator and mixed-ISA choices are decided on measured fidelity, not demos. This is release decision three. A mixed-ISA optimization must beat the whole-guest baseline on useful work.
@@ -39,7 +46,7 @@ Capability families (media, WebView, sensors, broader native/hardware/signature 
 
 ## Acceptance
 
-The current delivery gate and app-specific acceptance scenarios are maintained in [C7](C7-acceptance-gate.md#acceptance).
+The current delivery gate and app-specific acceptance scenarios are maintained in [C7](archive/C7-acceptance-gate.md#acceptance).
 
 ## Evidence policy
 

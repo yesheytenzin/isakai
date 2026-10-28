@@ -2,7 +2,7 @@
 
 Reviewed on 2026-10-14 against `a354c60d279da75d04cd855b78d7e8fae9897111`.
 Frozen: do not update this file. Corrections and current decisions go in the
-owning task files and the live [delivery plan](PLAN.md). Anything here that
+owning task files and the live [delivery plan](REFERENCE.md). Anything here that
 contradicts a task file is wrong; the task file wins.
 
 ## Research scope

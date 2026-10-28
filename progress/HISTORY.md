@@ -100,7 +100,7 @@ native x86_64 .so runs with shim, MediaPlayer decodes via ffmpeg, WebView JS bri
 
 ## App metadata at migration
 
-These are historical labels/workflow descriptions, not maintained app status. Current acceptance evidence is in [C7](C7-acceptance-gate.md).
+These are historical labels/workflow descriptions, not maintained app status. Current acceptance evidence is in [C7](archive/C7-acceptance-gate.md).
 
 - **OpenCalc:** recorded status `partial`; original workflow: Calculate, copy result, resize and close.
 - **Simple Calculator:** recorded status `pinned_not_verified`; original workflow: Calculate, settings/back, preference persistence across restart.
