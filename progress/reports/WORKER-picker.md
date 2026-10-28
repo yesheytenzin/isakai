@@ -7,7 +7,7 @@ pass on the reverted tree.
 
 ## Symptoms (reproduced on pinned Notes, real APK)
 
-`evidence/picker/picker-repro.png` (also `picker-repro-pristine.png` from
+`evidence/C6/2026-10-27/picker/picker-repro.png` (also `picker-repro-pristine.png` from
 the final probe-free run): picker rows show periwinkle (`FFEEF0FF`) bars in
 the text area with titles floating on white, and the FAB renders as an
 opaque black 56x56 rounded blob covering row text.
@@ -15,15 +15,15 @@ opaque black 56x56 rounded blob covering row text.
 ## Mechanism 1 — row "overlap" is whitewash, not layout
 
 - Layout is correct (temporary tree dump, since removed —
-  `evidence/picker/tree.txt`): rows stack at y=8/49/90/…, title at top and
+  `evidence/C6/2026-10-27/picker/tree.txt`): rows stack at y=8/49/90/…, title at top and
   text `layout_below` it, FAB 56x56 at the end/bottom position. The
   RelativeLayout stacked-extents repair holds.
 - The app **intentionally** sets each row background at runtime
   (`t.b0.a ← t.b0.R ← … ← StaggeredGridLayoutManager`, captured in
-  `evidence/picker/probes-setbg.txt`): a single-layer `LayerDrawable`
+  `evidence/C6/2026-10-27/picker/probes-setbg.txt`): a single-layer `LayerDrawable`
   wrapping a programmatic `GradientDrawable` filled `FFEEF0FF`
   (the `you_dialog_background_color` family; raw field already `FFEEF0FF`
-  with tint/filter null — `evidence/picker/probes-color.txt`). Our
+  with tint/filter null — `evidence/C6/2026-10-27/picker/probes-color.txt`). Our
   inflation of `@drawable/widget_round_background` is irrelevant here; the
   app replaces it. Same code runs on real Android, so the `FFEEF0FF` rows
   are app-intended, not our bug.
@@ -32,7 +32,7 @@ opaque black 56x56 rounded blob covering row text.
   title/text `MyTextView` (background null) paints opaque white over its
   own bounds, hiding the row background behind it; only the strip right of
   short titles stays visible as "bars". Pixel proof: titles on `FFFFFF`,
-  bars `EEF0FF` (`evidence/picker/picker-repro.png` samples).
+  bars `EEF0FF` (`evidence/C6/2026-10-27/picker/picker-repro.png` samples).
 - On AOSP a null background draws nothing (transparent). Our whitewash
   exists as "intra-frame erase", but `Activity.paintRoot` already clears
   the whole frame to white (`Activity.java:1265,1278`), so the per-view
@@ -49,7 +49,7 @@ opaque black 56x56 rounded blob covering row text.
 - The blob fill is opaque black (`FF000000`) in a 56x56 round rect drawn
   through `RippleDrawable → n6.h.draw → n6.h.f` (MaterialShapeDrawable).
   The FAB's `backgroundTintList` is present and blue (`FF7A90C8`,
-  `evidence/picker/probes-fab.txt`) but never reaches the fill.
+  `evidence/C6/2026-10-27/picker/probes-fab.txt`) but never reaches the fill.
 - Translated `n6.h` owns a working updater: `onStateChange(int[])` calls
   `l(int[])`, which does `getColorForState + Paint.setColor` (verified in
   translated bytecode). It **never runs**: probes showed no
@@ -83,7 +83,7 @@ opaque black 56x56 rounded blob covering row text.
 - Adjacent (allowed file, bundle with handoff): the FAB plus icon is
   missing because `ImageView(Context, AttributeSet)` never reads
   `android:src` from XML — runtime `src=null`
-  (`evidence/picker/probes-fab.txt`). Toolbar icons render only because
+  (`evidence/C6/2026-10-27/picker/probes-fab.txt`). Toolbar icons render only because
   they are set programmatically. Fix in
   `framework/android/widget/ImageView.java` (not banned): resolve
   `android:src` during inflation. Not landed here — left for the handoff
@@ -97,7 +97,7 @@ opaque black 56x56 rounded blob covering row text.
 - No APK-private hooks, no forced minimum heights, no translator changes.
 - All temporary probes (`ISAKAIPI_*`, `pickerArmed`, counters) reverted;
   `grep ISAKAIPI framework/` returns zero. No scripts created; no tree
-  debris (`git status` shows only `evidence/picker/` + this file).
+  debris (`git status` shows only `evidence/C6/2026-10-27/picker/` + this file).
 
 ## Verification evidence (probe-free final tree)
 

@@ -1461,7 +1461,7 @@ both dismiss the history dialog via cancel-on-outside across 3 launches
 known single-press flake. XKB reorder/delay stress stays explicitly
 excluded: no existing tool can inject adversarial keymap sequences and a
 churn harness is barred by policy; needs stated in the report.
-Full per-gap consolidation in [WORKER-gaps](WORKER-gaps.md).
+Full per-gap consolidation in [WORKER-gaps](reports/WORKER-gaps.md).
 
 ### 2026-10-27 — picker diagnosis merged, fix handed off (self-review)
 
@@ -1475,8 +1475,8 @@ default-transparent with `Activity.paintRoot` keeping frame erase;
 missing `InsetDrawable` propagation, so the blue tint never reaches the
 fill; plus adjacent `ImageView` ignoring `android:src`. No fix landed
 (worker ban respected, no patch-around). Full handoff with mechanism and
-risk note in [WORKER-picker](WORKER-picker.md) (evidence under
-`evidence/picker/`). Notes + calculator flows PASS on its reverted tree.
+risk note in [WORKER-picker](reports/WORKER-picker.md) (evidence under
+`evidence/C6/2026-10-27/picker/`). Notes + calculator flows PASS on its reverted tree.
 Next discrete task: implement the handoff and repaint-check all pinned apps.
 
 ### 2026-10-27 — settings renders: bridge poll stall fixed (self-review)
@@ -1495,7 +1495,7 @@ Residual ~1–2s toggle latency is app-scheduled (coroutine delay), not
 loop starvation; cosmetics (clipped first row, "GENER", black back
 icon) unchanged and non-blocking. File-picker cancel past one slice is
 reasoned, not proven — needs a future file-picker flow. Full spike
-record in [WORKER-compose](WORKER-compose.md).
+record in [WORKER-compose](reports/WORKER-compose.md).
 
 ### 2026-10-27 — input hardening merged, no rate gain (self-review)
 
@@ -1514,7 +1514,7 @@ failure reproduced 6/6 on the worker's loaded box AND on its unmodified
 control — matches the known intermittent C6 baseline, needs its own
 session. Caveat for all worker numbers: measured on pre-bridge-fix code;
 the 1Hz loop starvation plausibly explains the dead periods. Full record
-in [WORKER-input](WORKER-input.md).
+in [WORKER-input](reports/WORKER-input.md).
 
 ### 2026-10-27 — quiet main re-verification: calc/opencalc pass, notes body-save intermittent (self-review)
 
@@ -1539,7 +1539,7 @@ follow-up, not attempted here (needs a focused session). Evidence:
 ### 2026-10-28 — independent review merged, no blockers (self-review)
 
 Thermo-nuclear review of the stacked diffs merged as `1a87a7d`
-(full report: [WORKER-review](WORKER-review.md)). Verdicts: bridge poll
+(full report: [WORKER-review](reports/WORKER-review.md)). Verdicts: bridge poll
 drain CORRECT (no busy-spin; cancel strictly improves; `run(100)` sets
 the pickup bound), harness hardening CORRECT (PASS still requires durable
 app state; failures fail loud; no-double-commit reasoning sound),
@@ -1563,7 +1563,7 @@ recorded as graphics-ownership follow-up, with item 2's pushes already
 in place to feed it. Notes/calculator/opencalc all PASS on the final
 tree; pre/post repaint pairs identical. The worker also corroborates the
 notes-save flake as environmental (fails on fully-reverted tree under
-contention). Full record: [WORKER-pickimpl](WORKER-pickimpl.md).
+contention). Full record: [WORKER-pickimpl](reports/WORKER-pickimpl.md).
 
 ### 2026-10-28 — cosmetics merged: GENERAL + rounded checks fixed (self-review)
 
@@ -1579,7 +1579,7 @@ issued duplicate draws; RenderNode replay dead). Cancel path proven
 within one slice against the real bridge (`poll` 0.0–0.1ms, no phantoms);
 end-to-end unprovable (no file portal, no pinned picker surface).
 Calculator flow PASS on a fresh tree. Full record:
-[WORKER-cosmetics](WORKER-cosmetics.md).
+[WORKER-cosmetics](reports/WORKER-cosmetics.md).
 
 ### 2026-10-28 — notes body-save fixed: scrolled-pager divergence (self-review)
 
@@ -1598,7 +1598,7 @@ same build. The worker also documents three session traps, notably an
 X11-backend sway trap (inherited DISPLAY → wlroots X11 backend → pointer
 scaled 0.941/1.026 — systematic off-target taps that mimic a hit-test
 defect; possible contributor to the C7 settings/confirm misses). Full
-record: [WORKER-notesave](WORKER-notesave.md).
+record: [WORKER-notesave](reports/WORKER-notesave.md).
 
 ### 2026-10-28 — final quiet verification on full main: all pass (self-review)
 
@@ -1627,7 +1627,7 @@ duplicates: each string drawn 7x/frame at 4 offsets, replay site
 `r1.v2.dispatchDraw → r1.b2.a` with record lists accumulating epochs;
 handoff is clear-then-record + invalidate-on-placement in `r1.v2.e`.
 Both require translated-runtime work; no framework hook is safe.
-Full record: [WORKER-comprun](WORKER-comprun.md).
+Full record: [WORKER-comprun](reports/WORKER-comprun.md).
 
 ### 2026-10-28 — scroll-aware window coordinates landed (self-review)
 
@@ -1636,7 +1636,7 @@ subtracts each ancestor's scroll (own scroll correctly excluded);
 `getLocationOnScreen` documents the zero window-to-screen offset on this
 host. Probe agreement on the live pager: reported (0,97) == drawn == touch;
 page-0 descendants correctly report x=-640; zero-scroll walks bit-identical.
-Calculator + notes flows PASS. Full record: [WORKER-locwin](WORKER-locwin.md).
+Calculator + notes flows PASS. Full record: [WORKER-locwin](reports/WORKER-locwin.md).
 
 ### 2026-10-28 — Canvas color filter landed, FAB blue (self-review)
 
@@ -1647,7 +1647,7 @@ Verified on screenshots: picker FAB renders container blue instead of
 the black blob; plus still missing (FAB ImageView drawable null —
 `srcCompat` res gap, follow-up for the res owner). All three flows PASS;
 keypad/settings pre/post pairs pixel-identical. Full record:
-[WORKER-canvasfilter](WORKER-canvasfilter.md).
+[WORKER-canvasfilter](reports/WORKER-canvasfilter.md).
 
 ### 2026-10-28 — whitewash fixed with erase preserved (self-review)
 
@@ -1658,13 +1658,13 @@ proved why the old fill was load-bearing (compose `r1.v2` redraws 321×
 per frame). Verified on screenshots: picker shows full-width periwinkle
 rows with text on top; settings pixel-identical after repeated toggles
 (0 diff pixels); glyph edges all zeros. All three flows PASS. Full record:
-[WORKER-erasefix](WORKER-erasefix.md).
+[WORKER-erasefix](reports/WORKER-erasefix.md).
 
 ### 2026-10-28 — web research + fix plan delivered (self-review)
 
 Five parallel researchers (official Android docs via Context7 + repo
 ground truth) + report writer. Full plan with cited contracts:
-[reports/isakai open defects fix plan.md](../reports/isakai%20open%20defects%20fix%20plan.md).
+[reports/isakai open defects fix plan.md](reports/isakai%20open%20defects%20fix%20plan.md).
 Sequence: Canvas filter first, then erase-preserving View change with
 isolation repaints, then `getLocationInWindow` scroll math; compose
 arrow/duplicates need an instrumented translated-runtime session (proven

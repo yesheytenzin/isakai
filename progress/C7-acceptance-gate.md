@@ -1189,7 +1189,7 @@ in the same-day loop sweep ([loop-calc](../evidence/C6/2026-10-27/loop-calc.log)
 [loop-notes](../evidence/C6/2026-10-27/loop-notes.log)); failure mode fits
 missed/unsettled taps with five workers driving concurrently. Pending: a
 quiet-machine rerun of fresh calculator + notes to confirm. Full worker
-report: [WORKER-c7](WORKER-c7.md). C7 stays open on the pinned flows.
+report: [WORKER-c7](reports/WORKER-c7.md). C7 stays open on the pinned flows.
 
 ### 2026-10-28 — required gate PASS on fresh operator run, C7 done (self-review)
 

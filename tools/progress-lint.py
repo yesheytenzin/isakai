@@ -9,6 +9,7 @@ Checks (stdlib only, no judgment applied):
   3. Every FINDINGS.md item names an owning task (`Triaged <ID>`)
      or the debt ledger.
   4. Every .audit/*.tsv has a `task` column and every row fills it.
+  5. progress/STATUS.md matches frontmatter (regenerate, don't hand-edit).
 
 Allowed by the D2 hygiene-lint exception: this checks planning
 metadata, not app behavior, so it is not verification scaffolding.
@@ -95,6 +96,19 @@ for tsv in sorted((ROOT / ".audit").glob("*.tsv")):
             continue
         if task_idx is not None and not cells[task_idx].strip():
             fail("%s:%d: row missing task value" % (tsv.name, n))
+
+# 5. STATUS.md must match frontmatter. The status script is the only
+# writer; hand edits or stale commits fail here. Rerun
+# tools/progress-status.py and commit both files.
+import importlib.util as _ilu
+_spec = _ilu.spec_from_file_location(
+    "progress_status", str(ROOT / "tools" / "progress-status.py"))
+_ps = _ilu.module_from_spec(_spec)
+_spec.loader.exec_module(_ps)
+_expected = _ps.render(_ps.tasks())
+_actual = (ROOT / "progress" / "STATUS.md").read_text(encoding="utf-8")
+if _actual != _expected:
+    fail("progress/STATUS.md is stale: rerun tools/progress-status.py")
 
 print("%d violation(s)" % len(errors))
 sys.exit(1 if errors else 0)
