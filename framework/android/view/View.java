@@ -699,6 +699,11 @@ public class View {
 
     public void getLocationOnScreen(int[] out) {
         getLocationInWindow(out);
+        // Window-to-screen offset lives here (AOSP adds
+        // AttachInfo.mWindowLeft/mWindowTop at this step). Isakai presents
+        // the root at the window origin straight into the host buffer
+        // (Activity drawFrame: root.layout(0, 0, w, h), paintRoot blits
+        // direct), so window origin == screen origin: nothing to add.
     }
 
     public void offsetLeftAndRight(int offset) {
@@ -1785,12 +1790,19 @@ public class View {
 
     public void getLocationInWindow(int[] location) {
         if (location == null || location.length < 2) return;
+        // AOSP View.getLocationInWindow shape, minus matrix/attach state
+        // this runtime does not carry (identity matrices only, no
+        // ViewRootImpl scrolled-window): own left/top, then per ancestor
+        // left/top minus that ancestor's scroll. Own scroll shifts the
+        // children drawn inside, not the view's own origin, so it stays
+        // out — mirroring the touch (offsetX = mScrollX - child.mLeft) and
+        // draw (baseX = offsetX - getScrollX()) math in ViewGroup.
         int x = left, y = top;
         View p = this;
         while (p.parent != null) {
             p = p.parent;
-            x += p.left;
-            y += p.top;
+            x += p.left - p.getScrollX();
+            y += p.top - p.getScrollY();
         }
         location[0] = x;
         location[1] = y;
