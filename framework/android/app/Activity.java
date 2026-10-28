@@ -785,7 +785,17 @@ public class Activity extends android.view.ContextThemeWrapper implements androi
 
     public void setDefaultKeyMode(int mode) {}
 
-    public Intent getParentActivityIntent() { return null; }
+    public Intent getParentActivityIntent() {
+        android.content.ComponentName self = getComponentName();
+        try {
+            String parent = getPackageManager().getActivityInfo(self, 0).parentActivityName;
+            if (parent == null) return null;
+            return new Intent().setComponent(
+                    new android.content.ComponentName(self.getPackageName(), parent));
+        } catch (android.content.pm.PackageManager.NameNotFoundException e) {
+            return null;
+        }
+    }
 
     public void overridePendingTransition(int enterAnim, int exitAnim) {}
     public void setTaskDescription(ActivityManager.TaskDescription description) {
@@ -800,9 +810,10 @@ public class Activity extends android.view.ContextThemeWrapper implements androi
     }
 
     /**
-     * Navigate to a declared parent activity: finish this activity when the
-     * parent is already on the task's back stack, otherwise launch it first.
-     * Puzzles' no-saved-state launch relies on this to reach its chooser.
+     * Navigate to a declared parent activity: when the destination sits in
+     * the task history every activity above it finishes and the up intent
+     * is delivered to it; otherwise the task finishes down to the root
+     * (in-app home) and false is returned. Exactly one intent is consumed.
      */
     public boolean navigateUpTo(Intent upIntent) {
         if (upIntent == null || navigator == null) return false;
@@ -814,12 +825,52 @@ public class Activity extends android.view.ContextThemeWrapper implements androi
             for (int i = 0; i < navigator.stack.size(); i++) {
                 if (navigator.stack.get(i).getClass().getName().equals(want)) { target = i; break; }
             }
-            for (int i = navigator.stack.size() - 1; i > target && target >= 0; i--) {
+            if (target < 0) return false;
+            navigator.stack.get(target).onNewIntent(upIntent);
+            for (int i = navigator.stack.size() - 1; i > target; i--) {
                 navigator.stack.get(i).finish();
             }
             return true;
         }
-        startActivity(upIntent);
+        for (int i = navigator.stack.size() - 1; i > 0; i--) {
+            navigator.stack.get(i).finish();
+        }
+        return false;
+    }
+
+    /**
+     * Cross-task Up check: false keeps navigation inside this task via
+     * {@link #navigateUpTo}; true synthesizes the manifest parent stack.
+     */
+    public boolean shouldUpRecreateTask(Intent targetIntent) {
+        return false;
+    }
+
+    /**
+     * Up affordance: same-task navigates to the manifest parent, cross-task
+     * stacks the parent chain oldest-first through the startActivities loop
+     * (the in-tree TaskStackBuilder equivalent) and finishes self.
+     */
+    public boolean onNavigateUp() {
+        Intent upIntent = getParentActivityIntent();
+        if (upIntent == null || upIntent.getComponent() == null) return false;
+        if (!shouldUpRecreateTask(upIntent)) return navigateUpTo(upIntent);
+        java.util.ArrayList<Intent> chain = new java.util.ArrayList<>();
+        chain.add(upIntent);
+        android.content.ComponentName next = upIntent.getComponent();
+        while (next != null) {
+            String parent;
+            try {
+                parent = getPackageManager().getActivityInfo(next, 0).parentActivityName;
+            } catch (android.content.pm.PackageManager.NameNotFoundException e) {
+                break;
+            }
+            if (parent == null) break;
+            next = new android.content.ComponentName(next.getPackageName(), parent);
+            Intent intent = new Intent().setComponent(next);
+            chain.add(0, intent);
+        }
+        startActivities(chain.toArray(new Intent[0]), null);
         finish();
         return true;
     }
