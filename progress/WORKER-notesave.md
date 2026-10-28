@@ -110,7 +110,11 @@ temporary, removed before final build):
   `View.draw` translates the canvas by the scroll before drawing
   content/children; `View.scrollTo`/`getScrollX` document the
   scrolled-position contract (developer.android.com reference for
-  `android.view.View`).
+  `android.view.View`). Context7/MCP had no AOSP-internals coverage
+  to fetch, so parity is established by (a) these stable public AOSP
+  contracts and (b) the empirical before/after proof: unscrolled
+  containers are bit-identical (offset ±0 has no effect), and the
+  scrolled pager now displays and hit-tests the current page.
 
 ## Fix
 
