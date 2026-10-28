@@ -1,0 +1,504 @@
+  public final void onMeasure(int, int);
+    Code:
+         0: aconst_null
+         1: astore_3
+         2: iconst_0
+         3: istore        4
+         5: aconst_null
+         6: astore        20
+         8: iconst_0
+         9: istore        5
+        11: aconst_null
+        12: astore        21
+        14: iconst_0
+        15: istore        6
+        17: aconst_null
+        18: astore        22
+        20: iconst_0
+        21: istore        7
+        23: aconst_null
+        24: astore        23
+        26: iconst_0
+        27: istore        8
+        29: aconst_null
+        30: astore        24
+        32: iconst_0
+        33: istore        9
+        35: iconst_0
+        36: istore        10
+        38: aconst_null
+        39: astore        25
+        41: iconst_0
+        42: istore        11
+        44: iconst_0
+        45: istore        12
+        47: aconst_null
+        48: astore        26
+        50: iconst_0
+        51: istore        13
+        53: iconst_0
+        54: istore        14
+        56: iconst_0
+        57: istore        15
+        59: iconst_0
+        60: istore        16
+        62: iconst_0
+        63: istore        17
+        65: iconst_0
+        66: istore        18
+        68: aload_0
+        69: astore_3
+        70: iload_1
+        71: istore        4
+        73: aload_3
+        74: invokevirtual #159                // Method android/view/ViewGroup.getChildCount:()I
+        77: istore        9
+        79: iconst_0
+        80: istore        5
+        82: aconst_null
+        83: astore        21
+        85: iconst_0
+        86: istore        6
+        88: aconst_null
+        89: astore        22
+        91: aload         21
+        93: astore        23
+        95: aload         23
+        97: astore        24
+        99: iconst_0
+       100: istore        10
+       102: aconst_null
+       103: astore        25
+       105: bipush        8
+       107: istore        11
+       109: iload         10
+       111: iload         9
+       113: if_icmpge     244
+       116: aload_3
+       117: checkcast     #160                // class android/view/ViewGroup
+       120: iload         10
+       122: invokevirtual #163                // Method android/view/ViewGroup.getChildAt:(I)Landroid/view/View;
+       125: astore        26
+       127: aload         26
+       129: checkcast     #164                // class android/view/View
+       132: invokevirtual #167                // Method android/view/View.getVisibility:()I
+       135: istore        13
+       137: iload         13
+       139: iload         11
+       141: if_icmpne     147
+       144: goto          235
+       147: aload         26
+       149: checkcast     #168                // class android/view/View
+       152: invokevirtual #172                // Method android/view/View.getId:()I
+       155: istore        11
+       157: ldc_w         #173                // int 2131296782
+       160: istore        13
+       162: iload         11
+       164: iload         13
+       166: if_icmpne     176
+       169: aload         26
+       171: astore        21
+       173: goto          235
+       176: ldc_w         #174                // int 2131296363
+       179: istore        13
+       181: iload         11
+       183: iload         13
+       185: if_icmpne     195
+       188: aload         26
+       190: astore        23
+       192: goto          235
+       195: ldc_w         #175                // int 2131296392
+       198: istore        13
+       200: iload         11
+       202: iload         13
+       204: if_icmpeq     219
+       207: ldc_w         #176                // int 2131296403
+       210: istore        13
+       212: iload         11
+       214: iload         13
+       216: if_icmpne     224
+       219: aload         24
+       221: ifnull        231
+       224: aload_0
+       225: iload_1
+       226: iload_2
+       227: invokespecial #181                // Method androidx/appcompat/widget/LinearLayoutCompat.onMeasure:(II)V
+       230: return
+       231: aload         26
+       233: astore        24
+       235: iload         10
+       237: iconst_1
+       238: iadd
+       239: istore        10
+       241: goto          105
+       244: iload_2
+       245: invokestatic  #187                // Method android/view/View$MeasureSpec.getMode:(I)I
+       248: istore        10
+       250: iload_2
+       251: invokestatic  #191                // Method android/view/View$MeasureSpec.getSize:(I)I
+       254: istore        12
+       256: iload         4
+       258: invokestatic  #194                // Method android/view/View$MeasureSpec.getMode:(I)I
+       261: istore        13
+       263: aload_3
+       264: checkcast     #195                // class android/view/View
+       267: invokevirtual #198                // Method android/view/View.getPaddingTop:()I
+       270: istore        14
+       272: aload_3
+       273: checkcast     #199                // class android/view/View
+       276: invokevirtual #203                // Method android/view/View.getPaddingBottom:()I
+       279: istore        15
+       281: iload         15
+       283: iload         14
+       285: iadd
+       286: istore        15
+       288: aload         21
+       290: ifnull        344
+       293: aload         21
+       295: checkcast     #204                // class android/view/View
+       298: iload         4
+       300: iload         6
+       302: invokevirtual #208                // Method android/view/View.measure:(II)V
+       305: aload         21
+       307: checkcast     #209                // class android/view/View
+       310: invokevirtual #212                // Method android/view/View.getMeasuredHeight:()I
+       313: istore        14
+       315: iload         15
+       317: iload         14
+       319: iadd
+       320: istore        15
+       322: aload         21
+       324: checkcast     #213                // class android/view/View
+       327: invokevirtual #217                // Method android/view/View.getMeasuredState:()I
+       330: istore        5
+       332: iload         6
+       334: iload         5
+       336: invokestatic  #221                // Method android/view/View.combineMeasuredStates:(II)I
+       339: istore        5
+       341: goto          350
+       344: iconst_0
+       345: istore        5
+       347: aconst_null
+       348: astore        21
+       350: aload         23
+       352: ifnull        420
+       355: aload         23
+       357: checkcast     #222                // class android/view/View
+       360: iload         4
+       362: iload         6
+       364: invokevirtual #225                // Method android/view/View.measure:(II)V
+       367: aload         23
+       369: invokestatic  #228                // Method androidx/appcompat/widget/AlertDialogLayout.resolveMinimumHeight:(Landroid/view/View;)I
+       372: istore        14
+       374: aload         23
+       376: checkcast     #229                // class android/view/View
+       379: invokevirtual #232                // Method android/view/View.getMeasuredHeight:()I
+       382: istore        16
+       384: iload         16
+       386: iload         14
+       388: isub
+       389: istore        16
+       391: iload         15
+       393: iload         14
+       395: iadd
+       396: istore        15
+       398: aload         23
+       400: checkcast     #233                // class android/view/View
+       403: invokevirtual #236                // Method android/view/View.getMeasuredState:()I
+       406: istore        17
+       408: iload         5
+       410: iload         17
+       412: invokestatic  #239                // Method android/view/View.combineMeasuredStates:(II)I
+       415: istore        5
+       417: goto          426
+       420: iconst_0
+       421: istore        14
+       423: iconst_0
+       424: istore        16
+       426: aload         24
+       428: ifnull        518
+       431: iload         10
+       433: ifne          442
+       436: iconst_0
+       437: istore        17
+       439: goto          467
+       442: iload         12
+       444: iload         15
+       446: isub
+       447: istore        17
+       449: iload         6
+       451: iload         17
+       453: invokestatic  #244                // Method java/lang/Math.max:(II)I
+       456: istore        17
+       458: iload         17
+       460: iload         10
+       462: invokestatic  #248                // Method android/view/View$MeasureSpec.makeMeasureSpec:(II)I
+       465: istore        17
+       467: aload         24
+       469: checkcast     #249                // class android/view/View
+       472: iload         4
+       474: iload         17
+       476: invokevirtual #252                // Method android/view/View.measure:(II)V
+       479: aload         24
+       481: checkcast     #253                // class android/view/View
+       484: invokevirtual #256                // Method android/view/View.getMeasuredHeight:()I
+       487: istore        17
+       489: iload         15
+       491: iload         17
+       493: iadd
+       494: istore        15
+       496: aload         24
+       498: checkcast     #257                // class android/view/View
+       501: invokevirtual #260                // Method android/view/View.getMeasuredState:()I
+       504: istore        18
+       506: iload         5
+       508: iload         18
+       510: invokestatic  #263                // Method android/view/View.combineMeasuredStates:(II)I
+       513: istore        5
+       515: goto          521
+       518: iconst_0
+       519: istore        17
+       521: iload         12
+       523: iload         15
+       525: isub
+       526: istore        12
+       528: ldc_w         #264                // int 1073741824
+       531: istore        18
+       533: aload         23
+       535: ifnull        630
+       538: iload         15
+       540: iload         14
+       542: isub
+       543: istore        15
+       545: iload         12
+       547: iload         16
+       549: invokestatic  #268                // Method java/lang/Math.min:(II)I
+       552: istore        16
+       554: iload         16
+       556: ifle          573
+       559: iload         12
+       561: iload         16
+       563: isub
+       564: istore        12
+       566: iload         14
+       568: iload         16
+       570: iadd
+       571: istore        14
+       573: iload         14
+       575: iload         18
+       577: invokestatic  #271                // Method android/view/View$MeasureSpec.makeMeasureSpec:(II)I
+       580: istore        14
+       582: aload         23
+       584: checkcast     #272                // class android/view/View
+       587: iload         4
+       589: iload         14
+       591: invokevirtual #275                // Method android/view/View.measure:(II)V
+       594: aload         23
+       596: checkcast     #276                // class android/view/View
+       599: invokevirtual #279                // Method android/view/View.getMeasuredHeight:()I
+       602: istore        14
+       604: iload         15
+       606: iload         14
+       608: iadd
+       609: istore        15
+       611: aload         23
+       613: checkcast     #280                // class android/view/View
+       616: invokevirtual #283                // Method android/view/View.getMeasuredState:()I
+       619: istore        7
+       621: iload         5
+       623: iload         7
+       625: invokestatic  #286                // Method android/view/View.combineMeasuredStates:(II)I
+       628: istore        5
+       630: aload         24
+       632: ifnull        711
+       635: iload         12
+       637: ifle          711
+       640: iload         15
+       642: iload         17
+       644: isub
+       645: istore        15
+       647: iload         17
+       649: iload         12
+       651: iadd
+       652: istore        17
+       654: iload         17
+       656: iload         10
+       658: invokestatic  #289                // Method android/view/View$MeasureSpec.makeMeasureSpec:(II)I
+       661: istore        7
+       663: aload         24
+       665: checkcast     #290                // class android/view/View
+       668: iload         4
+       670: iload         7
+       672: invokevirtual #293                // Method android/view/View.measure:(II)V
+       675: aload         24
+       677: checkcast     #294                // class android/view/View
+       680: invokevirtual #297                // Method android/view/View.getMeasuredHeight:()I
+       683: istore        7
+       685: iload         15
+       687: iload         7
+       689: iadd
+       690: istore        15
+       692: aload         24
+       694: checkcast     #298                // class android/view/View
+       697: invokevirtual #301                // Method android/view/View.getMeasuredState:()I
+       700: istore        7
+       702: iload         5
+       704: iload         7
+       706: invokestatic  #304                // Method android/view/View.combineMeasuredStates:(II)I
+       709: istore        5
+       711: iconst_0
+       712: istore        7
+       714: aconst_null
+       715: astore        23
+       717: iconst_0
+       718: istore        8
+       720: aconst_null
+       721: astore        24
+       723: iload         7
+       725: iload         9
+       727: if_icmpge     786
+       730: aload_3
+       731: checkcast     #305                // class android/view/ViewGroup
+       734: iload         7
+       736: invokevirtual #308                // Method android/view/ViewGroup.getChildAt:(I)Landroid/view/View;
+       739: astore        25
+       741: aload         25
+       743: checkcast     #309                // class android/view/View
+       746: invokevirtual #312                // Method android/view/View.getVisibility:()I
+       749: istore        12
+       751: iload         12
+       753: iload         11
+       755: if_icmpeq     777
+       758: aload         25
+       760: checkcast     #313                // class android/view/View
+       763: invokevirtual #316                // Method android/view/View.getMeasuredWidth:()I
+       766: istore        10
+       768: iload         8
+       770: iload         10
+       772: invokestatic  #319                // Method java/lang/Math.max:(II)I
+       775: istore        8
+       777: iload         7
+       779: iconst_1
+       780: iadd
+       781: istore        7
+       783: goto          723
+       786: aload_3
+       787: checkcast     #320                // class android/view/View
+       790: invokevirtual #323                // Method android/view/View.getPaddingLeft:()I
+       793: istore        7
+       795: aload_3
+       796: checkcast     #324                // class android/view/View
+       799: invokevirtual #327                // Method android/view/View.getPaddingRight:()I
+       802: istore        10
+       804: iload         10
+       806: iload         7
+       808: iadd
+       809: istore        10
+       811: iload         10
+       813: iload         8
+       815: iadd
+       816: istore        10
+       818: iload         10
+       820: iload         4
+       822: iload         5
+       824: invokestatic  #332                // Method android/view/View.resolveSizeAndState:(III)I
+       827: istore        4
+       829: iload_2
+       830: istore        7
+       832: iload         15
+       834: iload         7
+       836: iload         6
+       838: invokestatic  #335                // Method android/view/View.resolveSizeAndState:(III)I
+       841: istore        5
+       843: aload_3
+       844: checkcast     #336                // class android/view/View
+       847: iload         4
+       849: iload         5
+       851: invokevirtual #340                // Method android/view/View.setMeasuredDimension:(II)V
+       854: iload         13
+       856: iload         18
+       858: if_icmpeq     1032
+       861: aload_3
+       862: checkcast     #341                // class android/view/View
+       865: invokevirtual #344                // Method android/view/View.getMeasuredWidth:()I
+       868: istore        4
+       870: iload         4
+       872: iload         18
+       874: invokestatic  #347                // Method android/view/View$MeasureSpec.makeMeasureSpec:(II)I
+       877: istore        5
+       879: iconst_0
+       880: istore        10
+       882: aconst_null
+       883: astore        25
+       885: iload         10
+       887: iload         9
+       889: if_icmpge     1032
+       892: aload_3
+       893: checkcast     #348                // class android/view/ViewGroup
+       896: iload         10
+       898: invokevirtual #351                // Method android/view/ViewGroup.getChildAt:(I)Landroid/view/View;
+       901: astore        20
+       903: aload         20
+       905: checkcast     #352                // class android/view/View
+       908: invokevirtual #355                // Method android/view/View.getVisibility:()I
+       911: istore        6
+       913: iload         6
+       915: iload         11
+       917: if_icmpeq     1018
+       920: aload         20
+       922: checkcast     #356                // class android/view/View
+       925: invokevirtual #359                // Method android/view/View.getLayoutParams:()Landroid/view/ViewGroup$LayoutParams;
+       928: astore        22
+       930: aload         22
+       932: astore        26
+       934: aload         26
+       936: checkcast     #360                // class androidx/appcompat/widget/LinearLayoutCompat$LayoutParams
+       939: astore        26
+       941: aload         26
+       943: getfield      #364                // Field android/widget/LinearLayout$LayoutParams.width:I
+       946: istore        6
+       948: iconst_m1
+       949: istore        8
+       951: iload         6
+       953: iload         8
+       955: if_icmpne     1018
+       958: aload         26
+       960: getfield      #368                // Field android/widget/LinearLayout$LayoutParams.height:I
+       963: istore        13
+       965: aload         20
+       967: checkcast     #369                // class android/view/View
+       970: invokevirtual #372                // Method android/view/View.getMeasuredHeight:()I
+       973: istore        6
+       975: aload         26
+       977: iload         6
+       979: putfield      #375                // Field android/widget/LinearLayout$LayoutParams.height:I
+       982: iconst_0
+       983: istore        6
+       985: aconst_null
+       986: astore        22
+       988: iconst_0
+       989: istore        8
+       991: aconst_null
+       992: astore        24
+       994: aload_3
+       995: checkcast     #376                // class android/view/ViewGroup
+       998: aload         20
+      1000: iload         5
+      1002: iload         6
+      1004: iload         7
+      1006: iload         8
+      1008: invokevirtual #381                // Method android/view/ViewGroup.measureChildWithMargins:(Landroid/view/View;IIII)V
+      1011: aload         26
+      1013: iload         13
+      1015: putfield      #384                // Field android/widget/LinearLayout$LayoutParams.height:I
+      1018: iload         10
+      1020: iconst_1
+      1021: iadd
+      1022: istore        10
+      1024: aload_0
+      1025: astore_3
+      1026: iload_2
+      1027: istore        7
+      1029: goto          885
+      1032: return
+}

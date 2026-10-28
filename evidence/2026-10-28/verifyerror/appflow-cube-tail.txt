@@ -1,0 +1,8 @@
+4:isakai: activity name.boyle.chris.sgtpuzzles.SGTPuzzles runWindowed
+5997:isakai: activity name.boyle.chris.sgtpuzzles.GameChooser start
+6022:Exception in thread "main" java.lang.NoSuchMethodError: 'void android.view.View.setActivated(boolean)'
+6023:	at name.boyle.chris.sgtpuzzles.GameChooser.onResume(Unknown Source)
+6024:	at android.app.Activity.performResume(Activity.java:468)
+6025:	at android.app.Activity$Navigator.lambda$launch$0(Activity.java:593)
+6026:	at android.app.Activity$Navigator.advance(Activity.java:603)
+6027:	at android.app.Activity.runWindowed(Activity.java:1072)
