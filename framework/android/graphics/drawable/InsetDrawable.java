@@ -28,6 +28,24 @@ public class InsetDrawable extends Drawable implements Drawable.Callback {
 
     public Drawable getDrawable() { return inner; }
 
+    // AOSP DrawableWrapper parity: view drawable-state pushes stop here
+    // unless forwarded, which starves stateful content (e.g. the FAB
+    // ripple/container color) of the state that resolves its tint.
+    @Override
+    public boolean isStateful() {
+        return inner != null && inner.isStateful();
+    }
+
+    @Override
+    public boolean setState(int[] stateSet) {
+        return inner != null && inner.setState(stateSet);
+    }
+
+    @Override
+    protected boolean onStateChange(int[] state) {
+        return inner != null && inner.setState(state);
+    }
+
     @Override
     public void draw(Canvas canvas) {
         if (canvas == null || inner == null) return;

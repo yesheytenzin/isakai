@@ -310,9 +310,9 @@ public class ViewGroup extends View implements ViewParent {
 
     /**
      * Record whether this group's drawable state merges its children's
-     * states. Retained for API shape; drawable-state merging itself is
-     * unimplemented (View.drawableStateChanged is a no-op), so setting
-     * the flag currently changes no rendering.
+     * states. Retained for API shape; child-state merging itself is still
+     * unimplemented (View pushes its own state only), so setting the flag
+     * currently changes no rendering.
      */
     public void setAddStatesFromChildren(boolean addsStates) {
         addStatesFromChildren = addsStates;

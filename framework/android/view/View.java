@@ -209,6 +209,7 @@ public class View {
     private boolean focused;
     private boolean enabled = true;
     private boolean pressed;
+    private boolean selected;
     private boolean longPressFired;
     private float downX;
     private float downY;
@@ -498,6 +499,7 @@ public class View {
         this.background = background;
         if (background != null) background.setCallback(new BackgroundCallback());
         invalidate();
+        refreshDrawableState();
     }
 
     public void setBackgroundDrawable(android.graphics.drawable.Drawable background) {
@@ -949,7 +951,11 @@ public class View {
     }
 
     public void setEnabled(boolean enabled) {
-        this.enabled = enabled;
+        if (this.enabled != enabled) {
+            this.enabled = enabled;
+            invalidate();
+            refreshDrawableState();
+        }
     }
 
     public boolean isInEditMode() {
@@ -1083,10 +1089,21 @@ public class View {
         if (this.pressed != pressed) {
             this.pressed = pressed;
             invalidate();
+            refreshDrawableState();
         }
     }
 
-    public void setSelected(boolean selected) {}
+    public boolean isSelected() {
+        return selected;
+    }
+
+    public void setSelected(boolean selected) {
+        if (this.selected != selected) {
+            this.selected = selected;
+            invalidate();
+            refreshDrawableState();
+        }
+    }
 
     /** Take focus when focusable and enabled; fires onFocusChanged. */
     public boolean requestFocus(int direction) {
@@ -1135,6 +1152,7 @@ public class View {
                 ? ((View) parent).getWindowToken() : new android.os.Binder();
         attachedToWindow = true;
         onAttachedToWindow();
+        refreshDrawableState();
         requestApplyInsets();
         for (OnAttachStateChangeListener l : attachListeners.toArray(new OnAttachStateChangeListener[0])) {
             l.onViewAttachedToWindow(this);
@@ -1388,7 +1406,22 @@ public class View {
         }
     }
 
-    public void drawableStateChanged() {}
+    /**
+     * AOSP parity: push this view's drawable state into the stateful
+     * background/foreground so state-list tints (e.g. the FAB container
+     * color) resolve. The empty state resolves their default item.
+     */
+    public void drawableStateChanged() {
+        int[] state = getDrawableState();
+        boolean changed = false;
+        if (background != null && background.isStateful()) changed |= background.setState(state);
+        if (foreground != null && foreground.isStateful()) changed |= foreground.setState(state);
+        if (changed) invalidate();
+    }
+
+    public void refreshDrawableState() {
+        drawableStateChanged();
+    }
 
     public void jumpDrawablesToCurrentState() {}
 

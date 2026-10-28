@@ -1,0 +1,625 @@
+exited with code 0
+ndroid:appComponentFactory (direct instantiation)
+info: desktop bridge ready at /tmp/isakai-1000-isosway/bridge.sock
+isakai: application com.simplemobiletools.notes.pro.App onCreate
+D/AppCompatDelegate: Checking for metadata for AppLocalesMetadataHolderService : Service not found
+isakai: activity com.simplemobiletools.notes.pro.activities.SplashActivity runWindowed
+D/ViewUtils: Could not find method computeFitSystemWindows. Oh well.
+D/ViewUtils: Could not find method makeOptionalFitsSystemWindows. Oh well...
+isakai: activity com.simplemobiletools.notes.pro.activities.MainActivity start
+ISAKAI_UNSUPPORTED android.view.View.tooltipRendering at androidx.appcompat.widget.e4.a bci=2
+ISAKAI_UNSUPPORTED android.graphics.Paint.xfermodeRendering at n6.h.<clinit> bci=55
+PICKDIAG bg=n6.h stateful=false
+D/ViewUtils: Could not find method makeOptionalFitsSystemWindows. Oh well...
+ISAKAI_UNSUPPORTED android.os.Environment.sharedExternalStorage at t7.t.t bci=54
+ISAKAI_UNSUPPORTED android.view.View.androidSystemBars at f7.g.M bci=95
+ISAKAI_UNSUPPORTED android.app.Activity.taskIconAndColor at f7.g.H bci=24
+ISAKAI_UNSUPPORTED android.view.View.androidSystemBars at f7.g.onResume bci=629
+D/FragmentManager: onCleared called for FragmentManagerViewModel{3aeaafa6} Fragments () Child Non Config () ViewModelStores ()
+V/FragmentManager: Run: BackStackEntry{276438c9}
+V/FragmentManager: Added fragment to active set g{33b37288} (a396fe3d-9fce-4249-8bdd-422864846f3f id=0x7f0903ca)
+V/FragmentManager: Added fragment to active set g{77a57272} (7ccc263e-0294-40c8-920f-a0d6a57f1e4c id=0x7f0903ca)
+V/FragmentManager: add: g{33b37288} (a396fe3d-9fce-4249-8bdd-422864846f3f id=0x7f0903ca)
+V/FragmentManager: add: g{77a57272} (7ccc263e-0294-40c8-920f-a0d6a57f1e4c id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 7 for g{33b37288} (a396fe3d-9fce-4249-8bdd-422864846f3f id=0x7f0903ca)
+D/FragmentManager: moveto ATTACHED: g{33b37288} (a396fe3d-9fce-4249-8bdd-422864846f3f id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 7 for g{33b37288} (a396fe3d-9fce-4249-8bdd-422864846f3f id=0x7f0903ca)
+D/FragmentManager: moveto CREATED: g{33b37288} (a396fe3d-9fce-4249-8bdd-422864846f3f id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 7 for g{33b37288} (a396fe3d-9fce-4249-8bdd-422864846f3f id=0x7f0903ca)
+D/FragmentManager: moveto CREATE_VIEW: g{33b37288} (a396fe3d-9fce-4249-8bdd-422864846f3f id=0x7f0903ca)
+V/FragmentManager: Updating retained Fragments: Added g{33b37288} (a396fe3d-9fce-4249-8bdd-422864846f3f id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 7 for g{33b37288} (a396fe3d-9fce-4249-8bdd-422864846f3f id=0x7f0903ca)
+D/FragmentManager: moveto ACTIVITY_CREATED: g{33b37288} (a396fe3d-9fce-4249-8bdd-422864846f3f id=0x7f0903ca)
+D/FragmentManager: moveto RESTORE_VIEW_STATE: g{33b37288} (a396fe3d-9fce-4249-8bdd-422864846f3f id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 7 for g{33b37288} (a396fe3d-9fce-4249-8bdd-422864846f3f id=0x7f0903ca)
+V/FragmentManager: SpecialEffectsController: Enqueuing add operation for fragment g{33b37288} (a396fe3d-9fce-4249-8bdd-422864846f3f id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 6 for g{33b37288} (a396fe3d-9fce-4249-8bdd-422864846f3f id=0x7f0903ca)
+D/FragmentManager: moveto STARTED: g{33b37288} (a396fe3d-9fce-4249-8bdd-422864846f3f id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 6 for g{33b37288} (a396fe3d-9fce-4249-8bdd-422864846f3f id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 6 for g{33b37288} (a396fe3d-9fce-4249-8bdd-422864846f3f id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 4 for g{77a57272} (7ccc263e-0294-40c8-920f-a0d6a57f1e4c id=0x7f0903ca)
+D/FragmentManager: moveto ATTACHED: g{77a57272} (7ccc263e-0294-40c8-920f-a0d6a57f1e4c id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 4 for g{77a57272} (7ccc263e-0294-40c8-920f-a0d6a57f1e4c id=0x7f0903ca)
+D/FragmentManager: moveto CREATED: g{77a57272} (7ccc263e-0294-40c8-920f-a0d6a57f1e4c id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 4 for g{77a57272} (7ccc263e-0294-40c8-920f-a0d6a57f1e4c id=0x7f0903ca)
+D/FragmentManager: moveto CREATE_VIEW: g{77a57272} (7ccc263e-0294-40c8-920f-a0d6a57f1e4c id=0x7f0903ca)
+V/FragmentManager: Updating retained Fragments: Added g{77a57272} (7ccc263e-0294-40c8-920f-a0d6a57f1e4c id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 4 for g{77a57272} (7ccc263e-0294-40c8-920f-a0d6a57f1e4c id=0x7f0903ca)
+D/FragmentManager: moveto ACTIVITY_CREATED: g{77a57272} (7ccc263e-0294-40c8-920f-a0d6a57f1e4c id=0x7f0903ca)
+D/FragmentManager: moveto RESTORE_VIEW_STATE: g{77a57272} (7ccc263e-0294-40c8-920f-a0d6a57f1e4c id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 4 for g{77a57272} (7ccc263e-0294-40c8-920f-a0d6a57f1e4c id=0x7f0903ca)
+V/FragmentManager: SpecialEffectsController: Enqueuing add operation for fragment g{77a57272} (7ccc263e-0294-40c8-920f-a0d6a57f1e4c id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 4 for g{77a57272} (7ccc263e-0294-40c8-920f-a0d6a57f1e4c id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 6 for g{33b37288} (a396fe3d-9fce-4249-8bdd-422864846f3f id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 4 for g{77a57272} (7ccc263e-0294-40c8-920f-a0d6a57f1e4c id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 4 for g{77a57272} (7ccc263e-0294-40c8-920f-a0d6a57f1e4c id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 6 for g{33b37288} (a396fe3d-9fce-4249-8bdd-422864846f3f id=0x7f0903ca)
+V/FragmentManager: SpecialEffectsController: For fragment g{33b37288} (a396fe3d-9fce-4249-8bdd-422864846f3f id=0x7f0903ca) mFinalState = VISIBLE -> VISIBLE. 
+V/FragmentManager: SpecialEffectsController: For fragment g{77a57272} (7ccc263e-0294-40c8-920f-a0d6a57f1e4c id=0x7f0903ca) mFinalState = VISIBLE -> VISIBLE. 
+V/FragmentManager: SpecialEffectsController: For fragment g{33b37288} (a396fe3d-9fce-4249-8bdd-422864846f3f id=0x7f0903ca) mFinalState = VISIBLE -> VISIBLE. 
+V/FragmentManager: SpecialEffectsController: For fragment g{77a57272} (7ccc263e-0294-40c8-920f-a0d6a57f1e4c id=0x7f0903ca) mFinalState = VISIBLE -> VISIBLE. 
+V/FragmentManager: SpecialEffectsController: Operation {120d6fe6} {mFinalState = VISIBLE} {mLifecycleImpact = ADDING} {mFragment = g{33b37288} (a396fe3d-9fce-4249-8bdd-422864846f3f id=0x7f0903ca)} has called complete.
+V/FragmentManager: SpecialEffectsController: Setting view android.widget.RelativeLayout@3444d69d to VISIBLE
+V/FragmentManager: computeExpectedState() of 7 for g{33b37288} (a396fe3d-9fce-4249-8bdd-422864846f3f id=0x7f0903ca)
+D/FragmentManager: moveto RESUMED: g{33b37288} (a396fe3d-9fce-4249-8bdd-422864846f3f id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 7 for g{33b37288} (a396fe3d-9fce-4249-8bdd-422864846f3f id=0x7f0903ca)
+V/FragmentManager: SpecialEffectsController: Operation {4ba2ca36} {mFinalState = VISIBLE} {mLifecycleImpact = ADDING} {mFragment = g{77a57272} (7ccc263e-0294-40c8-920f-a0d6a57f1e4c id=0x7f0903ca)} has called complete.
+V/FragmentManager: SpecialEffectsController: Setting view android.widget.RelativeLayout@21a947fe to VISIBLE
+V/FragmentManager: computeExpectedState() of 4 for g{77a57272} (7ccc263e-0294-40c8-920f-a0d6a57f1e4c id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 7 for g{77a57272} (7ccc263e-0294-40c8-920f-a0d6a57f1e4c id=0x7f0903ca)
+D/FragmentManager: moveto STARTED: g{77a57272} (7ccc263e-0294-40c8-920f-a0d6a57f1e4c id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 7 for g{77a57272} (7ccc263e-0294-40c8-920f-a0d6a57f1e4c id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 7 for g{77a57272} (7ccc263e-0294-40c8-920f-a0d6a57f1e4c id=0x7f0903ca)
+D/FragmentManager: moveto RESUMED: g{77a57272} (7ccc263e-0294-40c8-920f-a0d6a57f1e4c id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 7 for g{77a57272} (7ccc263e-0294-40c8-920f-a0d6a57f1e4c id=0x7f0903ca)
+V/FragmentManager: saveAllState: no fragments!
+V/FragmentManager: saveAllState: no fragments!
+V/FragmentManager: Run: BackStackEntry{76508ed1}
+V/FragmentManager: remove: g{33b37288} (a396fe3d-9fce-4249-8bdd-422864846f3f id=0x7f0903ca) nesting=0
+V/FragmentManager: remove: g{77a57272} (7ccc263e-0294-40c8-920f-a0d6a57f1e4c id=0x7f0903ca) nesting=0
+V/FragmentManager: computeExpectedState() of -1 for g{33b37288} (a396fe3d-9fce-4249-8bdd-422864846f3f id=0x7f0903ca)
+D/FragmentManager: movefrom RESUMED: g{33b37288} (a396fe3d-9fce-4249-8bdd-422864846f3f id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of -1 for g{33b37288} (a396fe3d-9fce-4249-8bdd-422864846f3f id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of -1 for g{33b37288} (a396fe3d-9fce-4249-8bdd-422864846f3f id=0x7f0903ca)
+D/FragmentManager: movefrom STARTED: g{33b37288} (a396fe3d-9fce-4249-8bdd-422864846f3f id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of -1 for g{33b37288} (a396fe3d-9fce-4249-8bdd-422864846f3f id=0x7f0903ca)
+D/FragmentManager: movefrom ACTIVITY_CREATED: g{33b37288} (a396fe3d-9fce-4249-8bdd-422864846f3f id=0x7f0903ca)
+V/FragmentManager: SpecialEffectsController: Enqueuing remove operation for fragment g{33b37288} (a396fe3d-9fce-4249-8bdd-422864846f3f id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 3 for g{33b37288} (a396fe3d-9fce-4249-8bdd-422864846f3f id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of -1 for g{77a57272} (7ccc263e-0294-40c8-920f-a0d6a57f1e4c id=0x7f0903ca)
+D/FragmentManager: movefrom RESUMED: g{77a57272} (7ccc263e-0294-40c8-920f-a0d6a57f1e4c id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of -1 for g{77a57272} (7ccc263e-0294-40c8-920f-a0d6a57f1e4c id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of -1 for g{77a57272} (7ccc263e-0294-40c8-920f-a0d6a57f1e4c id=0x7f0903ca)
+D/FragmentManager: movefrom STARTED: g{77a57272} (7ccc263e-0294-40c8-920f-a0d6a57f1e4c id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of -1 for g{77a57272} (7ccc263e-0294-40c8-920f-a0d6a57f1e4c id=0x7f0903ca)
+D/FragmentManager: movefrom ACTIVITY_CREATED: g{77a57272} (7ccc263e-0294-40c8-920f-a0d6a57f1e4c id=0x7f0903ca)
+V/FragmentManager: SpecialEffectsController: Enqueuing remove operation for fragment g{77a57272} (7ccc263e-0294-40c8-920f-a0d6a57f1e4c id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 3 for g{77a57272} (7ccc263e-0294-40c8-920f-a0d6a57f1e4c id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 3 for g{77a57272} (7ccc263e-0294-40c8-920f-a0d6a57f1e4c id=0x7f0903ca)
+V/FragmentManager: Updating retained Fragments: Removed g{77a57272} (7ccc263e-0294-40c8-920f-a0d6a57f1e4c id=0x7f0903ca)
+V/FragmentManager: Removed fragment from active set g{77a57272} (7ccc263e-0294-40c8-920f-a0d6a57f1e4c id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 3 for g{33b37288} (a396fe3d-9fce-4249-8bdd-422864846f3f id=0x7f0903ca)
+V/FragmentManager: Updating retained Fragments: Removed g{33b37288} (a396fe3d-9fce-4249-8bdd-422864846f3f id=0x7f0903ca)
+V/FragmentManager: Removed fragment from active set g{33b37288} (a396fe3d-9fce-4249-8bdd-422864846f3f id=0x7f0903ca)
+V/FragmentManager: SpecialEffectsController: Operation {481a996b} {mFinalState = REMOVED} {mLifecycleImpact = REMOVING} {mFragment = g{33b37288} (a396fe3d-9fce-4249-8bdd-422864846f3f id=0x7f0903ca)} has called complete.
+V/FragmentManager: SpecialEffectsController: Removing view android.widget.RelativeLayout@3444d69d from container com.simplemobiletools.commons.views.MyViewPager@7ed7259e
+V/FragmentManager: computeExpectedState() of -1 for g{33b37288} (a396fe3d-9fce-4249-8bdd-422864846f3f id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of -1 for g{33b37288} (a396fe3d-9fce-4249-8bdd-422864846f3f id=0x7f0903ca)
+D/FragmentManager: movefrom CREATE_VIEW: g{33b37288} (a396fe3d-9fce-4249-8bdd-422864846f3f id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of -1 for g{33b37288} (a396fe3d-9fce-4249-8bdd-422864846f3f id=0x7f0903ca)
+D/FragmentManager: movefrom CREATED: g{33b37288} (a396fe3d-9fce-4249-8bdd-422864846f3f id=0x7f0903ca)
+D/FragmentManager: Clearing non-config state for g{33b37288} (a396fe3d-9fce-4249-8bdd-422864846f3f id=0x7f0903ca)
+D/FragmentManager: onCleared called for FragmentManagerViewModel{35ef1869} Fragments () Child Non Config () ViewModelStores ()
+V/FragmentManager: computeExpectedState() of -1 for g{33b37288} (a396fe3d-9fce-4249-8bdd-422864846f3f id=0x7f0903ca)
+D/FragmentManager: movefrom ATTACHED: g{33b37288} (a396fe3d-9fce-4249-8bdd-422864846f3f id=0x7f0903ca)
+D/FragmentManager: initState called for fragment: g{33b37288} (a396fe3d-9fce-4249-8bdd-422864846f3f id=0x7f0903ca)
+V/FragmentManager: SpecialEffectsController: Operation {3d51f06e} {mFinalState = REMOVED} {mLifecycleImpact = REMOVING} {mFragment = g{77a57272} (7ccc263e-0294-40c8-920f-a0d6a57f1e4c id=0x7f0903ca)} has called complete.
+V/FragmentManager: SpecialEffectsController: Removing view android.widget.RelativeLayout@21a947fe from container com.simplemobiletools.commons.views.MyViewPager@7ed7259e
+V/FragmentManager: computeExpectedState() of -1 for g{77a57272} (7ccc263e-0294-40c8-920f-a0d6a57f1e4c id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of -1 for g{77a57272} (7ccc263e-0294-40c8-920f-a0d6a57f1e4c id=0x7f0903ca)
+D/FragmentManager: movefrom CREATE_VIEW: g{77a57272} (7ccc263e-0294-40c8-920f-a0d6a57f1e4c id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of -1 for g{77a57272} (7ccc263e-0294-40c8-920f-a0d6a57f1e4c id=0x7f0903ca)
+D/FragmentManager: movefrom CREATED: g{77a57272} (7ccc263e-0294-40c8-920f-a0d6a57f1e4c id=0x7f0903ca)
+D/FragmentManager: Clearing non-config state for g{77a57272} (7ccc263e-0294-40c8-920f-a0d6a57f1e4c id=0x7f0903ca)
+D/FragmentManager: onCleared called for FragmentManagerViewModel{619713e5} Fragments () Child Non Config () ViewModelStores ()
+V/FragmentManager: computeExpectedState() of -1 for g{77a57272} (7ccc263e-0294-40c8-920f-a0d6a57f1e4c id=0x7f0903ca)
+D/FragmentManager: movefrom ATTACHED: g{77a57272} (7ccc263e-0294-40c8-920f-a0d6a57f1e4c id=0x7f0903ca)
+D/FragmentManager: initState called for fragment: g{77a57272} (7ccc263e-0294-40c8-920f-a0d6a57f1e4c id=0x7f0903ca)
+bridge: client uid 1000 connected
+V/FragmentManager: Run: BackStackEntry{2ef3eef9}
+V/FragmentManager: Added fragment to active set g{243c4f91} (fdc8e629-8988-4e8a-974e-5100252c6450 id=0x7f0903ca)
+V/FragmentManager: Added fragment to active set g{291ae} (b9a4f887-bffc-4090-a430-3aefe46a510b id=0x7f0903ca)
+V/FragmentManager: add: g{243c4f91} (fdc8e629-8988-4e8a-974e-5100252c6450 id=0x7f0903ca)
+V/FragmentManager: add: g{291ae} (b9a4f887-bffc-4090-a430-3aefe46a510b id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 7 for g{243c4f91} (fdc8e629-8988-4e8a-974e-5100252c6450 id=0x7f0903ca)
+D/FragmentManager: moveto ATTACHED: g{243c4f91} (fdc8e629-8988-4e8a-974e-5100252c6450 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 7 for g{243c4f91} (fdc8e629-8988-4e8a-974e-5100252c6450 id=0x7f0903ca)
+D/FragmentManager: moveto CREATED: g{243c4f91} (fdc8e629-8988-4e8a-974e-5100252c6450 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 7 for g{243c4f91} (fdc8e629-8988-4e8a-974e-5100252c6450 id=0x7f0903ca)
+D/FragmentManager: moveto CREATE_VIEW: g{243c4f91} (fdc8e629-8988-4e8a-974e-5100252c6450 id=0x7f0903ca)
+V/FragmentManager: Updating retained Fragments: Added g{243c4f91} (fdc8e629-8988-4e8a-974e-5100252c6450 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 7 for g{243c4f91} (fdc8e629-8988-4e8a-974e-5100252c6450 id=0x7f0903ca)
+D/FragmentManager: moveto ACTIVITY_CREATED: g{243c4f91} (fdc8e629-8988-4e8a-974e-5100252c6450 id=0x7f0903ca)
+D/FragmentManager: moveto RESTORE_VIEW_STATE: g{243c4f91} (fdc8e629-8988-4e8a-974e-5100252c6450 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 7 for g{243c4f91} (fdc8e629-8988-4e8a-974e-5100252c6450 id=0x7f0903ca)
+V/FragmentManager: SpecialEffectsController: Enqueuing add operation for fragment g{243c4f91} (fdc8e629-8988-4e8a-974e-5100252c6450 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 6 for g{243c4f91} (fdc8e629-8988-4e8a-974e-5100252c6450 id=0x7f0903ca)
+D/FragmentManager: moveto STARTED: g{243c4f91} (fdc8e629-8988-4e8a-974e-5100252c6450 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 6 for g{243c4f91} (fdc8e629-8988-4e8a-974e-5100252c6450 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 6 for g{243c4f91} (fdc8e629-8988-4e8a-974e-5100252c6450 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 4 for g{291ae} (b9a4f887-bffc-4090-a430-3aefe46a510b id=0x7f0903ca)
+D/FragmentManager: moveto ATTACHED: g{291ae} (b9a4f887-bffc-4090-a430-3aefe46a510b id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 4 for g{291ae} (b9a4f887-bffc-4090-a430-3aefe46a510b id=0x7f0903ca)
+D/FragmentManager: moveto CREATED: g{291ae} (b9a4f887-bffc-4090-a430-3aefe46a510b id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 4 for g{291ae} (b9a4f887-bffc-4090-a430-3aefe46a510b id=0x7f0903ca)
+D/FragmentManager: moveto CREATE_VIEW: g{291ae} (b9a4f887-bffc-4090-a430-3aefe46a510b id=0x7f0903ca)
+V/FragmentManager: Updating retained Fragments: Added g{291ae} (b9a4f887-bffc-4090-a430-3aefe46a510b id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 4 for g{291ae} (b9a4f887-bffc-4090-a430-3aefe46a510b id=0x7f0903ca)
+D/FragmentManager: moveto ACTIVITY_CREATED: g{291ae} (b9a4f887-bffc-4090-a430-3aefe46a510b id=0x7f0903ca)
+D/FragmentManager: moveto RESTORE_VIEW_STATE: g{291ae} (b9a4f887-bffc-4090-a430-3aefe46a510b id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 4 for g{291ae} (b9a4f887-bffc-4090-a430-3aefe46a510b id=0x7f0903ca)
+V/FragmentManager: SpecialEffectsController: Enqueuing add operation for fragment g{291ae} (b9a4f887-bffc-4090-a430-3aefe46a510b id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 4 for g{291ae} (b9a4f887-bffc-4090-a430-3aefe46a510b id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 6 for g{243c4f91} (fdc8e629-8988-4e8a-974e-5100252c6450 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 4 for g{291ae} (b9a4f887-bffc-4090-a430-3aefe46a510b id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 6 for g{243c4f91} (fdc8e629-8988-4e8a-974e-5100252c6450 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 4 for g{291ae} (b9a4f887-bffc-4090-a430-3aefe46a510b id=0x7f0903ca)
+V/FragmentManager: SpecialEffectsController: For fragment g{243c4f91} (fdc8e629-8988-4e8a-974e-5100252c6450 id=0x7f0903ca) mFinalState = VISIBLE -> VISIBLE. 
+V/FragmentManager: SpecialEffectsController: For fragment g{291ae} (b9a4f887-bffc-4090-a430-3aefe46a510b id=0x7f0903ca) mFinalState = VISIBLE -> VISIBLE. 
+V/FragmentManager: SpecialEffectsController: For fragment g{243c4f91} (fdc8e629-8988-4e8a-974e-5100252c6450 id=0x7f0903ca) mFinalState = VISIBLE -> VISIBLE. 
+V/FragmentManager: SpecialEffectsController: For fragment g{291ae} (b9a4f887-bffc-4090-a430-3aefe46a510b id=0x7f0903ca) mFinalState = VISIBLE -> VISIBLE. 
+V/FragmentManager: SpecialEffectsController: Operation {43195e57} {mFinalState = VISIBLE} {mLifecycleImpact = ADDING} {mFragment = g{243c4f91} (fdc8e629-8988-4e8a-974e-5100252c6450 id=0x7f0903ca)} has called complete.
+V/FragmentManager: SpecialEffectsController: Setting view android.widget.RelativeLayout@479d31f3 to VISIBLE
+V/FragmentManager: computeExpectedState() of 7 for g{243c4f91} (fdc8e629-8988-4e8a-974e-5100252c6450 id=0x7f0903ca)
+D/FragmentManager: moveto RESUMED: g{243c4f91} (fdc8e629-8988-4e8a-974e-5100252c6450 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 7 for g{243c4f91} (fdc8e629-8988-4e8a-974e-5100252c6450 id=0x7f0903ca)
+V/FragmentManager: SpecialEffectsController: Operation {333291e3} {mFinalState = VISIBLE} {mLifecycleImpact = ADDING} {mFragment = g{291ae} (b9a4f887-bffc-4090-a430-3aefe46a510b id=0x7f0903ca)} has called complete.
+V/FragmentManager: SpecialEffectsController: Setting view android.widget.RelativeLayout@6e171cd7 to VISIBLE
+V/FragmentManager: computeExpectedState() of 4 for g{291ae} (b9a4f887-bffc-4090-a430-3aefe46a510b id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 7 for g{291ae} (b9a4f887-bffc-4090-a430-3aefe46a510b id=0x7f0903ca)
+D/FragmentManager: moveto STARTED: g{291ae} (b9a4f887-bffc-4090-a430-3aefe46a510b id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 7 for g{291ae} (b9a4f887-bffc-4090-a430-3aefe46a510b id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 7 for g{291ae} (b9a4f887-bffc-4090-a430-3aefe46a510b id=0x7f0903ca)
+D/FragmentManager: moveto RESUMED: g{291ae} (b9a4f887-bffc-4090-a430-3aefe46a510b id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 7 for g{291ae} (b9a4f887-bffc-4090-a430-3aefe46a510b id=0x7f0903ca)
+ISAKAI_UNSUPPORTED AnimatedStateListDrawable.transitions at w2.c.b bci=2
+ISAKAI_UNSUPPORTED Drawable.tint: unsupported android.graphics.drawable.StateListDrawable; solid, gradient, bitmap, and vector path drawables support SRC_IN tint at z2.b.h bci=2
+D/ViewUtils: Could not find method makeOptionalFitsSystemWindows. Oh well...
+isakai: new root android.app.DialogOverlayGroup bounds=0,0,0x0
+V/FragmentManager: saveAllState: no fragments!
+V/FragmentManager: saveAllState: no fragments!
+V/FragmentManager: Run: BackStackEntry{d6e7bab}
+V/FragmentManager: remove: g{291ae} (b9a4f887-bffc-4090-a430-3aefe46a510b id=0x7f0903ca) nesting=0
+V/FragmentManager: remove: g{243c4f91} (fdc8e629-8988-4e8a-974e-5100252c6450 id=0x7f0903ca) nesting=0
+V/FragmentManager: computeExpectedState() of -1 for g{291ae} (b9a4f887-bffc-4090-a430-3aefe46a510b id=0x7f0903ca)
+D/FragmentManager: movefrom RESUMED: g{291ae} (b9a4f887-bffc-4090-a430-3aefe46a510b id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of -1 for g{291ae} (b9a4f887-bffc-4090-a430-3aefe46a510b id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of -1 for g{291ae} (b9a4f887-bffc-4090-a430-3aefe46a510b id=0x7f0903ca)
+D/FragmentManager: movefrom STARTED: g{291ae} (b9a4f887-bffc-4090-a430-3aefe46a510b id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of -1 for g{291ae} (b9a4f887-bffc-4090-a430-3aefe46a510b id=0x7f0903ca)
+D/FragmentManager: movefrom ACTIVITY_CREATED: g{291ae} (b9a4f887-bffc-4090-a430-3aefe46a510b id=0x7f0903ca)
+V/FragmentManager: SpecialEffectsController: Enqueuing remove operation for fragment g{291ae} (b9a4f887-bffc-4090-a430-3aefe46a510b id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 3 for g{291ae} (b9a4f887-bffc-4090-a430-3aefe46a510b id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of -1 for g{243c4f91} (fdc8e629-8988-4e8a-974e-5100252c6450 id=0x7f0903ca)
+D/FragmentManager: movefrom RESUMED: g{243c4f91} (fdc8e629-8988-4e8a-974e-5100252c6450 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of -1 for g{243c4f91} (fdc8e629-8988-4e8a-974e-5100252c6450 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of -1 for g{243c4f91} (fdc8e629-8988-4e8a-974e-5100252c6450 id=0x7f0903ca)
+D/FragmentManager: movefrom STARTED: g{243c4f91} (fdc8e629-8988-4e8a-974e-5100252c6450 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of -1 for g{243c4f91} (fdc8e629-8988-4e8a-974e-5100252c6450 id=0x7f0903ca)
+D/FragmentManager: movefrom ACTIVITY_CREATED: g{243c4f91} (fdc8e629-8988-4e8a-974e-5100252c6450 id=0x7f0903ca)
+V/FragmentManager: SpecialEffectsController: Enqueuing remove operation for fragment g{243c4f91} (fdc8e629-8988-4e8a-974e-5100252c6450 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 3 for g{243c4f91} (fdc8e629-8988-4e8a-974e-5100252c6450 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 3 for g{243c4f91} (fdc8e629-8988-4e8a-974e-5100252c6450 id=0x7f0903ca)
+V/FragmentManager: Updating retained Fragments: Removed g{243c4f91} (fdc8e629-8988-4e8a-974e-5100252c6450 id=0x7f0903ca)
+V/FragmentManager: Removed fragment from active set g{243c4f91} (fdc8e629-8988-4e8a-974e-5100252c6450 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 3 for g{291ae} (b9a4f887-bffc-4090-a430-3aefe46a510b id=0x7f0903ca)
+V/FragmentManager: Updating retained Fragments: Removed g{291ae} (b9a4f887-bffc-4090-a430-3aefe46a510b id=0x7f0903ca)
+V/FragmentManager: Removed fragment from active set g{291ae} (b9a4f887-bffc-4090-a430-3aefe46a510b id=0x7f0903ca)
+V/FragmentManager: SpecialEffectsController: Container com.simplemobiletools.commons.views.MyViewPager@7ed7259e is not attached to window. Cancelling pending operation Operation {3972a855} {mFinalState = REMOVED} {mLifecycleImpact = REMOVING} {mFragment = g{291ae} (b9a4f887-bffc-4090-a430-3aefe46a510b id=0x7f0903ca)}
+V/FragmentManager: SpecialEffectsController: Operation {3972a855} {mFinalState = REMOVED} {mLifecycleImpact = REMOVING} {mFragment = g{291ae} (b9a4f887-bffc-4090-a430-3aefe46a510b id=0x7f0903ca)} has called complete.
+V/FragmentManager: SpecialEffectsController: Removing view android.widget.RelativeLayout@6e171cd7 from container com.simplemobiletools.commons.views.MyViewPager@7ed7259e
+V/FragmentManager: computeExpectedState() of -1 for g{291ae} (b9a4f887-bffc-4090-a430-3aefe46a510b id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of -1 for g{291ae} (b9a4f887-bffc-4090-a430-3aefe46a510b id=0x7f0903ca)
+D/FragmentManager: movefrom CREATE_VIEW: g{291ae} (b9a4f887-bffc-4090-a430-3aefe46a510b id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of -1 for g{291ae} (b9a4f887-bffc-4090-a430-3aefe46a510b id=0x7f0903ca)
+D/FragmentManager: movefrom CREATED: g{291ae} (b9a4f887-bffc-4090-a430-3aefe46a510b id=0x7f0903ca)
+D/FragmentManager: Clearing non-config state for g{291ae} (b9a4f887-bffc-4090-a430-3aefe46a510b id=0x7f0903ca)
+D/FragmentManager: onCleared called for FragmentManagerViewModel{6a370f4} Fragments () Child Non Config () ViewModelStores ()
+V/FragmentManager: computeExpectedState() of -1 for g{291ae} (b9a4f887-bffc-4090-a430-3aefe46a510b id=0x7f0903ca)
+D/FragmentManager: movefrom ATTACHED: g{291ae} (b9a4f887-bffc-4090-a430-3aefe46a510b id=0x7f0903ca)
+D/FragmentManager: initState called for fragment: g{291ae} (b9a4f887-bffc-4090-a430-3aefe46a510b id=0x7f0903ca)
+V/FragmentManager: SpecialEffectsController: Container com.simplemobiletools.commons.views.MyViewPager@7ed7259e is not attached to window. Cancelling pending operation Operation {770d3326} {mFinalState = REMOVED} {mLifecycleImpact = REMOVING} {mFragment = g{243c4f91} (fdc8e629-8988-4e8a-974e-5100252c6450 id=0x7f0903ca)}
+V/FragmentManager: SpecialEffectsController: Operation {770d3326} {mFinalState = REMOVED} {mLifecycleImpact = REMOVING} {mFragment = g{243c4f91} (fdc8e629-8988-4e8a-974e-5100252c6450 id=0x7f0903ca)} has called complete.
+V/FragmentManager: SpecialEffectsController: Removing view android.widget.RelativeLayout@479d31f3 from container com.simplemobiletools.commons.views.MyViewPager@7ed7259e
+V/FragmentManager: computeExpectedState() of -1 for g{243c4f91} (fdc8e629-8988-4e8a-974e-5100252c6450 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of -1 for g{243c4f91} (fdc8e629-8988-4e8a-974e-5100252c6450 id=0x7f0903ca)
+D/FragmentManager: movefrom CREATE_VIEW: g{243c4f91} (fdc8e629-8988-4e8a-974e-5100252c6450 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of -1 for g{243c4f91} (fdc8e629-8988-4e8a-974e-5100252c6450 id=0x7f0903ca)
+D/FragmentManager: movefrom CREATED: g{243c4f91} (fdc8e629-8988-4e8a-974e-5100252c6450 id=0x7f0903ca)
+D/FragmentManager: Clearing non-config state for g{243c4f91} (fdc8e629-8988-4e8a-974e-5100252c6450 id=0x7f0903ca)
+D/FragmentManager: onCleared called for FragmentManagerViewModel{19d481b} Fragments () Child Non Config () ViewModelStores ()
+V/FragmentManager: computeExpectedState() of -1 for g{243c4f91} (fdc8e629-8988-4e8a-974e-5100252c6450 id=0x7f0903ca)
+D/FragmentManager: movefrom ATTACHED: g{243c4f91} (fdc8e629-8988-4e8a-974e-5100252c6450 id=0x7f0903ca)
+D/FragmentManager: initState called for fragment: g{243c4f91} (fdc8e629-8988-4e8a-974e-5100252c6450 id=0x7f0903ca)
+isakai: new root android.app.HeadlessWindow$2 bounds=0,0,640x800
+V/FragmentManager: Run: BackStackEntry{4d910fd6}
+V/FragmentManager: Added fragment to active set g{26275bef} (698ac998-ef41-4ab3-a367-8c05b9a738c3 id=0x7f0903ca)
+V/FragmentManager: Added fragment to active set g{7690781} (c62b8536-b1c1-460a-bcfc-c58ce97c3b15 id=0x7f0903ca)
+V/FragmentManager: add: g{26275bef} (698ac998-ef41-4ab3-a367-8c05b9a738c3 id=0x7f0903ca)
+V/FragmentManager: add: g{7690781} (c62b8536-b1c1-460a-bcfc-c58ce97c3b15 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 7 for g{26275bef} (698ac998-ef41-4ab3-a367-8c05b9a738c3 id=0x7f0903ca)
+D/FragmentManager: moveto ATTACHED: g{26275bef} (698ac998-ef41-4ab3-a367-8c05b9a738c3 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 7 for g{26275bef} (698ac998-ef41-4ab3-a367-8c05b9a738c3 id=0x7f0903ca)
+D/FragmentManager: moveto CREATED: g{26275bef} (698ac998-ef41-4ab3-a367-8c05b9a738c3 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 7 for g{26275bef} (698ac998-ef41-4ab3-a367-8c05b9a738c3 id=0x7f0903ca)
+D/FragmentManager: moveto CREATE_VIEW: g{26275bef} (698ac998-ef41-4ab3-a367-8c05b9a738c3 id=0x7f0903ca)
+V/FragmentManager: Updating retained Fragments: Added g{26275bef} (698ac998-ef41-4ab3-a367-8c05b9a738c3 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 7 for g{26275bef} (698ac998-ef41-4ab3-a367-8c05b9a738c3 id=0x7f0903ca)
+D/FragmentManager: moveto ACTIVITY_CREATED: g{26275bef} (698ac998-ef41-4ab3-a367-8c05b9a738c3 id=0x7f0903ca)
+D/FragmentManager: moveto RESTORE_VIEW_STATE: g{26275bef} (698ac998-ef41-4ab3-a367-8c05b9a738c3 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 7 for g{26275bef} (698ac998-ef41-4ab3-a367-8c05b9a738c3 id=0x7f0903ca)
+V/FragmentManager: SpecialEffectsController: Enqueuing add operation for fragment g{26275bef} (698ac998-ef41-4ab3-a367-8c05b9a738c3 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 6 for g{26275bef} (698ac998-ef41-4ab3-a367-8c05b9a738c3 id=0x7f0903ca)
+D/FragmentManager: moveto STARTED: g{26275bef} (698ac998-ef41-4ab3-a367-8c05b9a738c3 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 6 for g{26275bef} (698ac998-ef41-4ab3-a367-8c05b9a738c3 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 6 for g{26275bef} (698ac998-ef41-4ab3-a367-8c05b9a738c3 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 4 for g{7690781} (c62b8536-b1c1-460a-bcfc-c58ce97c3b15 id=0x7f0903ca)
+D/FragmentManager: moveto ATTACHED: g{7690781} (c62b8536-b1c1-460a-bcfc-c58ce97c3b15 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 4 for g{7690781} (c62b8536-b1c1-460a-bcfc-c58ce97c3b15 id=0x7f0903ca)
+D/FragmentManager: moveto CREATED: g{7690781} (c62b8536-b1c1-460a-bcfc-c58ce97c3b15 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 4 for g{7690781} (c62b8536-b1c1-460a-bcfc-c58ce97c3b15 id=0x7f0903ca)
+D/FragmentManager: moveto CREATE_VIEW: g{7690781} (c62b8536-b1c1-460a-bcfc-c58ce97c3b15 id=0x7f0903ca)
+V/FragmentManager: Updating retained Fragments: Added g{7690781} (c62b8536-b1c1-460a-bcfc-c58ce97c3b15 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 4 for g{7690781} (c62b8536-b1c1-460a-bcfc-c58ce97c3b15 id=0x7f0903ca)
+D/FragmentManager: moveto ACTIVITY_CREATED: g{7690781} (c62b8536-b1c1-460a-bcfc-c58ce97c3b15 id=0x7f0903ca)
+D/FragmentManager: moveto RESTORE_VIEW_STATE: g{7690781} (c62b8536-b1c1-460a-bcfc-c58ce97c3b15 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 4 for g{7690781} (c62b8536-b1c1-460a-bcfc-c58ce97c3b15 id=0x7f0903ca)
+V/FragmentManager: SpecialEffectsController: Enqueuing add operation for fragment g{7690781} (c62b8536-b1c1-460a-bcfc-c58ce97c3b15 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 4 for g{7690781} (c62b8536-b1c1-460a-bcfc-c58ce97c3b15 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 6 for g{26275bef} (698ac998-ef41-4ab3-a367-8c05b9a738c3 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 4 for g{7690781} (c62b8536-b1c1-460a-bcfc-c58ce97c3b15 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 4 for g{7690781} (c62b8536-b1c1-460a-bcfc-c58ce97c3b15 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 6 for g{26275bef} (698ac998-ef41-4ab3-a367-8c05b9a738c3 id=0x7f0903ca)
+V/FragmentManager: SpecialEffectsController: For fragment g{26275bef} (698ac998-ef41-4ab3-a367-8c05b9a738c3 id=0x7f0903ca) mFinalState = VISIBLE -> VISIBLE. 
+V/FragmentManager: SpecialEffectsController: For fragment g{7690781} (c62b8536-b1c1-460a-bcfc-c58ce97c3b15 id=0x7f0903ca) mFinalState = VISIBLE -> VISIBLE. 
+V/FragmentManager: SpecialEffectsController: For fragment g{26275bef} (698ac998-ef41-4ab3-a367-8c05b9a738c3 id=0x7f0903ca) mFinalState = VISIBLE -> VISIBLE. 
+V/FragmentManager: SpecialEffectsController: For fragment g{7690781} (c62b8536-b1c1-460a-bcfc-c58ce97c3b15 id=0x7f0903ca) mFinalState = VISIBLE -> VISIBLE. 
+V/FragmentManager: SpecialEffectsController: Operation {378542de} {mFinalState = VISIBLE} {mLifecycleImpact = ADDING} {mFragment = g{26275bef} (698ac998-ef41-4ab3-a367-8c05b9a738c3 id=0x7f0903ca)} has called complete.
+V/FragmentManager: SpecialEffectsController: Setting view android.widget.RelativeLayout@69e1dd28 to VISIBLE
+V/FragmentManager: computeExpectedState() of 7 for g{26275bef} (698ac998-ef41-4ab3-a367-8c05b9a738c3 id=0x7f0903ca)
+D/FragmentManager: moveto RESUMED: g{26275bef} (698ac998-ef41-4ab3-a367-8c05b9a738c3 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 7 for g{26275bef} (698ac998-ef41-4ab3-a367-8c05b9a738c3 id=0x7f0903ca)
+V/FragmentManager: SpecialEffectsController: Operation {3738449f} {mFinalState = VISIBLE} {mLifecycleImpact = ADDING} {mFragment = g{7690781} (c62b8536-b1c1-460a-bcfc-c58ce97c3b15 id=0x7f0903ca)} has called complete.
+V/FragmentManager: SpecialEffectsController: Setting view android.widget.RelativeLayout@79da8dc5 to VISIBLE
+V/FragmentManager: computeExpectedState() of 4 for g{7690781} (c62b8536-b1c1-460a-bcfc-c58ce97c3b15 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 7 for g{7690781} (c62b8536-b1c1-460a-bcfc-c58ce97c3b15 id=0x7f0903ca)
+D/FragmentManager: moveto STARTED: g{7690781} (c62b8536-b1c1-460a-bcfc-c58ce97c3b15 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 7 for g{7690781} (c62b8536-b1c1-460a-bcfc-c58ce97c3b15 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 7 for g{7690781} (c62b8536-b1c1-460a-bcfc-c58ce97c3b15 id=0x7f0903ca)
+D/FragmentManager: moveto RESUMED: g{7690781} (c62b8536-b1c1-460a-bcfc-c58ce97c3b15 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 7 for g{7690781} (c62b8536-b1c1-460a-bcfc-c58ce97c3b15 id=0x7f0903ca)
+ISAKAI_UNSUPPORTED RippleDrawable.animation at h6.n.g bci=507
+D/ViewUtils: Could not find method makeOptionalFitsSystemWindows. Oh well...
+isakai: new root android.app.DialogOverlayGroup bounds=0,0,0x0
+PICKDIAG bg=android.graphics.drawable.LayerDrawable stateful=false
+PICKDIAG bg=android.graphics.drawable.RippleDrawable stateful=true
+isakai: new root android.app.HeadlessWindow$2 bounds=0,0,640x800
+V/FragmentManager: computeExpectedState() of 5 for g{26275bef} (698ac998-ef41-4ab3-a367-8c05b9a738c3 id=0x7f0903ca)
+D/FragmentManager: movefrom RESUMED: g{26275bef} (698ac998-ef41-4ab3-a367-8c05b9a738c3 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 5 for g{26275bef} (698ac998-ef41-4ab3-a367-8c05b9a738c3 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 5 for g{26275bef} (698ac998-ef41-4ab3-a367-8c05b9a738c3 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 5 for g{7690781} (c62b8536-b1c1-460a-bcfc-c58ce97c3b15 id=0x7f0903ca)
+D/FragmentManager: movefrom RESUMED: g{7690781} (c62b8536-b1c1-460a-bcfc-c58ce97c3b15 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 5 for g{7690781} (c62b8536-b1c1-460a-bcfc-c58ce97c3b15 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 5 for g{7690781} (c62b8536-b1c1-460a-bcfc-c58ce97c3b15 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 5 for g{7690781} (c62b8536-b1c1-460a-bcfc-c58ce97c3b15 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 5 for g{26275bef} (698ac998-ef41-4ab3-a367-8c05b9a738c3 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 4 for g{26275bef} (698ac998-ef41-4ab3-a367-8c05b9a738c3 id=0x7f0903ca)
+D/FragmentManager: movefrom STARTED: g{26275bef} (698ac998-ef41-4ab3-a367-8c05b9a738c3 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 4 for g{26275bef} (698ac998-ef41-4ab3-a367-8c05b9a738c3 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 4 for g{7690781} (c62b8536-b1c1-460a-bcfc-c58ce97c3b15 id=0x7f0903ca)
+D/FragmentManager: movefrom STARTED: g{7690781} (c62b8536-b1c1-460a-bcfc-c58ce97c3b15 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 4 for g{7690781} (c62b8536-b1c1-460a-bcfc-c58ce97c3b15 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 4 for g{7690781} (c62b8536-b1c1-460a-bcfc-c58ce97c3b15 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 4 for g{26275bef} (698ac998-ef41-4ab3-a367-8c05b9a738c3 id=0x7f0903ca)
+D/FragmentManager: onCleared called for FragmentManagerViewModel{1caa0244} Fragments (g{7690781} (c62b8536-b1c1-460a-bcfc-c58ce97c3b15 id=0x7f0903ca), g{26275bef} (698ac998-ef41-4ab3-a367-8c05b9a738c3 id=0x7f0903ca)) Child Non Config (c62b8536-b1c1-460a-bcfc-c58ce97c3b15, 698ac998-ef41-4ab3-a367-8c05b9a738c3) ViewModelStores (c62b8536-b1c1-460a-bcfc-c58ce97c3b15, 698ac998-ef41-4ab3-a367-8c05b9a738c3)
+V/FragmentManager: computeExpectedState() of -1 for g{26275bef} (698ac998-ef41-4ab3-a367-8c05b9a738c3 id=0x7f0903ca)
+D/FragmentManager: movefrom ACTIVITY_CREATED: g{26275bef} (698ac998-ef41-4ab3-a367-8c05b9a738c3 id=0x7f0903ca)
+V/FragmentManager: SpecialEffectsController: Enqueuing remove operation for fragment g{26275bef} (698ac998-ef41-4ab3-a367-8c05b9a738c3 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 3 for g{26275bef} (698ac998-ef41-4ab3-a367-8c05b9a738c3 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of -1 for g{7690781} (c62b8536-b1c1-460a-bcfc-c58ce97c3b15 id=0x7f0903ca)
+D/FragmentManager: movefrom ACTIVITY_CREATED: g{7690781} (c62b8536-b1c1-460a-bcfc-c58ce97c3b15 id=0x7f0903ca)
+V/FragmentManager: SpecialEffectsController: Enqueuing remove operation for fragment g{7690781} (c62b8536-b1c1-460a-bcfc-c58ce97c3b15 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 3 for g{7690781} (c62b8536-b1c1-460a-bcfc-c58ce97c3b15 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 3 for g{7690781} (c62b8536-b1c1-460a-bcfc-c58ce97c3b15 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 3 for g{26275bef} (698ac998-ef41-4ab3-a367-8c05b9a738c3 id=0x7f0903ca)
+V/FragmentManager: SpecialEffectsController: Container com.simplemobiletools.commons.views.MyViewPager@7ed7259e is not attached to window. Cancelling pending operation Operation {1750fbeb} {mFinalState = REMOVED} {mLifecycleImpact = REMOVING} {mFragment = g{26275bef} (698ac998-ef41-4ab3-a367-8c05b9a738c3 id=0x7f0903ca)}
+V/FragmentManager: SpecialEffectsController: Operation {1750fbeb} {mFinalState = REMOVED} {mLifecycleImpact = REMOVING} {mFragment = g{26275bef} (698ac998-ef41-4ab3-a367-8c05b9a738c3 id=0x7f0903ca)} has called complete.
+V/FragmentManager: SpecialEffectsController: Removing view android.widget.RelativeLayout@69e1dd28 from container com.simplemobiletools.commons.views.MyViewPager@7ed7259e
+V/FragmentManager: computeExpectedState() of -1 for g{26275bef} (698ac998-ef41-4ab3-a367-8c05b9a738c3 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of -1 for g{26275bef} (698ac998-ef41-4ab3-a367-8c05b9a738c3 id=0x7f0903ca)
+D/FragmentManager: movefrom CREATE_VIEW: g{26275bef} (698ac998-ef41-4ab3-a367-8c05b9a738c3 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of -1 for g{26275bef} (698ac998-ef41-4ab3-a367-8c05b9a738c3 id=0x7f0903ca)
+D/FragmentManager: movefrom CREATED: g{26275bef} (698ac998-ef41-4ab3-a367-8c05b9a738c3 id=0x7f0903ca)
+D/FragmentManager: Clearing non-config state for g{26275bef} (698ac998-ef41-4ab3-a367-8c05b9a738c3 id=0x7f0903ca)
+D/FragmentManager: onCleared called for FragmentManagerViewModel{6e9a5ed8} Fragments () Child Non Config () ViewModelStores ()
+V/FragmentManager: Ignoring removeRetainedFragment as the state is already saved
+V/FragmentManager: Removed fragment from active set g{26275bef} (698ac998-ef41-4ab3-a367-8c05b9a738c3 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of -1 for g{26275bef} (698ac998-ef41-4ab3-a367-8c05b9a738c3 id=0x7f0903ca)
+D/FragmentManager: movefrom ATTACHED: g{26275bef} (698ac998-ef41-4ab3-a367-8c05b9a738c3 id=0x7f0903ca)
+D/FragmentManager: initState called for fragment: g{26275bef} (698ac998-ef41-4ab3-a367-8c05b9a738c3 id=0x7f0903ca)
+V/FragmentManager: SpecialEffectsController: Container com.simplemobiletools.commons.views.MyViewPager@7ed7259e is not attached to window. Cancelling pending operation Operation {6c284af} {mFinalState = REMOVED} {mLifecycleImpact = REMOVING} {mFragment = g{7690781} (c62b8536-b1c1-460a-bcfc-c58ce97c3b15 id=0x7f0903ca)}
+V/FragmentManager: SpecialEffectsController: Operation {6c284af} {mFinalState = REMOVED} {mLifecycleImpact = REMOVING} {mFragment = g{7690781} (c62b8536-b1c1-460a-bcfc-c58ce97c3b15 id=0x7f0903ca)} has called complete.
+V/FragmentManager: SpecialEffectsController: Removing view android.widget.RelativeLayout@79da8dc5 from container com.simplemobiletools.commons.views.MyViewPager@7ed7259e
+V/FragmentManager: computeExpectedState() of -1 for g{7690781} (c62b8536-b1c1-460a-bcfc-c58ce97c3b15 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of -1 for g{7690781} (c62b8536-b1c1-460a-bcfc-c58ce97c3b15 id=0x7f0903ca)
+D/FragmentManager: movefrom CREATE_VIEW: g{7690781} (c62b8536-b1c1-460a-bcfc-c58ce97c3b15 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of -1 for g{7690781} (c62b8536-b1c1-460a-bcfc-c58ce97c3b15 id=0x7f0903ca)
+D/FragmentManager: movefrom CREATED: g{7690781} (c62b8536-b1c1-460a-bcfc-c58ce97c3b15 id=0x7f0903ca)
+D/FragmentManager: Clearing non-config state for g{7690781} (c62b8536-b1c1-460a-bcfc-c58ce97c3b15 id=0x7f0903ca)
+D/FragmentManager: onCleared called for FragmentManagerViewModel{31ea9581} Fragments () Child Non Config () ViewModelStores ()
+V/FragmentManager: Ignoring removeRetainedFragment as the state is already saved
+V/FragmentManager: Removed fragment from active set g{7690781} (c62b8536-b1c1-460a-bcfc-c58ce97c3b15 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of -1 for g{7690781} (c62b8536-b1c1-460a-bcfc-c58ce97c3b15 id=0x7f0903ca)
+D/FragmentManager: movefrom ATTACHED: g{7690781} (c62b8536-b1c1-460a-bcfc-c58ce97c3b15 id=0x7f0903ca)
+D/FragmentManager: initState called for fragment: g{7690781} (c62b8536-b1c1-460a-bcfc-c58ce97c3b15 id=0x7f0903ca)
+isakai: activity com.simplemobiletools.notes.pro.activities.SplashActivity destroyed
+isakai: run complete
+warning: ignoring android:appComponentFactory (direct instantiation)
+info: desktop bridge ready at /tmp/isakai-1000-isosway/bridge.sock
+isakai: application com.simplemobiletools.notes.pro.App onCreate
+D/AppCompatDelegate: Checking for metadata for AppLocalesMetadataHolderService : Service not found
+isakai: activity com.simplemobiletools.notes.pro.activities.SplashActivity runWindowed
+D/ViewUtils: Could not find method computeFitSystemWindows. Oh well.
+D/ViewUtils: Could not find method makeOptionalFitsSystemWindows. Oh well...
+isakai: activity com.simplemobiletools.notes.pro.activities.MainActivity start
+ISAKAI_UNSUPPORTED android.view.View.tooltipRendering at androidx.appcompat.widget.e4.a bci=2
+ISAKAI_UNSUPPORTED android.graphics.Paint.xfermodeRendering at n6.h.<clinit> bci=55
+PICKDIAG bg=n6.h stateful=false
+D/ViewUtils: Could not find method makeOptionalFitsSystemWindows. Oh well...
+ISAKAI_UNSUPPORTED android.os.Environment.sharedExternalStorage at t7.t.t bci=54
+ISAKAI_UNSUPPORTED android.view.View.androidSystemBars at f7.g.M bci=95
+ISAKAI_UNSUPPORTED android.app.Activity.taskIconAndColor at f7.g.H bci=24
+ISAKAI_UNSUPPORTED android.view.View.androidSystemBars at f7.g.onResume bci=629
+D/FragmentManager: onCleared called for FragmentManagerViewModel{3aeaafa6} Fragments () Child Non Config () ViewModelStores ()
+V/FragmentManager: Run: BackStackEntry{276438c9}
+V/FragmentManager: Added fragment to active set g{33b37288} (8a401635-85b1-4908-b745-f66cedd0ca8f id=0x7f0903ca)
+V/FragmentManager: Added fragment to active set g{77a57272} (36db37cc-55f9-4173-80e1-ad1f0713a48e id=0x7f0903ca)
+V/FragmentManager: add: g{33b37288} (8a401635-85b1-4908-b745-f66cedd0ca8f id=0x7f0903ca)
+V/FragmentManager: add: g{77a57272} (36db37cc-55f9-4173-80e1-ad1f0713a48e id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 7 for g{33b37288} (8a401635-85b1-4908-b745-f66cedd0ca8f id=0x7f0903ca)
+D/FragmentManager: moveto ATTACHED: g{33b37288} (8a401635-85b1-4908-b745-f66cedd0ca8f id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 7 for g{33b37288} (8a401635-85b1-4908-b745-f66cedd0ca8f id=0x7f0903ca)
+D/FragmentManager: moveto CREATED: g{33b37288} (8a401635-85b1-4908-b745-f66cedd0ca8f id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 7 for g{33b37288} (8a401635-85b1-4908-b745-f66cedd0ca8f id=0x7f0903ca)
+D/FragmentManager: moveto CREATE_VIEW: g{33b37288} (8a401635-85b1-4908-b745-f66cedd0ca8f id=0x7f0903ca)
+V/FragmentManager: Updating retained Fragments: Added g{33b37288} (8a401635-85b1-4908-b745-f66cedd0ca8f id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 7 for g{33b37288} (8a401635-85b1-4908-b745-f66cedd0ca8f id=0x7f0903ca)
+D/FragmentManager: moveto ACTIVITY_CREATED: g{33b37288} (8a401635-85b1-4908-b745-f66cedd0ca8f id=0x7f0903ca)
+D/FragmentManager: moveto RESTORE_VIEW_STATE: g{33b37288} (8a401635-85b1-4908-b745-f66cedd0ca8f id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 7 for g{33b37288} (8a401635-85b1-4908-b745-f66cedd0ca8f id=0x7f0903ca)
+V/FragmentManager: SpecialEffectsController: Enqueuing add operation for fragment g{33b37288} (8a401635-85b1-4908-b745-f66cedd0ca8f id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 6 for g{33b37288} (8a401635-85b1-4908-b745-f66cedd0ca8f id=0x7f0903ca)
+D/FragmentManager: moveto STARTED: g{33b37288} (8a401635-85b1-4908-b745-f66cedd0ca8f id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 6 for g{33b37288} (8a401635-85b1-4908-b745-f66cedd0ca8f id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 6 for g{33b37288} (8a401635-85b1-4908-b745-f66cedd0ca8f id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 4 for g{77a57272} (36db37cc-55f9-4173-80e1-ad1f0713a48e id=0x7f0903ca)
+D/FragmentManager: moveto ATTACHED: g{77a57272} (36db37cc-55f9-4173-80e1-ad1f0713a48e id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 4 for g{77a57272} (36db37cc-55f9-4173-80e1-ad1f0713a48e id=0x7f0903ca)
+D/FragmentManager: moveto CREATED: g{77a57272} (36db37cc-55f9-4173-80e1-ad1f0713a48e id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 4 for g{77a57272} (36db37cc-55f9-4173-80e1-ad1f0713a48e id=0x7f0903ca)
+D/FragmentManager: moveto CREATE_VIEW: g{77a57272} (36db37cc-55f9-4173-80e1-ad1f0713a48e id=0x7f0903ca)
+V/FragmentManager: Updating retained Fragments: Added g{77a57272} (36db37cc-55f9-4173-80e1-ad1f0713a48e id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 4 for g{77a57272} (36db37cc-55f9-4173-80e1-ad1f0713a48e id=0x7f0903ca)
+D/FragmentManager: moveto ACTIVITY_CREATED: g{77a57272} (36db37cc-55f9-4173-80e1-ad1f0713a48e id=0x7f0903ca)
+D/FragmentManager: moveto RESTORE_VIEW_STATE: g{77a57272} (36db37cc-55f9-4173-80e1-ad1f0713a48e id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 4 for g{77a57272} (36db37cc-55f9-4173-80e1-ad1f0713a48e id=0x7f0903ca)
+V/FragmentManager: SpecialEffectsController: Enqueuing add operation for fragment g{77a57272} (36db37cc-55f9-4173-80e1-ad1f0713a48e id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 4 for g{77a57272} (36db37cc-55f9-4173-80e1-ad1f0713a48e id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 6 for g{33b37288} (8a401635-85b1-4908-b745-f66cedd0ca8f id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 4 for g{77a57272} (36db37cc-55f9-4173-80e1-ad1f0713a48e id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 4 for g{77a57272} (36db37cc-55f9-4173-80e1-ad1f0713a48e id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 6 for g{33b37288} (8a401635-85b1-4908-b745-f66cedd0ca8f id=0x7f0903ca)
+V/FragmentManager: SpecialEffectsController: For fragment g{33b37288} (8a401635-85b1-4908-b745-f66cedd0ca8f id=0x7f0903ca) mFinalState = VISIBLE -> VISIBLE. 
+V/FragmentManager: SpecialEffectsController: For fragment g{77a57272} (36db37cc-55f9-4173-80e1-ad1f0713a48e id=0x7f0903ca) mFinalState = VISIBLE -> VISIBLE. 
+V/FragmentManager: SpecialEffectsController: For fragment g{33b37288} (8a401635-85b1-4908-b745-f66cedd0ca8f id=0x7f0903ca) mFinalState = VISIBLE -> VISIBLE. 
+V/FragmentManager: SpecialEffectsController: For fragment g{77a57272} (36db37cc-55f9-4173-80e1-ad1f0713a48e id=0x7f0903ca) mFinalState = VISIBLE -> VISIBLE. 
+V/FragmentManager: SpecialEffectsController: Operation {120d6fe6} {mFinalState = VISIBLE} {mLifecycleImpact = ADDING} {mFragment = g{33b37288} (8a401635-85b1-4908-b745-f66cedd0ca8f id=0x7f0903ca)} has called complete.
+V/FragmentManager: SpecialEffectsController: Setting view android.widget.RelativeLayout@3444d69d to VISIBLE
+V/FragmentManager: computeExpectedState() of 7 for g{33b37288} (8a401635-85b1-4908-b745-f66cedd0ca8f id=0x7f0903ca)
+D/FragmentManager: moveto RESUMED: g{33b37288} (8a401635-85b1-4908-b745-f66cedd0ca8f id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 7 for g{33b37288} (8a401635-85b1-4908-b745-f66cedd0ca8f id=0x7f0903ca)
+V/FragmentManager: SpecialEffectsController: Operation {4ba2ca36} {mFinalState = VISIBLE} {mLifecycleImpact = ADDING} {mFragment = g{77a57272} (36db37cc-55f9-4173-80e1-ad1f0713a48e id=0x7f0903ca)} has called complete.
+V/FragmentManager: SpecialEffectsController: Setting view android.widget.RelativeLayout@21a947fe to VISIBLE
+V/FragmentManager: computeExpectedState() of 4 for g{77a57272} (36db37cc-55f9-4173-80e1-ad1f0713a48e id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 7 for g{77a57272} (36db37cc-55f9-4173-80e1-ad1f0713a48e id=0x7f0903ca)
+D/FragmentManager: moveto STARTED: g{77a57272} (36db37cc-55f9-4173-80e1-ad1f0713a48e id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 7 for g{77a57272} (36db37cc-55f9-4173-80e1-ad1f0713a48e id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 7 for g{77a57272} (36db37cc-55f9-4173-80e1-ad1f0713a48e id=0x7f0903ca)
+D/FragmentManager: moveto RESUMED: g{77a57272} (36db37cc-55f9-4173-80e1-ad1f0713a48e id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 7 for g{77a57272} (36db37cc-55f9-4173-80e1-ad1f0713a48e id=0x7f0903ca)
+bridge: client uid 1000 connected
+V/FragmentManager: Run: BackStackEntry{31368b99}
+V/FragmentManager: Added fragment to active set g{1725dc0f} (ef27dbb8-82bd-4081-9213-a8a4f0f1f5d7 id=0x7f0903ca)
+V/FragmentManager: Added fragment to active set g{3911c2a7} (ef1e2d83-f92f-4cda-9b2f-5b1d50e62ff0 id=0x7f0903ca)
+V/FragmentManager: add: g{1725dc0f} (ef27dbb8-82bd-4081-9213-a8a4f0f1f5d7 id=0x7f0903ca)
+V/FragmentManager: add: g{3911c2a7} (ef1e2d83-f92f-4cda-9b2f-5b1d50e62ff0 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 7 for g{1725dc0f} (ef27dbb8-82bd-4081-9213-a8a4f0f1f5d7 id=0x7f0903ca)
+D/FragmentManager: moveto ATTACHED: g{1725dc0f} (ef27dbb8-82bd-4081-9213-a8a4f0f1f5d7 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 7 for g{1725dc0f} (ef27dbb8-82bd-4081-9213-a8a4f0f1f5d7 id=0x7f0903ca)
+D/FragmentManager: moveto CREATED: g{1725dc0f} (ef27dbb8-82bd-4081-9213-a8a4f0f1f5d7 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 7 for g{1725dc0f} (ef27dbb8-82bd-4081-9213-a8a4f0f1f5d7 id=0x7f0903ca)
+D/FragmentManager: moveto CREATE_VIEW: g{1725dc0f} (ef27dbb8-82bd-4081-9213-a8a4f0f1f5d7 id=0x7f0903ca)
+V/FragmentManager: Updating retained Fragments: Added g{1725dc0f} (ef27dbb8-82bd-4081-9213-a8a4f0f1f5d7 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 7 for g{1725dc0f} (ef27dbb8-82bd-4081-9213-a8a4f0f1f5d7 id=0x7f0903ca)
+D/FragmentManager: moveto ACTIVITY_CREATED: g{1725dc0f} (ef27dbb8-82bd-4081-9213-a8a4f0f1f5d7 id=0x7f0903ca)
+D/FragmentManager: moveto RESTORE_VIEW_STATE: g{1725dc0f} (ef27dbb8-82bd-4081-9213-a8a4f0f1f5d7 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 7 for g{1725dc0f} (ef27dbb8-82bd-4081-9213-a8a4f0f1f5d7 id=0x7f0903ca)
+V/FragmentManager: SpecialEffectsController: Enqueuing add operation for fragment g{1725dc0f} (ef27dbb8-82bd-4081-9213-a8a4f0f1f5d7 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 6 for g{1725dc0f} (ef27dbb8-82bd-4081-9213-a8a4f0f1f5d7 id=0x7f0903ca)
+D/FragmentManager: moveto STARTED: g{1725dc0f} (ef27dbb8-82bd-4081-9213-a8a4f0f1f5d7 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 6 for g{1725dc0f} (ef27dbb8-82bd-4081-9213-a8a4f0f1f5d7 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 6 for g{1725dc0f} (ef27dbb8-82bd-4081-9213-a8a4f0f1f5d7 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 4 for g{3911c2a7} (ef1e2d83-f92f-4cda-9b2f-5b1d50e62ff0 id=0x7f0903ca)
+D/FragmentManager: moveto ATTACHED: g{3911c2a7} (ef1e2d83-f92f-4cda-9b2f-5b1d50e62ff0 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 4 for g{3911c2a7} (ef1e2d83-f92f-4cda-9b2f-5b1d50e62ff0 id=0x7f0903ca)
+D/FragmentManager: moveto CREATED: g{3911c2a7} (ef1e2d83-f92f-4cda-9b2f-5b1d50e62ff0 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 4 for g{3911c2a7} (ef1e2d83-f92f-4cda-9b2f-5b1d50e62ff0 id=0x7f0903ca)
+D/FragmentManager: moveto CREATE_VIEW: g{3911c2a7} (ef1e2d83-f92f-4cda-9b2f-5b1d50e62ff0 id=0x7f0903ca)
+V/FragmentManager: Updating retained Fragments: Added g{3911c2a7} (ef1e2d83-f92f-4cda-9b2f-5b1d50e62ff0 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 4 for g{3911c2a7} (ef1e2d83-f92f-4cda-9b2f-5b1d50e62ff0 id=0x7f0903ca)
+D/FragmentManager: moveto ACTIVITY_CREATED: g{3911c2a7} (ef1e2d83-f92f-4cda-9b2f-5b1d50e62ff0 id=0x7f0903ca)
+D/FragmentManager: moveto RESTORE_VIEW_STATE: g{3911c2a7} (ef1e2d83-f92f-4cda-9b2f-5b1d50e62ff0 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 4 for g{3911c2a7} (ef1e2d83-f92f-4cda-9b2f-5b1d50e62ff0 id=0x7f0903ca)
+V/FragmentManager: SpecialEffectsController: Enqueuing add operation for fragment g{3911c2a7} (ef1e2d83-f92f-4cda-9b2f-5b1d50e62ff0 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 4 for g{3911c2a7} (ef1e2d83-f92f-4cda-9b2f-5b1d50e62ff0 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 7 for g{33b37288} (8a401635-85b1-4908-b745-f66cedd0ca8f id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 7 for g{77a57272} (36db37cc-55f9-4173-80e1-ad1f0713a48e id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 6 for g{1725dc0f} (ef27dbb8-82bd-4081-9213-a8a4f0f1f5d7 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 4 for g{3911c2a7} (ef1e2d83-f92f-4cda-9b2f-5b1d50e62ff0 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 7 for g{77a57272} (36db37cc-55f9-4173-80e1-ad1f0713a48e id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 4 for g{3911c2a7} (ef1e2d83-f92f-4cda-9b2f-5b1d50e62ff0 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 6 for g{1725dc0f} (ef27dbb8-82bd-4081-9213-a8a4f0f1f5d7 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 7 for g{33b37288} (8a401635-85b1-4908-b745-f66cedd0ca8f id=0x7f0903ca)
+V/FragmentManager: SpecialEffectsController: For fragment g{1725dc0f} (ef27dbb8-82bd-4081-9213-a8a4f0f1f5d7 id=0x7f0903ca) mFinalState = VISIBLE -> VISIBLE. 
+V/FragmentManager: SpecialEffectsController: For fragment g{3911c2a7} (ef1e2d83-f92f-4cda-9b2f-5b1d50e62ff0 id=0x7f0903ca) mFinalState = VISIBLE -> VISIBLE. 
+V/FragmentManager: SpecialEffectsController: For fragment g{1725dc0f} (ef27dbb8-82bd-4081-9213-a8a4f0f1f5d7 id=0x7f0903ca) mFinalState = VISIBLE -> VISIBLE. 
+V/FragmentManager: SpecialEffectsController: For fragment g{3911c2a7} (ef1e2d83-f92f-4cda-9b2f-5b1d50e62ff0 id=0x7f0903ca) mFinalState = VISIBLE -> VISIBLE. 
+V/FragmentManager: SpecialEffectsController: Operation {c33b74f} {mFinalState = VISIBLE} {mLifecycleImpact = ADDING} {mFragment = g{1725dc0f} (ef27dbb8-82bd-4081-9213-a8a4f0f1f5d7 id=0x7f0903ca)} has called complete.
+V/FragmentManager: SpecialEffectsController: Setting view android.widget.RelativeLayout@2c767a52 to VISIBLE
+V/FragmentManager: computeExpectedState() of 7 for g{1725dc0f} (ef27dbb8-82bd-4081-9213-a8a4f0f1f5d7 id=0x7f0903ca)
+D/FragmentManager: moveto RESUMED: g{1725dc0f} (ef27dbb8-82bd-4081-9213-a8a4f0f1f5d7 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 7 for g{1725dc0f} (ef27dbb8-82bd-4081-9213-a8a4f0f1f5d7 id=0x7f0903ca)
+V/FragmentManager: SpecialEffectsController: Operation {130161f7} {mFinalState = VISIBLE} {mLifecycleImpact = ADDING} {mFragment = g{3911c2a7} (ef1e2d83-f92f-4cda-9b2f-5b1d50e62ff0 id=0x7f0903ca)} has called complete.
+V/FragmentManager: SpecialEffectsController: Setting view android.widget.RelativeLayout@68999068 to VISIBLE
+V/FragmentManager: computeExpectedState() of 4 for g{3911c2a7} (ef1e2d83-f92f-4cda-9b2f-5b1d50e62ff0 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 7 for g{3911c2a7} (ef1e2d83-f92f-4cda-9b2f-5b1d50e62ff0 id=0x7f0903ca)
+D/FragmentManager: moveto STARTED: g{3911c2a7} (ef1e2d83-f92f-4cda-9b2f-5b1d50e62ff0 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 7 for g{3911c2a7} (ef1e2d83-f92f-4cda-9b2f-5b1d50e62ff0 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 7 for g{3911c2a7} (ef1e2d83-f92f-4cda-9b2f-5b1d50e62ff0 id=0x7f0903ca)
+D/FragmentManager: moveto RESUMED: g{3911c2a7} (ef1e2d83-f92f-4cda-9b2f-5b1d50e62ff0 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 7 for g{3911c2a7} (ef1e2d83-f92f-4cda-9b2f-5b1d50e62ff0 id=0x7f0903ca)
+V/FragmentManager: saveAllState: no fragments!
+V/FragmentManager: saveAllState: no fragments!
+V/FragmentManager: Run: BackStackEntry{3835c46}
+V/FragmentManager: remove: g{77a57272} (36db37cc-55f9-4173-80e1-ad1f0713a48e id=0x7f0903ca) nesting=0
+V/FragmentManager: remove: g{33b37288} (8a401635-85b1-4908-b745-f66cedd0ca8f id=0x7f0903ca) nesting=0
+V/FragmentManager: computeExpectedState() of -1 for g{77a57272} (36db37cc-55f9-4173-80e1-ad1f0713a48e id=0x7f0903ca)
+D/FragmentManager: movefrom RESUMED: g{77a57272} (36db37cc-55f9-4173-80e1-ad1f0713a48e id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of -1 for g{77a57272} (36db37cc-55f9-4173-80e1-ad1f0713a48e id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of -1 for g{77a57272} (36db37cc-55f9-4173-80e1-ad1f0713a48e id=0x7f0903ca)
+D/FragmentManager: movefrom STARTED: g{77a57272} (36db37cc-55f9-4173-80e1-ad1f0713a48e id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of -1 for g{77a57272} (36db37cc-55f9-4173-80e1-ad1f0713a48e id=0x7f0903ca)
+D/FragmentManager: movefrom ACTIVITY_CREATED: g{77a57272} (36db37cc-55f9-4173-80e1-ad1f0713a48e id=0x7f0903ca)
+V/FragmentManager: SpecialEffectsController: Enqueuing remove operation for fragment g{77a57272} (36db37cc-55f9-4173-80e1-ad1f0713a48e id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 3 for g{77a57272} (36db37cc-55f9-4173-80e1-ad1f0713a48e id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of -1 for g{33b37288} (8a401635-85b1-4908-b745-f66cedd0ca8f id=0x7f0903ca)
+D/FragmentManager: movefrom RESUMED: g{33b37288} (8a401635-85b1-4908-b745-f66cedd0ca8f id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of -1 for g{33b37288} (8a401635-85b1-4908-b745-f66cedd0ca8f id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of -1 for g{33b37288} (8a401635-85b1-4908-b745-f66cedd0ca8f id=0x7f0903ca)
+D/FragmentManager: movefrom STARTED: g{33b37288} (8a401635-85b1-4908-b745-f66cedd0ca8f id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of -1 for g{33b37288} (8a401635-85b1-4908-b745-f66cedd0ca8f id=0x7f0903ca)
+D/FragmentManager: movefrom ACTIVITY_CREATED: g{33b37288} (8a401635-85b1-4908-b745-f66cedd0ca8f id=0x7f0903ca)
+V/FragmentManager: SpecialEffectsController: Enqueuing remove operation for fragment g{33b37288} (8a401635-85b1-4908-b745-f66cedd0ca8f id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 3 for g{33b37288} (8a401635-85b1-4908-b745-f66cedd0ca8f id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 7 for g{1725dc0f} (ef27dbb8-82bd-4081-9213-a8a4f0f1f5d7 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 7 for g{3911c2a7} (ef1e2d83-f92f-4cda-9b2f-5b1d50e62ff0 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 3 for g{77a57272} (36db37cc-55f9-4173-80e1-ad1f0713a48e id=0x7f0903ca)
+V/FragmentManager: Updating retained Fragments: Removed g{77a57272} (36db37cc-55f9-4173-80e1-ad1f0713a48e id=0x7f0903ca)
+V/FragmentManager: Removed fragment from active set g{77a57272} (36db37cc-55f9-4173-80e1-ad1f0713a48e id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 7 for g{3911c2a7} (ef1e2d83-f92f-4cda-9b2f-5b1d50e62ff0 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 7 for g{1725dc0f} (ef27dbb8-82bd-4081-9213-a8a4f0f1f5d7 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 3 for g{33b37288} (8a401635-85b1-4908-b745-f66cedd0ca8f id=0x7f0903ca)
+V/FragmentManager: Updating retained Fragments: Removed g{33b37288} (8a401635-85b1-4908-b745-f66cedd0ca8f id=0x7f0903ca)
+V/FragmentManager: Removed fragment from active set g{33b37288} (8a401635-85b1-4908-b745-f66cedd0ca8f id=0x7f0903ca)
+V/FragmentManager: SpecialEffectsController: Operation {1ab3a8c8} {mFinalState = REMOVED} {mLifecycleImpact = REMOVING} {mFragment = g{77a57272} (36db37cc-55f9-4173-80e1-ad1f0713a48e id=0x7f0903ca)} has called complete.
+V/FragmentManager: SpecialEffectsController: Removing view android.widget.RelativeLayout@21a947fe from container com.simplemobiletools.commons.views.MyViewPager@333291e3
+V/FragmentManager: computeExpectedState() of -1 for g{77a57272} (36db37cc-55f9-4173-80e1-ad1f0713a48e id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of -1 for g{77a57272} (36db37cc-55f9-4173-80e1-ad1f0713a48e id=0x7f0903ca)
+D/FragmentManager: movefrom CREATE_VIEW: g{77a57272} (36db37cc-55f9-4173-80e1-ad1f0713a48e id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of -1 for g{77a57272} (36db37cc-55f9-4173-80e1-ad1f0713a48e id=0x7f0903ca)
+D/FragmentManager: movefrom CREATED: g{77a57272} (36db37cc-55f9-4173-80e1-ad1f0713a48e id=0x7f0903ca)
+D/FragmentManager: Clearing non-config state for g{77a57272} (36db37cc-55f9-4173-80e1-ad1f0713a48e id=0x7f0903ca)
+D/FragmentManager: onCleared called for FragmentManagerViewModel{795cd85e} Fragments () Child Non Config () ViewModelStores ()
+V/FragmentManager: computeExpectedState() of -1 for g{77a57272} (36db37cc-55f9-4173-80e1-ad1f0713a48e id=0x7f0903ca)
+D/FragmentManager: movefrom ATTACHED: g{77a57272} (36db37cc-55f9-4173-80e1-ad1f0713a48e id=0x7f0903ca)
+D/FragmentManager: initState called for fragment: g{77a57272} (36db37cc-55f9-4173-80e1-ad1f0713a48e id=0x7f0903ca)
+V/FragmentManager: SpecialEffectsController: Operation {43195e57} {mFinalState = REMOVED} {mLifecycleImpact = REMOVING} {mFragment = g{33b37288} (8a401635-85b1-4908-b745-f66cedd0ca8f id=0x7f0903ca)} has called complete.
+V/FragmentManager: SpecialEffectsController: Removing view android.widget.RelativeLayout@3444d69d from container com.simplemobiletools.commons.views.MyViewPager@333291e3
+V/FragmentManager: computeExpectedState() of -1 for g{33b37288} (8a401635-85b1-4908-b745-f66cedd0ca8f id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of -1 for g{33b37288} (8a401635-85b1-4908-b745-f66cedd0ca8f id=0x7f0903ca)
+D/FragmentManager: movefrom CREATE_VIEW: g{33b37288} (8a401635-85b1-4908-b745-f66cedd0ca8f id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of -1 for g{33b37288} (8a401635-85b1-4908-b745-f66cedd0ca8f id=0x7f0903ca)
+D/FragmentManager: movefrom CREATED: g{33b37288} (8a401635-85b1-4908-b745-f66cedd0ca8f id=0x7f0903ca)
+D/FragmentManager: Clearing non-config state for g{33b37288} (8a401635-85b1-4908-b745-f66cedd0ca8f id=0x7f0903ca)
+D/FragmentManager: onCleared called for FragmentManagerViewModel{dbf57b3} Fragments () Child Non Config () ViewModelStores ()
+V/FragmentManager: computeExpectedState() of -1 for g{33b37288} (8a401635-85b1-4908-b745-f66cedd0ca8f id=0x7f0903ca)
+D/FragmentManager: movefrom ATTACHED: g{33b37288} (8a401635-85b1-4908-b745-f66cedd0ca8f id=0x7f0903ca)
+D/FragmentManager: initState called for fragment: g{33b37288} (8a401635-85b1-4908-b745-f66cedd0ca8f id=0x7f0903ca)
+ISAKAI_UNSUPPORTED RippleDrawable.animation at h6.n.g bci=507
+D/ViewUtils: Could not find method makeOptionalFitsSystemWindows. Oh well...
+isakai: new root android.app.DialogOverlayGroup bounds=0,0,0x0
+PICKDIAG bg=android.graphics.drawable.LayerDrawable stateful=false
+PICKDIAG bg=android.graphics.drawable.RippleDrawable stateful=true
+V/FragmentManager: computeExpectedState() of 5 for g{1725dc0f} (ef27dbb8-82bd-4081-9213-a8a4f0f1f5d7 id=0x7f0903ca)
+D/FragmentManager: movefrom RESUMED: g{1725dc0f} (ef27dbb8-82bd-4081-9213-a8a4f0f1f5d7 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 5 for g{1725dc0f} (ef27dbb8-82bd-4081-9213-a8a4f0f1f5d7 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 5 for g{1725dc0f} (ef27dbb8-82bd-4081-9213-a8a4f0f1f5d7 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 5 for g{3911c2a7} (ef1e2d83-f92f-4cda-9b2f-5b1d50e62ff0 id=0x7f0903ca)
+D/FragmentManager: movefrom RESUMED: g{3911c2a7} (ef1e2d83-f92f-4cda-9b2f-5b1d50e62ff0 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 5 for g{3911c2a7} (ef1e2d83-f92f-4cda-9b2f-5b1d50e62ff0 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 5 for g{3911c2a7} (ef1e2d83-f92f-4cda-9b2f-5b1d50e62ff0 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 5 for g{3911c2a7} (ef1e2d83-f92f-4cda-9b2f-5b1d50e62ff0 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 5 for g{1725dc0f} (ef27dbb8-82bd-4081-9213-a8a4f0f1f5d7 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 4 for g{1725dc0f} (ef27dbb8-82bd-4081-9213-a8a4f0f1f5d7 id=0x7f0903ca)
+D/FragmentManager: movefrom STARTED: g{1725dc0f} (ef27dbb8-82bd-4081-9213-a8a4f0f1f5d7 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 4 for g{1725dc0f} (ef27dbb8-82bd-4081-9213-a8a4f0f1f5d7 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 4 for g{3911c2a7} (ef1e2d83-f92f-4cda-9b2f-5b1d50e62ff0 id=0x7f0903ca)
+D/FragmentManager: movefrom STARTED: g{3911c2a7} (ef1e2d83-f92f-4cda-9b2f-5b1d50e62ff0 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 4 for g{3911c2a7} (ef1e2d83-f92f-4cda-9b2f-5b1d50e62ff0 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 4 for g{3911c2a7} (ef1e2d83-f92f-4cda-9b2f-5b1d50e62ff0 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 4 for g{1725dc0f} (ef27dbb8-82bd-4081-9213-a8a4f0f1f5d7 id=0x7f0903ca)
+D/FragmentManager: onCleared called for FragmentManagerViewModel{420745d7} Fragments (g{3911c2a7} (ef1e2d83-f92f-4cda-9b2f-5b1d50e62ff0 id=0x7f0903ca), g{1725dc0f} (ef27dbb8-82bd-4081-9213-a8a4f0f1f5d7 id=0x7f0903ca)) Child Non Config (ef1e2d83-f92f-4cda-9b2f-5b1d50e62ff0, ef27dbb8-82bd-4081-9213-a8a4f0f1f5d7) ViewModelStores (ef1e2d83-f92f-4cda-9b2f-5b1d50e62ff0, ef27dbb8-82bd-4081-9213-a8a4f0f1f5d7)
+V/FragmentManager: computeExpectedState() of -1 for g{1725dc0f} (ef27dbb8-82bd-4081-9213-a8a4f0f1f5d7 id=0x7f0903ca)
+D/FragmentManager: movefrom ACTIVITY_CREATED: g{1725dc0f} (ef27dbb8-82bd-4081-9213-a8a4f0f1f5d7 id=0x7f0903ca)
+V/FragmentManager: SpecialEffectsController: Enqueuing remove operation for fragment g{1725dc0f} (ef27dbb8-82bd-4081-9213-a8a4f0f1f5d7 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 3 for g{1725dc0f} (ef27dbb8-82bd-4081-9213-a8a4f0f1f5d7 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of -1 for g{3911c2a7} (ef1e2d83-f92f-4cda-9b2f-5b1d50e62ff0 id=0x7f0903ca)
+D/FragmentManager: movefrom ACTIVITY_CREATED: g{3911c2a7} (ef1e2d83-f92f-4cda-9b2f-5b1d50e62ff0 id=0x7f0903ca)
+V/FragmentManager: SpecialEffectsController: Enqueuing remove operation for fragment g{3911c2a7} (ef1e2d83-f92f-4cda-9b2f-5b1d50e62ff0 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 3 for g{3911c2a7} (ef1e2d83-f92f-4cda-9b2f-5b1d50e62ff0 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 3 for g{3911c2a7} (ef1e2d83-f92f-4cda-9b2f-5b1d50e62ff0 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of 3 for g{1725dc0f} (ef27dbb8-82bd-4081-9213-a8a4f0f1f5d7 id=0x7f0903ca)
+V/FragmentManager: SpecialEffectsController: Container com.simplemobiletools.commons.views.MyViewPager@333291e3 is not attached to window. Cancelling pending operation Operation {2392212b} {mFinalState = REMOVED} {mLifecycleImpact = REMOVING} {mFragment = g{1725dc0f} (ef27dbb8-82bd-4081-9213-a8a4f0f1f5d7 id=0x7f0903ca)}
+V/FragmentManager: SpecialEffectsController: Operation {2392212b} {mFinalState = REMOVED} {mLifecycleImpact = REMOVING} {mFragment = g{1725dc0f} (ef27dbb8-82bd-4081-9213-a8a4f0f1f5d7 id=0x7f0903ca)} has called complete.
+V/FragmentManager: SpecialEffectsController: Removing view android.widget.RelativeLayout@2c767a52 from container com.simplemobiletools.commons.views.MyViewPager@333291e3
+V/FragmentManager: computeExpectedState() of -1 for g{1725dc0f} (ef27dbb8-82bd-4081-9213-a8a4f0f1f5d7 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of -1 for g{1725dc0f} (ef27dbb8-82bd-4081-9213-a8a4f0f1f5d7 id=0x7f0903ca)
+D/FragmentManager: movefrom CREATE_VIEW: g{1725dc0f} (ef27dbb8-82bd-4081-9213-a8a4f0f1f5d7 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of -1 for g{1725dc0f} (ef27dbb8-82bd-4081-9213-a8a4f0f1f5d7 id=0x7f0903ca)
+D/FragmentManager: movefrom CREATED: g{1725dc0f} (ef27dbb8-82bd-4081-9213-a8a4f0f1f5d7 id=0x7f0903ca)
+D/FragmentManager: Clearing non-config state for g{1725dc0f} (ef27dbb8-82bd-4081-9213-a8a4f0f1f5d7 id=0x7f0903ca)
+D/FragmentManager: onCleared called for FragmentManagerViewModel{545f80bf} Fragments () Child Non Config () ViewModelStores ()
+V/FragmentManager: Ignoring removeRetainedFragment as the state is already saved
+V/FragmentManager: Removed fragment from active set g{1725dc0f} (ef27dbb8-82bd-4081-9213-a8a4f0f1f5d7 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of -1 for g{1725dc0f} (ef27dbb8-82bd-4081-9213-a8a4f0f1f5d7 id=0x7f0903ca)
+D/FragmentManager: movefrom ATTACHED: g{1725dc0f} (ef27dbb8-82bd-4081-9213-a8a4f0f1f5d7 id=0x7f0903ca)
+D/FragmentManager: initState called for fragment: g{1725dc0f} (ef27dbb8-82bd-4081-9213-a8a4f0f1f5d7 id=0x7f0903ca)
+V/FragmentManager: SpecialEffectsController: Container com.simplemobiletools.commons.views.MyViewPager@333291e3 is not attached to window. Cancelling pending operation Operation {22fa55b2} {mFinalState = REMOVED} {mLifecycleImpact = REMOVING} {mFragment = g{3911c2a7} (ef1e2d83-f92f-4cda-9b2f-5b1d50e62ff0 id=0x7f0903ca)}
+V/FragmentManager: SpecialEffectsController: Operation {22fa55b2} {mFinalState = REMOVED} {mLifecycleImpact = REMOVING} {mFragment = g{3911c2a7} (ef1e2d83-f92f-4cda-9b2f-5b1d50e62ff0 id=0x7f0903ca)} has called complete.
+V/FragmentManager: SpecialEffectsController: Removing view android.widget.RelativeLayout@68999068 from container com.simplemobiletools.commons.views.MyViewPager@333291e3
+V/FragmentManager: computeExpectedState() of -1 for g{3911c2a7} (ef1e2d83-f92f-4cda-9b2f-5b1d50e62ff0 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of -1 for g{3911c2a7} (ef1e2d83-f92f-4cda-9b2f-5b1d50e62ff0 id=0x7f0903ca)
+D/FragmentManager: movefrom CREATE_VIEW: g{3911c2a7} (ef1e2d83-f92f-4cda-9b2f-5b1d50e62ff0 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of -1 for g{3911c2a7} (ef1e2d83-f92f-4cda-9b2f-5b1d50e62ff0 id=0x7f0903ca)
+D/FragmentManager: movefrom CREATED: g{3911c2a7} (ef1e2d83-f92f-4cda-9b2f-5b1d50e62ff0 id=0x7f0903ca)
+D/FragmentManager: Clearing non-config state for g{3911c2a7} (ef1e2d83-f92f-4cda-9b2f-5b1d50e62ff0 id=0x7f0903ca)
+D/FragmentManager: onCleared called for FragmentManagerViewModel{30f4b1a6} Fragments () Child Non Config () ViewModelStores ()
+V/FragmentManager: Ignoring removeRetainedFragment as the state is already saved
+V/FragmentManager: Removed fragment from active set g{3911c2a7} (ef1e2d83-f92f-4cda-9b2f-5b1d50e62ff0 id=0x7f0903ca)
+V/FragmentManager: computeExpectedState() of -1 for g{3911c2a7} (ef1e2d83-f92f-4cda-9b2f-5b1d50e62ff0 id=0x7f0903ca)
+D/FragmentManager: movefrom ATTACHED: g{3911c2a7} (ef1e2d83-f92f-4cda-9b2f-5b1d50e62ff0 id=0x7f0903ca)
+D/FragmentManager: initState called for fragment: g{3911c2a7} (ef1e2d83-f92f-4cda-9b2f-5b1d50e62ff0 id=0x7f0903ca)
+isakai: activity com.simplemobiletools.notes.pro.activities.SplashActivity destroyed
+isakai: run complete
+exited with code 0

@@ -30,11 +30,24 @@ public class ImageView extends View {
     }
 
     public ImageView(Context context, android.util.AttributeSet attrs) {
-        super(context, attrs);
+        this(context, attrs, 0);
     }
 
     public ImageView(Context context, android.util.AttributeSet attrs, int defStyleAttr) {
         super(context, attrs, defStyleAttr);
+        if (attrs != null) {
+            // AOSP parity: android:src inflates the image (e.g. the FAB plus
+            // icon, which no code path sets programmatically).
+            int src = attrs.getAttributeResourceValue(
+                    "http://schemas.android.com/apk/res/android", "src", 0);
+            if (src == 0) src = attrs.getAttributeResourceValue(null, "src", 0);
+            if (src != 0) {
+                try {
+                    setImageResource(src);
+                } catch (RuntimeException e) {
+                }
+            }
+        }
     }
 
     public void setImageDrawable(Drawable drawable) {
