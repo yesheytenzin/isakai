@@ -1564,3 +1564,19 @@ in place to feed it. Notes/calculator/opencalc all PASS on the final
 tree; pre/post repaint pairs identical. The worker also corroborates the
 notes-save flake as environmental (fails on fully-reverted tree under
 contention). Full record: [WORKER-pickimpl](WORKER-pickimpl.md).
+
+### 2026-10-28 — cosmetics merged: GENERAL + rounded checks fixed (self-review)
+
+Parallel worker `aff3ec6e` merged as `ad97f4a`. Fixed: section header
+wrap (`Layout.relayout` now breaks by true per-code-point advances,
+memoized — "GENER" → "GENERAL", verified on the real screen) and
+checked-box corners (device-space round-rect rasterizer; transformed
+path no longer degenerates to a quad). Diagnosed-correct-per-spec:
+unchecked 1px outline (M3 tokens at density 1). Left open with mechanism
+evidence: back-arrow black box (compose-issued opaque rect over a perfect
+vector — needs compose-runtime session) and first-row clip (compose-
+issued duplicate draws; RenderNode replay dead). Cancel path proven
+within one slice against the real bridge (`poll` 0.0–0.1ms, no phantoms);
+end-to-end unprovable (no file portal, no pinned picker surface).
+Calculator flow PASS on a fresh tree. Full record:
+[WORKER-cosmetics](WORKER-cosmetics.md).
