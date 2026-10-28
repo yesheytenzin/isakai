@@ -18,8 +18,8 @@ Program: implement reports/Remaining N6 N18 fix plan.md. Four independent PRs of
 - [x] PR2 loader extinfo plus dlerror. File: src/native/bionic_shim.zig. Merged as 55c656c. Matrix observed message-then-NULL. Chooser maps. Calculator PASS.
 - [x] PR3 appcompat icon plus Up navigation plus density. Merged. FAB blue with white plus on screenshot. Up single-intent rule. Calculator PASS.
 - [x] PR4 text watchers on all mutations. Merged. 5/6 before and after, 0 gate misses each. Calculator PASS.
-- [ ] Independent review lane over merged stack, then merge each.
-- [ ] N18 asset proof plus notes trigger verification after PR2 lands.
+- [x] Independent review lane over merged stack: ships all four, no blockers.
+- [x] N18 proof complete. Stored fd plus offset verified. Zero NDK callers in pinned libs. Program closed.
 
 ## Standing orders
 
