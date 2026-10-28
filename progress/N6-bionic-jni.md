@@ -182,7 +182,22 @@ stages are not.
 
 ## Blockers
 
-### Current remaining acceptance, 2026-10-26
+### Advanced 2026-10-28 — still blocked
+
+Worker `ae5160c5` ([WORKER-n6](reports/WORKER-n6.md), evidence
+`evidence/N6/2026-10-28/n6/`) re-enabled native loading in-tree,
+fixed the instant-death `startActivities(Intent[], Bundle)` trampoline in
+`Activity.java` (GameChooser now maps, takes input, exits 0; calculator
+regression PASS), added the thread-local bionic re-entry guard, and
+proved IsakaiWindow/bionic coexistence. Remaining blockers, each with
+repro: (1) no game starts — translator drops Kotlin sealed metadata so
+game lookup aborts (translator owner); (2) abort message hidden by
+`VerifyError` in translated layout code (translator owner);
+(3) default isolation needs an operator run; (4) solved-puzzle and
+thread/callback/GC/exception stress blocked behind (1); (5) `android_
+dlopen_ext`/dlerror/classification/navigateUpTo/density/envp follow-ups.
+
+### Prior acceptance, 2026-10-26
 
 The latest recorded Cube run demonstrates native rendering and pointer-driven
 moves in same-UID development mode. Loader integration is no longer wholly
