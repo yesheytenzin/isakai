@@ -1749,6 +1749,8 @@ public class View {
         return null;
     }
 
+    public void clearViewTranslationCallback() {}
+
     public long getDrawingTime() {
         return System.currentTimeMillis();
     }

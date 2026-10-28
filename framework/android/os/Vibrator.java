@@ -16,4 +16,6 @@ public abstract class Vibrator {
 
     public void cancel() {
     }
+
+    public boolean areAllPrimitivesSupported(int[] primitives) { return false; }
 }
