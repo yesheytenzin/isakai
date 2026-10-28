@@ -1548,3 +1548,19 @@ Notes-save flakiness and C7 tap-routing failures explicitly predate the
 stack and stay with their owners. Nothing blocks. (Note: main history
 shows rebased hashes for the two prior record commits — content verified
 identical, lint clean.)
+
+### 2026-10-28 — picker handoff implemented, item 1 reverted (self-review)
+
+Parallel worker `a6ada9e` merged as `62ca6f1`. Item 1 (transparent
+background default) FIXED the picker rows but garbled Settings with
+double-drawn text — intra-frame erase is load-bearing — so it was
+reverted to exact pre-change code, proven by the items-2+3-only isolation
+run rendering clean. Items 2+3 kept: drawable-state delivery (verified
+engaging via probes, pixel-neutral) + ImageView `android:src` (no
+isolated delta, correct parity). FAB stays black: true root cause found
+one layer down — `Canvas.paintColor` ignores `Paint.getColorFilter()` —
+recorded as graphics-ownership follow-up, with item 2's pushes already
+in place to feed it. Notes/calculator/opencalc all PASS on the final
+tree; pre/post repaint pairs identical. The worker also corroborates the
+notes-save flake as environmental (fails on fully-reverted tree under
+contention). Full record: [WORKER-pickimpl](WORKER-pickimpl.md).
