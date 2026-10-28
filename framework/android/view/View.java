@@ -210,6 +210,7 @@ public class View {
     private boolean enabled = true;
     private boolean pressed;
     private boolean selected;
+    private boolean activated;
     private boolean longPressFired;
     private float downX;
     private float downY;
@@ -1105,6 +1106,18 @@ public class View {
     public void setSelected(boolean selected) {
         if (this.selected != selected) {
             this.selected = selected;
+            invalidate();
+            refreshDrawableState();
+        }
+    }
+
+    public boolean isActivated() {
+        return activated;
+    }
+
+    public void setActivated(boolean activated) {
+        if (this.activated != activated) {
+            this.activated = activated;
             invalidate();
             refreshDrawableState();
         }

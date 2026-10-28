@@ -800,11 +800,96 @@ fn paramRegIndex(nregs: usize, nins: usize, is_static: bool, param_kinds: []cons
 }
 
 /// True when reg holds `this` (directly or via a move chain from it).
-fn receiverIsThis(insns: []const u16, call_pc: usize, rx: u16, nregs: usize, nins: usize, is_static: bool) bool {
+fn receiverIsThis(gpa: std.mem.Allocator, insns: []const u16, preds: []const std.ArrayListUnmanaged(u32), call_pc: usize, rx: u16, nregs: usize, nins: usize, is_static: bool, param_kinds: []const u8) bool {
     if (is_static or nins == 0 or nregs < nins) return false;
     const this_reg: u16 = @intCast(nregs - nins);
     if (rx == this_reg) return true;
-    return isThisAlias(insns, call_pc, rx, this_reg);
+    if (isThisAlias(insns, call_pc, rx, this_reg)) return true;
+    // Loop-carried `this`: the straight-line scan stops at any branch,
+    // but `this` re-stored to rx on every path (e.g. once per loop
+    // iteration) still verifies without narrowing. Fall back to a
+    // reaching-definitions check over the precomputed preds.
+    return receiverReachesThisOnly(gpa, insns, preds, nregs, nins, is_static, param_kinds, call_pc, rx, this_reg, 0);
+}
+
+/// True when every backward path from the invoke at use_pc reaches a
+/// `this`-delivering store to rx first: then the receiver always holds
+/// `this` (or prologue null on paths with no store, which verifies like
+/// `this` for protected access), so narrowing it to the callee owner
+/// would break protected-access verification. Backward DFS over the
+/// precomputed preds, same shape as reachingDefsAllInt. A store to rx
+/// ends its path well only when it is a move-object from `this` (or
+/// from a temp that is itself `this`-only at the move); any other
+/// store vetoes. A live foreign entry value vetoes too: any param
+/// other than `this` returns false, while non-param temps enter as
+/// prologue null. Dead units contribute nothing. Depth-capped
+/// recursion (move chains bottom out at `this` within a step or two).
+fn receiverReachesThisOnly(
+    gpa: std.mem.Allocator,
+    insns: []const u16,
+    preds: []const std.ArrayListUnmanaged(u32),
+    nregs: usize,
+    nins: usize,
+    is_static: bool,
+    param_kinds: []const u8,
+    use_pc: usize,
+    rx: u16,
+    this_reg: u16,
+    depth: u8,
+) bool {
+    if (depth > 4) return false;
+    if (use_pc >= preds.len or rx >= nregs) return false;
+    if (rx == this_reg) return true;
+    if (paramKind(nregs, nins, is_static, param_kinds, rx) != null) return false;
+    if (preds[use_pc].items.len == 0) return true;
+    const visited = gpa.alloc(bool, insns.len) catch return false;
+    defer gpa.free(visited);
+    @memset(visited, false);
+    var stack = gpa.alloc(u32, insns.len) catch return false;
+    defer gpa.free(stack);
+    var top: usize = 0;
+    for (preds[use_pc].items) |p| {
+        if (p < insns.len and !visited[p]) {
+            visited[p] = true;
+            stack[top] = p;
+            top += 1;
+        }
+    }
+    while (top > 0) {
+        top -= 1;
+        const pc: usize = stack[top];
+        const unit0 = insns[pc];
+        const op: Op = @fromBackingInt(@intCast(@as(u8, @intCast(unit0 & 0xFF))));
+        const w1: u16 = if (pc + 1 < insns.len) insns[pc + 1] else 0;
+        const w2: u16 = if (pc + 2 < insns.len) insns[pc + 2] else 0;
+        if (storeDestKind(op, unit0, w1, w2)) |st| {
+            if (st.dst == rx) {
+                const src: ?u16 = switch (op) {
+                    .move_object => regB(unit0),
+                    .move_object_from16, .move_object16 => moveRegs16(op, unit0, w1, w2).src,
+                    else => null,
+                };
+                if (src) |s| {
+                    if (s == this_reg) continue;
+                    if (receiverReachesThisOnly(gpa, insns, preds, nregs, nins, is_static, param_kinds, pc, s, this_reg, depth + 1)) continue;
+                }
+                return false;
+            }
+        }
+        const no_preds = pc >= preds.len or preds[pc].items.len == 0;
+        if (!no_preds) {
+            for (preds[pc].items) |p| {
+                if (p < insns.len and !visited[p]) {
+                    visited[p] = true;
+                    stack[top] = p;
+                    top += 1;
+                }
+            }
+        }
+        // Entry (pc == 0, no preds) delivers prologue null: verifies.
+        // Dead units (no preds elsewhere) contribute nothing.
+    }
+    return true;
 }
 
 /// True when a param reg's descriptor names the current class (protected
@@ -1571,6 +1656,7 @@ fn emitInvokeArgs(
     caller_parameters_off: u32,
     insns: []const u16,
     call_pc: usize,
+    preds: []const std.ArrayListUnmanaged(u32),
 ) TranslateError!void {
     const mid = try d.methodId(method_idx);
     const proto = try d.protoId(mid.proto_idx);
@@ -1599,7 +1685,7 @@ fn emitInvokeArgs(
         //   protected super call through an unrelated static type would
         //   fail on Android too), and narrowing a current-class receiver
         //   to the super breaks protected access verification.
-        var skip = jop == 0xb7 or receiverIsThis(insns, call_pc, regs[0], nregs, nins, is_static);
+        var skip = jop == 0xb7 or receiverIsThis(gpa, insns, preds, call_pc, regs[0], nregs, nins, is_static, caller_param_kinds);
         if (!skip) {
             const odesc = try d.getTypeDescriptor(gpa, mid.class_idx);
             defer gpa.free(odesc);
@@ -1800,8 +1886,9 @@ fn emitInvokeCall(
     nins: usize,
     caller_param_kinds: []const u8,
     caller_parameters_off: u32,
+    preds: []const std.ArrayListUnmanaged(u32),
 ) TranslateError!void {
-    try emitInvokeArgs(e, gpa, rm, d, method_idx, regs, is_static, types, uses, jop, this_internal, super_internal, nregs, nins, caller_param_kinds, caller_parameters_off, insns, call_pc);
+    try emitInvokeArgs(e, gpa, rm, d, method_idx, regs, is_static, types, uses, jop, this_internal, super_internal, nregs, nins, caller_param_kinds, caller_parameters_off, insns, call_pc, preds);
     // Uninitialized-instance <init>: name the ALLOCATION type (R8 may
     // declare a supertype owner, which the JVM rejects). Any <init>
     // call consumes the pending allocation.
@@ -3042,7 +3129,7 @@ pub fn translateMethod(
                 // it silently; JVM would leak stack).
                 const nxt: u8 = if (pc + size < insns.len) @intCast(insns[pc + size] & 0xFF) else 0;
                 const keep = nxt == 0x0a or nxt == 0x0b or nxt == 0x0c;
-                try emitInvokeCall(&e, gpa, rm, d, &uses, &last_ret_kind, &last_ret_comp, jop, method_idx, nib[0..argc], opcode == .invoke_static, opcode == .invoke_interface, !keep, types, alloc_owner, super_internal, this_internal, ctor_this, forward_needs, insns, pc, code.registers, code.ins, param_kinds, proto.parameters_off);
+                try emitInvokeCall(&e, gpa, rm, d, &uses, &last_ret_kind, &last_ret_comp, jop, method_idx, nib[0..argc], opcode == .invoke_static, opcode == .invoke_interface, !keep, types, alloc_owner, super_internal, this_internal, ctor_this, forward_needs, insns, pc, code.registers, code.ins, param_kinds, proto.parameters_off, preds);
             },
             .invoke_virtual_range, .invoke_super_range, .invoke_direct_range, .invoke_static_range, .invoke_interface_range => {
                 // 3rc: B = argc, CCCC = first register, BBBB = method idx.
@@ -3064,7 +3151,7 @@ pub fn translateMethod(
                 };
                 const nxt2: u8 = if (pc + size < insns.len) @intCast(insns[pc + size] & 0xFF) else 0;
                 const keep2 = nxt2 == 0x0a or nxt2 == 0x0b or nxt2 == 0x0c;
-                try emitInvokeCall(&e, gpa, rm, d, &uses, &last_ret_kind, &last_ret_comp, jop, method_idx, rregs[0..argc], opcode == .invoke_static_range, opcode == .invoke_interface_range, !keep2, types, alloc_owner, super_internal, this_internal, ctor_this, forward_needs, insns, pc, code.registers, code.ins, param_kinds, proto.parameters_off);
+                try emitInvokeCall(&e, gpa, rm, d, &uses, &last_ret_kind, &last_ret_comp, jop, method_idx, rregs[0..argc], opcode == .invoke_static_range, opcode == .invoke_interface_range, !keep2, types, alloc_owner, super_internal, this_internal, ctor_this, forward_needs, insns, pc, code.registers, code.ins, param_kinds, proto.parameters_off, preds);
             },
             // Unary 12x: A = dest, B = src.
             .neg_int, .not_int => {
