@@ -32,7 +32,7 @@ public class BaseInputConnection implements InputConnection {
         int a=composingStart>=0?composingStart:Math.min(start(),end());
         int b=composingEnd>=0?composingEnd:Math.max(start(),end());
         String value=text==null?"":text.toString();
-        editable.delete(a,b);editable.insert(a,value);
+        editable.replace(a,b,value);
         if(composing){composingStart=a;composingEnd=a+value.length();}
         else {composingStart=composingEnd=-1;}
         int cursor=cursorPosition>0?a+value.length()+cursorPosition-1:a+cursorPosition;
