@@ -1079,7 +1079,7 @@ public class Activity extends android.view.ContextThemeWrapper implements androi
             ClipboardManager.setDefaultWindow(window);
             try {
                 windowFocused = true;
-                root.dispatchHostAttached();
+                attachRoot(root);
                 int width = 640;
                 int height = 480;
                 // Initial frame at the live size, not the 640x480 default.
@@ -1096,13 +1096,13 @@ public class Activity extends android.view.ContextThemeWrapper implements androi
                     navigator.advance();
                     Activity top = navigator.top();
                     if (top != active || top.contentView != root) {
-                        root.dispatchHostDetached();
+                        detachRoot(root);
                         active = top;
                         root = active.contentView != null ? active.contentView : new View();
                         System.err.println("isakai: new root " + root.getClass().getName()
                                 + " bounds=" + root.getLeft() + "," + root.getTop()
                                 + "," + root.getWidth() + "x" + root.getHeight());
-                        root.dispatchHostAttached();
+                        attachRoot(root);
                         active.clipboardManager = clipboardManager;
                         window.setTitle(active.title==null?title:active.title.toString());
                         active.drawFrame(window, root, width, height);
@@ -1153,7 +1153,7 @@ public class Activity extends android.view.ContextThemeWrapper implements androi
                 failure = primary;
                 throw primary;
             } finally {
-                try { root.dispatchHostDetached(); }
+                try { detachRoot(root); }
                 catch (RuntimeException | Error cleanup) {
                     if (failure != null) failure.addSuppressed(cleanup);
                     else throw cleanup;
@@ -1307,6 +1307,28 @@ public class Activity extends android.view.ContextThemeWrapper implements androi
     }
 
 
+
+    /**
+     * Attach a root. A dialog overlay holds its background tree by reference
+     * yet still measures it, so the held tree attaches too; otherwise views
+     * under it report detached mid-measure and Compose finds no owner.
+     */
+    private static void attachRoot(View root) {
+        root.dispatchHostAttached();
+        if (root instanceof DialogOverlayGroup) {
+            View saved = ((DialogOverlayGroup) root).getSavedContent();
+            if (saved != null) saved.dispatchHostAttached();
+        }
+    }
+
+    /** Detach a root plus an overlay's held background tree. */
+    private static void detachRoot(View root) {
+        if (root instanceof DialogOverlayGroup) {
+            View saved = ((DialogOverlayGroup) root).getSavedContent();
+            if (saved != null) saved.dispatchHostDetached();
+        }
+        root.dispatchHostDetached();
+    }
 
     /** True while the window still accepts frames; false once it is gone. */
     private static boolean windowAlive(IsakaiWindow.Window window) {

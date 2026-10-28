@@ -20,6 +20,13 @@ public class HeadlessWindow extends Window {
     private final ViewGroup decor = new ViewGroup(null) {};
     private final WindowManager.LayoutParams attrs = new WindowManager.LayoutParams();
     private final ViewGroup decorContent;
+    /**
+     * lifecycle-runtime view_tree_lifecycle_owner key for the pinned Compose
+     * app line. The window owns the view-tree owners (ComponentActivity
+     * parity): tagging the decor lets the translated owner walk resolve the
+     * owning activity, so the app's own path installs the window recomposer.
+     */
+    private static final int VIEW_TREE_LIFECYCLE_OWNER_KEY = 2131296811;
 
     public HeadlessWindow() { this(null); }
 
@@ -31,6 +38,7 @@ public class HeadlessWindow extends Window {
         decorContent = new ViewGroup(null) {};
         decorContent.setId(ID_ANDROID_CONTENT);
         decor.addView(decorContent);
+        if (owner != null) decor.setTag(VIEW_TREE_LIFECYCLE_OWNER_KEY, owner);
     }
 
     @Override

@@ -28,6 +28,9 @@ final class DialogOverlayGroup extends ViewGroup {
     private int panelLeft;
     private int panelTop;
 
+    /** Background tree measured and drawn while the dialog shows. */
+    View getSavedContent() { return savedContent; }
+
     DialogOverlayGroup(Context context, View savedContent, View dialogPanel, Dialog dialog) {
         super(context);
         this.savedContent = savedContent;
