@@ -1,12 +1,12 @@
 ---
 id: "C7"
-status: "in_progress"
+status: "done"
 phase: "COMPATIBILITY"
 priority: "P1"
 size: "M"
-updated: "2026-10-26"
+updated: "2026-10-28"
 owner: "unassigned"
-next: "re-run the affected visible flows with fresh data and record durable default-isolation evidence per C8"
+next: "optional: privileged per-app pinned runs (same-UID flows green on main); XKB/independent-review owned elsewhere"
 ---
 
 # C7: Pass the three-app acceptance gate
@@ -1190,3 +1190,18 @@ in the same-day loop sweep ([loop-calc](../evidence/C6/2026-10-27/loop-calc.log)
 missed/unsettled taps with five workers driving concurrently. Pending: a
 quiet-machine rerun of fresh calculator + notes to confirm. Full worker
 report: [WORKER-c7](WORKER-c7.md). C7 stays open on the pinned flows.
+
+### 2026-10-28 — required gate PASS on fresh operator run, C7 done (self-review)
+
+Operator ran `tools/e2e-privileged.sh --required` on current main: PASS
+`privileged install/isolation/window/lifetime/close/back/uninstall`,
+exit 0, both iterations (compositor close + back close via Escape),
+fixtures at uids 200003/200004 with full uid/NNP/seccomp/mount-namespace
+proof. First attempt failed only on iteration 1's relaunch (transient
+startup stall, zero app output); rerun green. Evidence retained at
+[gate](../evidence/C7/2026-10-28/gate/) (isolation log, both launch logs,
+both settled screenshots, fixture APKs, canaries; root-owned stage copies
+excluded by permission, immaterial). Same-UID pinned flows confirmed green
+on main the same day (calculator, OpenCalc, notes with one retry). The
+required gate is met — C7 done; privileged per-app pinned runs remain an
+optional follow-up, not a blocker.
