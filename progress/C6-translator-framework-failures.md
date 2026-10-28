@@ -1599,3 +1599,19 @@ X11-backend sway trap (inherited DISPLAY → wlroots X11 backend → pointer
 scaled 0.941/1.026 — systematic off-target taps that mimic a hit-test
 defect; possible contributor to the C7 settings/confirm misses). Full
 record: [WORKER-notesave](WORKER-notesave.md).
+
+### 2026-10-28 — final quiet verification on full main: all pass (self-review)
+
+Fresh trees, quiet box, all merges in (bridge, hardening, scroll,
+state, ImageView, wrap, roundRect): calculator PASS, OpenCalc PASS,
+notes FAIL-then-PASS on the same tree (first run title-only row, retry
+fully saved) — residual save-trigger flake persists around the fixed
+gate, rate improved from 0/6 to passing-with-retry. Evidence:
+[final-calc](../evidence/C6/2026-10-28/final-calc.log),
+[final-ocalc](../evidence/C6/2026-10-28/final-ocalc.log),
+[final-notes](../evidence/C6/2026-10-28/final-notes.log) +
+[retry](../evidence/C6/2026-10-28/final-notes2.log).
+Remaining open (no code this turn): Canvas color-filter follow-up (FAB
+blue), erase-preserving whitewash, compose back-arrow/first-row,
+file-picker-cancel end-to-end, `getLocationInWindow` scroll, XKB stress,
+C7 default-isolation operator run.
