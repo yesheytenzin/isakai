@@ -106,6 +106,8 @@ Open the owning blocker sections in [C8](C8-shared-contracts.md#blockers-and-rem
 [N18](N18-ndk-assets.md#blockers) and [N1](N1-evidence-reproducibility.md). Keep causes and required next actions
 there rather than copying mutable blocker conclusions into this index.
 
+The blockers-only view (completed tasks removed) is [OPEN.md](OPEN.md).
+
 ## Maintenance
 
 Keep shared architecture/reuse rationale in PLAN.md, APK pins in APPS.md, and mutable task information in exactly one `progress/<ID>.md`. Preserve dated history without treating it as current status. Add or rename a task by updating its milestone group here; do not maintain a separate JSON tracker, status table or duplicate task file. When a task's milestone changes, move its link to the right group. Technical guides outside this folder are reference-only.
