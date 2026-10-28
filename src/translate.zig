@@ -2896,7 +2896,14 @@ pub fn translateMethod(
                 // slots); all-uninit reads as ref (ifnull).
                 const conflicted = ra < rm.crefs.len and rm.crefs[ra] != 0;
                 const all_int = conflicted and reachingDefsAllInt(gpa, insns, preds, code.registers, code.ins, is_static, param_kinds, pc, ra);
-                const is_ref = if (all_int) false else conflicted or ta == .ref or ta == .unknown;
+                // A wide/float linear type at ifz is stale: valid DEX
+                // never tests a long/double/float here (only int and
+                // reference are testable), so the tracker leaked a store
+                // from a non-reaching path (e.g. a wide store whose pair
+                // half overlaps this register). Resolve flow-sensitively.
+                const stale_wide = !conflicted and (ta == .long or ta == .double or ta == .float);
+                const stale_int = stale_wide and reachingDefsAllInt(gpa, insns, preds, code.registers, code.ins, is_static, param_kinds, pc, ra);
+                const is_ref = if (all_int) false else if (stale_wide) !stale_int else conflicted or ta == .ref or ta == .unknown;
                 const jop: u8 = switch (opcode) {
                     .if_eqz => if (is_ref) @as(u8, 0xc6) else 0x99, // ifnull / ifeq
                     .if_nez => if (is_ref) @as(u8, 0xc7) else 0x9a, // ifnonnull / ifne

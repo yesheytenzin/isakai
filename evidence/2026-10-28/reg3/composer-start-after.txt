@@ -1,0 +1,179 @@
+public final void start-BaiHCIY(int, int, java.lang.Object, java.lang.Object);
+    Code:
+         0: iconst_0
+         1: istore        5
+         3: aconst_null
+         4: astore        32
+         6: iconst_0
+         7: istore        6
+         9: aconst_null
+        10: astore        33
+        12: iconst_0
+        13: istore        7
+        15: aconst_null
+        16: astore        34
+        18: iconst_0
+        19: istore        8
+        21: aconst_null
+        22: astore        35
+        24: iconst_0
+        25: istore        9
+        27: aconst_null
+        28: astore        36
+        30: iconst_0
+        31: istore        10
+        33: aconst_null
+        34: astore        37
+        36: iconst_0
+        37: istore        11
+        39: aconst_null
+        40: astore        38
+        42: iconst_0
+        43: istore        12
+        45: aconst_null
+        46: astore        39
+        48: iconst_0
+        49: istore        13
+        51: aconst_null
+        52: astore        40
+        54: iconst_0
+        55: istore        14
+        57: aconst_null
+        58: astore        41
+        60: iconst_0
+        61: istore        15
+        63: iconst_0
+        64: istore        16
+        66: aconst_null
+        67: astore        42
+        69: iconst_0
+        70: istore        17
+        72: aconst_null
+        73: astore        43
+        75: iconst_0
+        76: istore        18
+        78: aconst_null
+        79: astore        44
+        81: iconst_0
+        82: istore        19
+        84: aconst_null
+        85: astore        45
+        87: iconst_0
+        88: istore        20
+        90: aconst_null
+        91: astore        46
+        93: iconst_0
+        94: istore        21
+        96: aconst_null
+        97: astore        47
+        99: iconst_0
+       100: istore        22
+       102: iconst_0
+       103: istore        23
+       105: iconst_0
+       106: istore        24
+       108: iconst_0
+       109: istore        25
+       111: iconst_0
+       112: istore        26
+       114: iconst_0
+       115: istore        27
+       117: iconst_0
+       118: istore        28
+       120: iconst_0
+       121: istore        29
+       123: aconst_null
+       124: astore        48
+       126: iconst_0
+       127: istore        30
+       129: aload_0
+       130: astore        49
+       132: aload         49
+       134: astore        32
+       136: iload_1
+       137: istore        6
+       139: iload_2
+       140: istore        7
+       142: aload_3
+       143: astore        35
+       145: aload         4
+       147: astore        36
+       149: iconst_m1
+       150: istore        10
+       152: iload         10
+       154: invokestatic  #4337               // Method java/lang/Integer.valueOf:(I)Ljava/lang/Integer;
+       157: astore        38
+       159: aload         32
+       161: getfield      #4340               // Field androidx/compose/runtime/ComposerImpl.nodeExpected:Z
+       164: istore        12
+       166: iload         12
+       168: ifeq          181
+       171: ldc_w         #4341               // String A call to createNode(), emitNode() or useNode() expected
+       174: astore        39
+       176: aload         39
+       178: invokestatic  #4344               // Method androidx/compose/runtime/ComposerKt.composeImmediateRuntimeError:(Ljava/lang/String;)V
+       181: aload         32
+       183: getfield      #4347               // Field androidx/compose/runtime/ComposerImpl.rGroupIndex:I
+       186: istore        12
+       188: getstatic     #4350               // Field androidx/compose/runtime/Composer$Companion.Empty:Landroidx/compose/runtime/NeverEqualPolicy;
+       191: astore        40
+       193: iconst_3
+       194: istore        14
+       196: aload         35
+       198: ifnonnull     337
+       201: aload         36
+       203: ifnull        288
+       206: sipush        207
+       209: istore        15
+       211: iload         6
+       213: iload         15
+       215: if_icmpne     288
+       218: aload         36
+       220: aload         40
+       222: invokevirtual #4353               // Method java/lang/Object.equals:(Ljava/lang/Object;)Z
+       225: istore        15
+       227: iload         15
+       229: ifne          288
+       232: aload         36
+       234: invokevirtual #4356               // Method java/lang/Object.hashCode:()I
+       237: istore        15
+       239: aload         32
+       241: getfield      #4359               // Field androidx/compose/runtime/ComposerImpl.compoundKeyHash:I
+       244: istore        16
+       246: iload         16
+       248: iload         14
+       250: invokestatic  #4362               // Method java/lang/Integer.rotateLeft:(II)I
+       253: istore        16
+       255: iload         15
+       257: iload         16
+       259: ixor
+       260: istore        15
+       262: iload         15
+       264: iload         14
+       266: invokestatic  #4365               // Method java/lang/Integer.rotateLeft:(II)I
+       269: istore        14
+       271: iload         12
+       273: iload         14
+       275: ixor
+       276: istore        12
+       278: aload         32
+       280: iload         12
+       282: putfield      #4368               // Field androidx/compose/runtime/ComposerImpl.compoundKeyHash:I
+       285: goto          415
+       288: aload         32
+       290: getfield      #4371               // Field androidx/compose/runtime/ComposerImpl.compoundKeyHash:I
+       293: istore        15
+       295: iload         15
+       297: iload         14
+       299: invokestatic  #4374               // Method java/lang/Integer.rotateLeft:(II)I
+       302: istore        15
+       304: iload         15
+       306: iload         6
+       308: ixor
+       309: istore        15
+       311: iload         15
+       313: iload         14
+       315: invokestatic  #4377               // Method java/lang/Integer.rotateLeft:(II)I
+       318: istore        14
+       320: iload         12
+       322: ilo
