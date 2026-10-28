@@ -1616,6 +1616,19 @@ blue), erase-preserving whitewash, compose back-arrow/first-row,
 file-picker-cancel end-to-end, `getLocationInWindow` scroll, XKB stress,
 C7 default-isolation operator run.
 
+### 2026-10-28 — compose artifacts diagnosed to translated calls, handoff filed (self-review)
+
+Worker `ac6eea3` merged as `a9ec0eb` (report + evidence only, no code).
+Black box: exact emitter chain `b1.c.d ← … ← y0.j.e` draws one plain
+black 24x24 fill, arrow path draws on top; dropping that single fill
+renders a perfect arrow with flow still PASS — handoff is to stop
+emitting the bounds fill in translated `f1.d0.e → d1.e.g`. Stale
+duplicates: each string drawn 7x/frame at 4 offsets, replay site
+`r1.v2.dispatchDraw → r1.b2.a` with record lists accumulating epochs;
+handoff is clear-then-record + invalidate-on-placement in `r1.v2.e`.
+Both require translated-runtime work; no framework hook is safe.
+Full record: [WORKER-comprun](WORKER-comprun.md).
+
 ### 2026-10-28 — scroll-aware window coordinates landed (self-review)
 
 Worker `ade84ed` merged as `08fc2d3`. `getLocationInWindow` now
