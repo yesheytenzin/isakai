@@ -1580,3 +1580,22 @@ within one slice against the real bridge (`poll` 0.0–0.1ms, no phantoms);
 end-to-end unprovable (no file portal, no pinned picker surface).
 Calculator flow PASS on a fresh tree. Full record:
 [WORKER-cosmetics](WORKER-cosmetics.md).
+
+### 2026-10-28 — notes body-save fixed: scrolled-pager divergence (self-review)
+
+Parallel worker `adfd320b` merged as `cd994df`. Root cause proven
+end-to-end (JDB breakpoint chain + field reads + SQL probes): the editor
+ViewPager scrolls to the new page (`scrollX=640`, `currentItem=1`) but
+`ViewGroup` never applied scroll in touch dispatch or child drawing —
+display stayed on page 0 and taps hit page 0's editor while the save path
+read page 1 (empty) and silently skipped. Fix in ViewGroup only (+26/−12):
+scroll offsets in all four touch-dispatch sites + child positioning in
+dispatchDrawAt, mirroring AOSP. Blast radius bounded: only nonzero-scroll
+views affected; probe census shows only the notes pager scrolls.
+Before/after: 0/6 → 5/6 full PASS (5/5 when the marker was typed; the one
+miss is the classified paste flake); calculator + opencalc PASS on the
+same build. The worker also documents three session traps, notably an
+X11-backend sway trap (inherited DISPLAY → wlroots X11 backend → pointer
+scaled 0.941/1.026 — systematic off-target taps that mimic a hit-test
+defect; possible contributor to the C7 settings/confirm misses). Full
+record: [WORKER-notesave](WORKER-notesave.md).
