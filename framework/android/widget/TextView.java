@@ -38,6 +38,9 @@ public class TextView extends View {
         editableFactory=factory;
     }
     private CharSequence text = "";
+    private android.text.Layout layoutCache;
+    private String layoutText;
+    private int layoutWidth = -1;
     private int textColor = Color.BLACK;
     private int highlightColor = 0xffbbd7ff;
     private int imeOptions;
@@ -352,6 +355,22 @@ public class TextView extends View {
     public void setTextSize(float size) { setTextSize(2,size); }
     public float getTextSize() { return textSize; }
     protected int getTextPixelSize() { return Math.max(1,Math.round(textSize)); }
+    /** Platform shape: appcompat measures through this. Built lazily from
+     * current text and width so callers observe the laid-out lines. */
+    public android.text.Layout getLayout() {
+        String current = textString();
+        int w = Math.max(0, getWidth() - 8);
+        if (layoutCache == null || !current.equals(layoutText) || layoutWidth != w) {
+            android.text.TextPaint paint = new android.text.TextPaint();
+            paint.setTextSize((float) getTextPixelSize());
+            paint.setColor(textColor);
+            layoutCache = new android.text.StaticLayout(current, paint, w,
+                    android.text.Layout.Alignment.ALIGN_NORMAL, 1.0f, 0.0f, false);
+            layoutText = current;
+            layoutWidth = w;
+        }
+        return layoutCache;
+    }
 
     private String textString() {
         if (text.length() == 0) return hint.toString();
