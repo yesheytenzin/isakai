@@ -44,20 +44,26 @@ public class Layout {
     protected final void relayout() {
         java.util.ArrayList<Integer> starts = new java.util.ArrayList<>();
         starts.add(0);
-        float size = paint.getTextSize();
-        int cell = BitmapFont.cellWidth(Math.max(1, (int) size));
-        if (cell <= 0) cell = 1;
-        int maxChars = width > 0 ? Math.max(1, width / cell) : Integer.MAX_VALUE;
-        int lineLen = 0;
-        for (int i = 0; i < text.length(); i++) {
-            char c = text.charAt(i);
-            if (c == '\n') {
-                starts.add(i + 1);
-                lineLen = 0;
-            } else if (++lineLen > maxChars) {
-                starts.add(i);
-                lineLen = 1;
+        int n = text.length();
+        if (width > 0) {
+            // Break by true advances, not fixed cells: cells overestimate
+            // wide runs and split a line that fits, whose tail the caller
+            // then clips (e.g. a maxLines=1 header reading "GENER").
+            // Advances repeat, so one measure per distinct code point.
+            java.util.HashMap<Integer, Float> adv = new java.util.HashMap<>();
+            float lineW = 0;
+            for (int i = 0; i < n;) {
+                int cp = Character.codePointAt(text, i);
+                int len = Character.charCount(cp);
+                if (cp == '\n') { starts.add(i + 1); lineW = 0; i += len; continue; }
+                Float a = adv.get(cp);
+                if (a == null) { a = paint.measureText(text, i, i + len); adv.put(cp, a); }
+                if (lineW > 0 && lineW + a > width) { starts.add(i); lineW = 0; }
+                lineW += a;
+                i += len;
             }
+        } else {
+            for (int i = 0; i < n; i++) if (text.charAt(i) == '\n') starts.add(i + 1);
         }
         lineStarts = new int[starts.size()];
         for (int i = 0; i < starts.size(); i++) lineStarts[i] = starts.get(i);

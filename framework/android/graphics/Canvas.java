@@ -956,16 +956,15 @@ public class Canvas {
         int color = paintColor(paint);
         Paint.Style style = paint.getStyle();
         if (!isIdentity()) {
-            float[] q = {left, top, right, top, right, bottom, left, bottom};
-            if (style == Paint.Style.STROKE) {
-                int hw = halfWidth(paint);
-                emitStroke(left, top, right, top, color, hw);
-                emitStroke(right, top, right, bottom, color, hw);
-                emitStroke(right, bottom, left, bottom, color, hw);
-                emitStroke(left, bottom, left, top, color, hw);
-                return;
-            }
-            emitPolygon(q, 4, color);
+            // Map to device space and rasterize the same rounded shape there:
+            // stroking the user-space quad would drop the corner radii.
+            float[] a = new float[2], b = new float[2];
+            mapPoint(left, top, a);
+            mapPoint(right, bottom, b);
+            float s = scaleFactor();
+            float w = paint.getStrokeWidth() * s;
+            int hw = w <= 1.5f ? 0 : Math.max(0, Math.round(w / 2f) - 1);
+            drawRoundRectDevice(a[0], a[1], b[0], b[1], rx * s, ry * s, color, style, hw);
             return;
         }
         int l = Math.round(left);
@@ -996,6 +995,65 @@ public class Canvas {
             disc(r - rad - 1, t + rad, rad, color);
             disc(l + rad, b - rad - 1, rad, color);
             disc(r - rad - 1, b - rad - 1, rad, color);
+        }
+    }
+
+    /**
+     * Device-space rounded-rect rasterizer shared by the transformed path.
+     * Coordinates and radii arrive already mapped; device writes go straight
+     * to the raster (no re-transform). Mirrors the identity branch below.
+     */
+    private void drawRoundRectDevice(float left, float top, float right, float bottom,
+            float rx, float ry, int color, Paint.Style style, int hw) {
+        if (right <= left || bottom <= top) return;
+        int l = Math.round(left);
+        int t = Math.round(top);
+        int r = Math.round(right);
+        int b = Math.round(bottom);
+        int radius = (int) Math.max(0, Math.min(rx, ry));
+        if (style == Paint.Style.STROKE) {
+            int rad = Math.min(radius, Math.min((r - l) / 2, (b - t) / 2));
+            paintRect(l + rad, t, r - rad, t + 1, color);
+            paintRect(l + rad, b - 1, r - rad, b, color);
+            paintRect(l, t + rad, l + 1, b - rad, color);
+            paintRect(r - 1, t + rad, r, b - rad, color);
+            if (rad > 0) {
+                devArcOutline(l + rad, t + rad, rad, color, 0);
+                devArcOutline(r - rad - 1, t + rad, rad, color, 1);
+                devArcOutline(l + rad, b - rad - 1, rad, color, 2);
+                devArcOutline(r - rad - 1, b - rad - 1, rad, color, 3);
+            }
+            return;
+        }
+        int rad = Math.min(radius, Math.min((r - l) / 2, (b - t) / 2));
+        paintRect(l + rad, t, r - rad, b, color);
+        paintRect(l, t + rad, l + rad, b - rad, color);
+        paintRect(r - rad, t + rad, r, b - rad, color);
+        if (rad > 0) {
+            devDisc(l + rad, t + rad, rad, color);
+            devDisc(r - rad - 1, t + rad, rad, color);
+            devDisc(l + rad, b - rad - 1, rad, color);
+            devDisc(r - rad - 1, b - rad - 1, rad, color);
+        }
+    }
+
+    /** Device-space arc outline pixel plot (no transform). */
+    private void devArcOutline(int cx, int cy, int radius, int color, int quadrant) {
+        for (int a = 0; a <= 90; a += 2) {
+            double rad = Math.toRadians(a);
+            int dx = (int) Math.round(radius * Math.cos(rad));
+            int dy = (int) Math.round(radius * Math.sin(rad));
+            int x = quadrant == 0 || quadrant == 2 ? cx - dx : cx + dx;
+            int y = quadrant < 2 ? cy - dy : cy + dy;
+            paintPixel(x, y, color);
+        }
+    }
+
+    /** Device-space filled disc (no transform). */
+    private void devDisc(int cx, int cy, int radius, int color) {
+        for (int dy = -radius; dy <= radius; dy++) {
+            int dx = (int) Math.sqrt((double) (radius * radius - dy * dy));
+            paintRect(cx - dx, cy + dy, cx + dx + 1, cy + dy + 1, color);
         }
     }
 
