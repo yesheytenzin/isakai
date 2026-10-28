@@ -64,7 +64,74 @@ public class EditText extends TextView {
 
     @Override
     public Editable getText() {
-        return editable;
+        return editableView;
+    }
+
+    private final Editable editableView = new WatchfulEditable();
+
+    private final class WatchfulEditable implements Editable {
+        public int length() { return editable.length(); }
+        public char charAt(int index) { return editable.charAt(index); }
+        public CharSequence subSequence(int start, int end) { return editable.subSequence(start, end); }
+        public String toString() { return editable.toString(); }
+        public void getChars(int start, int end, char[] dest, int destoff) {
+            editable.getChars(start, end, dest, destoff);
+        }
+        public Editable replace(int start, int end, CharSequence source, int sourceStart, int sourceEnd) {
+            String oldText = editable.toString();
+            editable.replace(start, end, source, sourceStart, sourceEnd);
+            publish(oldText, start, end);
+            return this;
+        }
+        public Editable replace(int start, int end, CharSequence source) {
+            return replace(start, end, source, 0, source == null ? 0 : source.length());
+        }
+        public Editable insert(int where, CharSequence text, int start, int end) {
+            return replace(where, where, text, start, end);
+        }
+        public Editable insert(int where, CharSequence text) {
+            return replace(where, where, text, 0, text == null ? 0 : text.length());
+        }
+        public Editable delete(int start, int end) {
+            return replace(start, end, "", 0, 0);
+        }
+        public Editable append(CharSequence text) {
+            return replace(length(), length(), text, 0, text == null ? 0 : text.length());
+        }
+        public Editable append(CharSequence text, int start, int end) {
+            return replace(length(), length(), text, start, end);
+        }
+        public Editable append(char value) {
+            return replace(length(), length(), String.valueOf(value), 0, 1);
+        }
+        public void clear() { replace(0, length(), "", 0, 0); }
+        public void clearSpans() { editable.clearSpans(); }
+        public void setFilters(android.text.InputFilter[] filters) { editable.setFilters(filters); }
+        public android.text.InputFilter[] getFilters() { return editable.getFilters(); }
+        public void setSpan(Object what, int start, int end, int flags) {
+            editable.setSpan(what, start, end, flags);
+        }
+        public void removeSpan(Object what) { editable.removeSpan(what); }
+        public <T> T[] getSpans(int start, int end, Class<T> type) {
+            return editable.getSpans(start, end, type);
+        }
+        public int getSpanStart(Object tag) { return editable.getSpanStart(tag); }
+        public int getSpanEnd(Object tag) { return editable.getSpanEnd(tag); }
+        public int getSpanFlags(Object tag) { return editable.getSpanFlags(tag); }
+        public int nextSpanTransition(int start, int limit, Class<?> type) {
+            return editable.nextSpanTransition(start, limit, type);
+        }
+        private void publish(String oldText, int reqStart, int reqEnd) {
+            int oldLen = oldText.length();
+            int start = Math.max(0, Math.min(reqStart, oldLen));
+            int before = Math.max(start, Math.min(reqEnd, oldLen)) - start;
+            String newText = editable.toString();
+            int count = newText.length() - (oldLen - before);
+            anchor = boundary(anchor);
+            cursor = boundary(cursor);
+            ensureCursorVisible();
+            publishTextChange(oldText, newText, start, before, count);
+        }
     }
 
     public int getSelectionStart() { return anchor; }

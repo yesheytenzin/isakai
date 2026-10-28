@@ -248,17 +248,41 @@ public class TextView extends View {
     public void setText(CharSequence text) {
         CharSequence old = this.text;
         CharSequence next = text != null ? text : "";
-        for (android.text.TextWatcher w : watchers) {
-            w.beforeTextChanged(old, 0, old.length(), next.length());
+        int[] span = diffSpans(old, next);
+        publishTextChange(old, next, span[0], span[1], span[2]);
+    }
+
+    private static int[] diffSpans(CharSequence oldText, CharSequence newText) {
+        int oldLen = oldText.length();
+        int newLen = newText.length();
+        int start = 0;
+        while (start < oldLen && start < newLen && oldText.charAt(start) == newText.charAt(start)) start++;
+        int oldEnd = oldLen;
+        int newEnd = newLen;
+        while (oldEnd > start && newEnd > start && oldText.charAt(oldEnd - 1) == newText.charAt(newEnd - 1)) {
+            oldEnd--;
+            newEnd--;
         }
-        this.text = next;
+        return new int[]{start, oldEnd - start, newEnd - start};
+    }
+
+    void publishTextChange(CharSequence oldText, CharSequence newText, int start, int before, int count) {
+        if (before == 0 && count == 0) {
+            this.text = newText;
+            invalidate();
+            return;
+        }
         for (android.text.TextWatcher w : watchers) {
-            w.onTextChanged(next, 0, old.length(), next.length());
+            w.beforeTextChanged(oldText, start, before, count);
+        }
+        this.text = newText;
+        for (android.text.TextWatcher w : watchers) {
+            w.onTextChanged(newText, start, before, count);
         }
         if (!watchers.isEmpty()) {
             CharSequence current = getText();
             android.text.Editable editable = current instanceof android.text.Editable
-                    ? (android.text.Editable) current : editableFactory.newEditable(next);
+                    ? (android.text.Editable) current : editableFactory.newEditable(newText);
             for (android.text.TextWatcher w : watchers) w.afterTextChanged(editable);
         }
         invalidate();

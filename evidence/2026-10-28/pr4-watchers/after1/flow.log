@@ -1,0 +1,68 @@
+{
+ "app": "notes",
+ "steps": [
+  {
+   "step": "01-initial",
+   "shot": "evidence/2026-10-28/pr4-watchers/after1/simple-01-initial.png",
+   "region": "100,100 640x800"
+  },
+  {
+   "step": "02-create-dialog",
+   "shot": "evidence/2026-10-28/pr4-watchers/after1/simple-02-create-dialog.png",
+   "region": "100,100 640x800"
+  },
+  {
+   "step": "02-titled-dialog",
+   "shot": "evidence/2026-10-28/pr4-watchers/after1/simple-02-titled-dialog.png",
+   "region": "100,100 640x800"
+  },
+  {
+   "step": "02-editor",
+   "shot": "evidence/2026-10-28/pr4-watchers/after1/simple-02-editor.png",
+   "region": "100,100 640x800"
+  },
+  {
+   "step": "03-unicode",
+   "shot": "evidence/2026-10-28/pr4-watchers/after1/simple-03-unicode.png",
+   "region": "100,100 640x800"
+  },
+  {
+   "step": "04-note-picker",
+   "shot": "evidence/2026-10-28/pr4-watchers/after1/simple-04-note-picker.png",
+   "region": "100,100 640x800"
+  },
+  {
+   "step": "05-back-to-editor",
+   "shot": "evidence/2026-10-28/pr4-watchers/after1/simple-05-back-to-editor.png",
+   "region": "100,100 640x800"
+  },
+  {
+   "step": "06-reopened",
+   "shot": "evidence/2026-10-28/pr4-watchers/after1/simple-06-reopened.png",
+   "region": "100,100 640x800"
+  },
+  {
+   "step": "06-reopened-edited",
+   "shot": "evidence/2026-10-28/pr4-watchers/after1/simple-06-reopened-edited.png",
+   "region": "100,100 640x800"
+  }
+ ],
+ "result": {
+  "title": "N2",
+  "editor_opened": true,
+  "saved_note": [
+   2,
+   "N2",
+   "Isakai \u65e5\u672c\u8a9e \u2013 note"
+  ],
+  "back_from_picker": true,
+  "exit_code": 0,
+  "reopened_exact_text": true,
+  "liveness_seconds": 31,
+  "final_exit_code": 0,
+  "saved": true,
+  "work": "/tmp/pr4-after1",
+  "confinement": "same-UID development mode"
+ }
+}
+PASS: notes flow (isolated sway)
