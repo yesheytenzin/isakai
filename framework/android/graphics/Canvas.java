@@ -895,11 +895,38 @@ public class Canvas {
 
     // ------------------------------------------------------------- paint state
 
-    /** Effective color of a paint: its color with the paint alpha folded in. */
+    /**
+     * Effective color of a paint: its color with the paint alpha folded in,
+     * then modified by the paint's color filter before blending (AOSP: each
+     * output pixel is modified by the filter before it is blended).
+     */
     protected static int paintColor(Paint paint) {
         int c = paint.getColor();
         int a = (c >>> 24) * paint.getAlpha() / 255;
-        return (c & 0x00FFFFFF) | (a << 24);
+        int base = (c & 0x00FFFFFF) | (a << 24);
+        ColorFilter filter = paint.getColorFilter();
+        return filter != null ? filter.filterColor(base) : base;
+    }
+
+    /**
+     * Per-texel transform for Paint-taking bitmap draws: folds the paint
+     * alpha into the sampled texel, then applies the paint's color filter
+     * before blending. Null when the paint changes nothing, so callers pass
+     * it straight into emitBitmap (recording canvases bake it eagerly).
+     */
+    private static java.util.function.IntUnaryOperator paintTexel(Paint paint) {
+        if (paint == null) return null;
+        ColorFilter filter = paint.getColorFilter();
+        int alpha = paint.getAlpha();
+        if (filter == null && alpha == 255) return null;
+        return texel -> {
+            int c = texel;
+            if (alpha != 255) {
+                int a = (c >>> 24) * alpha / 255;
+                c = (c & 0x00FFFFFF) | (a << 24);
+            }
+            return filter != null ? filter.filterColor(c) : c;
+        };
     }
 
     private static int halfWidth(Paint paint) {
@@ -1520,19 +1547,19 @@ public class Canvas {
         if (bitmap == null) return;
         float w = bitmap.getWidth();
         float h = bitmap.getHeight();
-        emitBitmap(bitmap, 0, 0, w, h, x, y, x + w, y + h);
+        emitBitmap(bitmap, 0, 0, w, h, x, y, x + w, y + h, paintTexel(paint));
     }
 
     public void drawBitmap(Bitmap bitmap, Rect src, Rect dst, Paint paint) {
         if (src == null || dst == null) return;
         emitBitmap(bitmap, src.left, src.top, src.right, src.bottom,
-                dst.left, dst.top, dst.right, dst.bottom);
+                dst.left, dst.top, dst.right, dst.bottom, paintTexel(paint));
     }
 
     public void drawBitmap(Bitmap bitmap, Rect src, RectF dst, Paint paint) {
         if (src == null || dst == null) return;
         emitBitmap(bitmap, src.left, src.top, src.right, src.bottom,
-                dst.left, dst.top, dst.right, dst.bottom);
+                dst.left, dst.top, dst.right, dst.bottom, paintTexel(paint));
     }
 
     public void drawBitmap(Bitmap bitmap, Matrix m, Paint paint) {
@@ -1553,7 +1580,7 @@ public class Canvas {
         }
         float w = bitmap.getWidth();
         float h = bitmap.getHeight();
-        emitBitmap(bitmap, 0, 0, w, h, 0, 0, w, h);
+        emitBitmap(bitmap, 0, 0, w, h, 0, 0, w, h, paintTexel(paint));
         System.arraycopy(saved, 0, matrix, 0, 9);
     }
 
@@ -1589,7 +1616,7 @@ public class Canvas {
             b = Math.max(b, verts[vi + 1]);
         }
         if (r <= l || b <= t) return;
-        emitBitmap(bitmap, 0, 0, bitmap.getWidth(), bitmap.getHeight(), l, t, r, b);
+        emitBitmap(bitmap, 0, 0, bitmap.getWidth(), bitmap.getHeight(), l, t, r, b, paintTexel(paint));
     }
 
     public void drawVertices(VertexMode mode, int vertexCount, float[] verts, int vertOffset,
@@ -1741,7 +1768,7 @@ public class Canvas {
         if (patch == null || dst == null) return;
         Bitmap b = patch.getBitmap();
         if (b == null) return;
-        emitBitmap(b, 0, 0, b.getWidth(), b.getHeight(), dst.left, dst.top, dst.right, dst.bottom);
+        emitBitmap(b, 0, 0, b.getWidth(), b.getHeight(), dst.left, dst.top, dst.right, dst.bottom, paintTexel(paint));
     }
 
     public void drawPatch(NinePatch patch, RectF dst, Paint paint) {
