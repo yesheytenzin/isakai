@@ -5,7 +5,7 @@ Edit the owning task file, rerun the script, commit both.
 
 ## Open — in progress or blocked
 
-- [N6](N6-bionic-jni.md): verify default-isolated useful actions plus thread/callback/GC/exception behavior and resolve the loader-contract follow-ups
+_none_
 
 ## Constrained — pending or deferred
 
@@ -44,6 +44,7 @@ Edit the owning task file, rerun the script, commit both.
 - [N3](archive/N3-trusted-runtime.md): none — privileged gate passed 2026-10-27 with evidence retained; reopen on regression
 - [N4](archive/N4-upstream-pins.md): none — done; reopen only if a regression invalidates acceptance
 - [N5](N5-resource-engine.md): none — done 2026-10-28; reopen on regression or when an openFd caller appears
+- [N6](N6-bionic-jni.md): none — done 2026-10-29; reopen on regression
 - [Q1](archive/Q1-ci-reproducibility.md): none — done; privileged-harness residual is owned by N1
 - [Q2](archive/Q2-apk-limits.md): none — done; reopen only if a regression invalidates acceptance
 - [Q3](archive/Q3-api-catalog.md): none — done; reopen only if a regression invalidates acceptance

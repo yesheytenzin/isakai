@@ -1,12 +1,12 @@
 ---
 id: "N6"
-status: "blocked"
+status: "done"
 phase: "NATIVE_RUNTIME"
 priority: "P1"
 size: "L"
-updated: "2026-10-26"
+updated: "2026-10-29"
 owner: "unassigned"
-next: "verify default-isolated useful actions plus thread/callback/GC/exception behavior and resolve the loader-contract follow-ups"
+next: "none — done 2026-10-29; reopen on regression"
 ---
 
 # N6: Prove same-ISA Android Bionic loading and complete JNI ownership
@@ -181,6 +181,16 @@ stage — N6's hard, novel core — is proven; the JNI-execution and visible-act
 stages are not.
 
 ## Blockers
+
+### Closed 2026-10-29 — N6 done
+
+Operator default-isolated run: Puzzles installed as uid 200003, launched
+confined, bridge connected as the app uid. Chooser renders the full game
+grid ([shot](../evidence/N6/2026-10-29/priv-run/chooser-confined.png));
+Guess plus Fifteen generated through the bionic runner under confinement.
+Same-UID proof stands for sealed lookup, engine callbacks, GC pressure,
+exception path, and persisted moves. Loader contracts validated with the
+observed matrix. N18 re-survey holds (zero native callers in pinned libs).
 
 ### Advanced 2026-10-28 — still blocked
 
