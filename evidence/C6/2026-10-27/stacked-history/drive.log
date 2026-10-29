@@ -1,9 +1,0 @@
-Traceback (most recent call last):
-  File "<string>", line 9, in <module>
-    c.click_window(298,412); time.sleep(2); c.shot('history-stacked-ok')
-                                            ~~~~~~^^^^^^^^^^^^^^^^^^^^^^
-  File "/home/tenzin/development/isakai/verify-isakai/sway_backend/compositor.py", line 166, in shot
-    node = self.ensure_focus()
-  File "/home/tenzin/development/isakai/verify-isakai/sway_backend/compositor.py", line 102, in ensure_focus
-    raise SwayError('app window is gone')
-sway_backend.compositor.SwayError: app window is gone

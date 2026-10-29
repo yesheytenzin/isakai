@@ -1,5 +1,0 @@
-iteration 0 (compositor close):
-pid=256945 uid=200003	200003	200003	200003 nnp=1 seccomp=2 mnt=mnt:[4026534016]
-bridge-connected-at-open: True
-text-input: not asserted (host keyboard path); see N1 limitation
-window-geometry: ((12, 562), (941, 506))

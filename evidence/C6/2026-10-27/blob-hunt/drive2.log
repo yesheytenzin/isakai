@@ -1,9 +1,0 @@
-done
-Traceback (most recent call last):
-  File "<string>", line 12, in <module>
-    print('done',flush=True); print('close exit:',r.close(),flush=True)
-                                                  ~~~~~~~^^
-  File "verify-isakai/sway-flow.py", line 134, in close
-    raise SwayError('expected exit 0, got %s: %s' % (code, self.read_log()[-2000:]))
-sway_backend.compositor.SwayError: expected exit 0, got 1: launch failed: AlreadyRunning
-

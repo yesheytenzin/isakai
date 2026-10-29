@@ -1,8 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<androidx.coordinatorlayout.widget.CoordinatorLayout android:id="@id/dialog_open_note_holder" android:layout_width="match_parent" android:layout_height="wrap_content"
-  xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto">
-    <androidx.core.widget.NestedScrollView android:layout_width="match_parent" android:layout_height="match_parent" android:layout_marginTop="@dimen/medium_margin" android:minHeight="@dimen/min_open_note_popup_height" android:layout_marginStart="@dimen/small_margin" android:layout_marginEnd="@dimen/small_margin" app:layout_constraintHeight_max="@dimen/max_open_note_popup_height">
-        <com.simplemobiletools.commons.views.MyRecyclerView android:id="@id/dialog_open_note_list" android:paddingBottom="@dimen/open_note_popup_bottom_extra_padding" android:layout_width="match_parent" android:layout_height="match_parent" />
-    </androidx.core.widget.NestedScrollView>
-    <com.simplemobiletools.commons.views.MyFloatingActionButton android:layout_gravity="end|bottom" android:id="@id/new_note_fab" android:layout_width="@dimen/fab_size" android:layout_height="@dimen/fab_size" android:layout_margin="@dimen/activity_margin" android:src="@drawable/ic_plus_vector" />
-</androidx.coordinatorlayout.widget.CoordinatorLayout>

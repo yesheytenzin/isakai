@@ -1,7 +1,0 @@
-history click window-relative: 450,16
-before screenshot: evidence/C6/2026-10-27/history-ok/simple-history-ok-before.png
-waiting for inspected OK coordinates through: /tmp/isakai-history-ok-ahyhzF
-OK click window-relative: 298,412
-after screenshot: evidence/C6/2026-10-27/history-ok/simple-history-ok-after.png
-compositor close exit: 0
-app stop and input dispose completed

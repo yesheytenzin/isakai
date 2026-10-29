@@ -1,6 +1,0 @@
-00:00:02.085 [ERROR] [sway/config/output.c:1219] failed to execute 'swaybg' (background configuration probably not applied): No such file or directory
-00:04:31.596 [ERROR] [wlr] [types/wlr_linux_dmabuf_v1.c:1130] Failed to get backend DRM FD
-00:05:09.125 [ERROR] [wlr] [types/wlr_linux_dmabuf_v1.c:1130] Failed to get backend DRM FD
-00:05:53.944 [ERROR] [wlr] [types/wlr_linux_dmabuf_v1.c:1130] Failed to get backend DRM FD
-00:08:27.061 [ERROR] [wlr] [types/wlr_linux_dmabuf_v1.c:1130] Failed to get backend DRM FD
-00:11:25.027 [ERROR] [wlr] [types/wlr_linux_dmabuf_v1.c:1130] Failed to get backend DRM FD

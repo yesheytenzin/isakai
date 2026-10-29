@@ -1,9 +1,0 @@
-Set uncaught java.lang.Throwable
-Set deferred uncaught java.lang.Throwable
-Initializing jdb ...
-> Set breakpoint android.view.View.setBackgroundTintList
-> > Nothing suspended.
-No default thread specified: use the "thread" command first.
-> > Nothing suspended.
-
-The application exited

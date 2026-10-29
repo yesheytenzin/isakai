@@ -7,11 +7,9 @@ description: Verify Isakai changes through real app flows, review the implementa
 
 There are no automated test suites. Verification means launching real apps
 as real windows, driving the visible task, and recording screenshots, logs
-and exit status as evidence in the owning [progress task](../progress/README.md).
-The `progress/` folder is the only planning and progress source. Each task's
-Markdown file owns its status, scope, acceptance criteria, evidence and code
-review; the index links to tasks without copying their statuses. This skill
-defines the completion procedure, not a second progress checklist.
+and exit status as evidence under `evidence/proof/`, recorded in
+[PROGRESS.md](../PROGRESS.md). That file is the only planning and progress
+source. This skill defines the completion procedure, not a second progress checklist.
 
 ## Verification-artifact policy
 
@@ -34,9 +32,8 @@ defines the completion procedure, not a second progress checklist.
 
 ## Completing a task
 
-1. Open the owning task file before starting (`progress/<ID>.md` for N5/N6/N18, `progress/archive/<ID>.md` for done tasks, `progress/ROADMAP.md` for roadmap tasks). Read its acceptance
-   criteria, dependencies and blockers, then set its frontmatter `status`
-   to `in_progress` when work begins.
+1. Open [PROGRESS.md](../PROGRESS.md) before starting. Read the open items,
+   roadmap, and rules. Record the work and its proof shot there when done.
 2. Implement the task and drive its affected real app flow. Record exact
    commands, observed results, environment, screenshots/logs and remaining
    limitations in that task's **Verification evidence** section. Preserve
@@ -64,9 +61,9 @@ defines the completion procedure, not a second progress checklist.
    task when a regression invalidates its acceptance.
 
 Do not copy task statuses, acceptance checklists or evidence into the index,
-README or another tracker. Link to the owning task instead. Update the index
-only when task links or project navigation change; app pins belong solely
-in [APPS.md](../progress/APPS.md), and research history is immutable provenance.
+README or another tracker. App pins belong solely
+in [APPS.md](../progress/APPS.md). Prior history survives in git; do not
+recreate per-task files.
 
 ## Build
 
@@ -81,7 +78,7 @@ compiler; host system libraries are listed in
 | Isolated pinned-app flow | `python3 verify-isakai/sway-flow.py {opencalc\|calculator\|notes} --work <dir>` | OpenCalc calculates/copies/resizes and stays alive; Calculator reaches settings, persists the preference and returns via back; Notes edits a Unicode note, saves it and returns to the list. Retains screenshots and app logs under `--evidence`. |
 | Live-compositor drive | `python3 verify-isakai/flow-drive.py <opencalc\|calculator\|notes> [--work DIR]` | Same flows under the live compositor with per-action focus guards. Needs a workspace not shared with interactive work. |
 | App observer | `python3 verify-isakai/observe-app.py <0\|1\|2> --work <dir>` | Startup screenshots and failures; does not establish useful interaction. |
-| Live window | `python3 verify-isakai/window-flow.py --unprivileged --required` | Real fixture stays open >30 seconds, closes through the compositor and Escape/back, records exit zero and removes data. Does not assert typed text: the host keyboard text path does not reach the fixture EditText (see [N1](../progress/archive/N1-evidence-reproducibility.md)); the pinned app flows prove text input. |
+| Live window | `python3 verify-isakai/window-flow.py --unprivileged --required` | Real fixture stays open >30 seconds, closes through the compositor and Escape/back, records exit zero and removes data. Does not assert typed text: the host keyboard text path does not reach the fixture EditText; the pinned app flows prove text input. |
 | Full privileged flow | `tools/e2e-privileged.sh --required` | Fresh fixture and peer app install; app-side UID/GID, empty groups, NNP, seccomp, distinct mount namespace and filesystem assertions pass; real surface/lifetime/close/back pass; users/data removed. Typed text is covered by the pinned app flows, not this fixture gate. |
 
 Without prerequisites, the privileged script returns 77 with SKIP; `--required`
@@ -100,7 +97,7 @@ suffix: the host keyboard text path does not reach the fixture EditText, and
 the old byte-diff "input" check compared captures at different geometries.
 Typed-text proof comes from the pinned app flows (their screenshots, app
 databases/preferences and clipboard assertions), not from this gate. Record
-paths and outcomes in the owning [task file](../progress/README.md). A same-UID
+paths and outcomes in [PROGRESS.md](../PROGRESS.md). A same-UID
 pass must not be reported as a privileged pass. A window screenshot alone is
 insufficient: evidence must tie screenshots to asserted actions and saved
 results.

@@ -14,13 +14,10 @@ remain open until closed; WebView has no rendering engine.
 The release gate covers pinned utility apps completing useful visible tasks
 under default isolation. Shared fixes must implement Android and Java behavior,
 not depend on a particular APK's obfuscated names or resource IDs. The
-[progress folder](progress/README.md) is the single planning and progress source. Each `progress/<ID>.md` owns its
-task status, acceptance criteria, blockers, verification evidence and code
-review. The index links to tasks without copying statuses. Technical guides
+[PROGRESS.md](PROGRESS.md) is the single planning and progress source. Technical guides
 describe implementation and usage. Verification is UI-only: launch pinned
-APKs as real windows, drive the visible task, and record screenshots, logs
-and exit status in the owning task file. Historical M0–M6 reports and reuse
-research are preserved in [HISTORY.md](progress/HISTORY.md).
+APKs as real windows, drive the visible task, and record one proof shot
+per claim under `evidence/proof/`. Prior per-task history survives in git.
 
 ## Build and install (development preview)
 
@@ -131,21 +128,22 @@ verify failed), 2 usage error. Global `--work` overrides `ISAKAI_WORK`.
 - `verify-isakai/` — UI verification drivers (isolated sway flows, observer) + instructions
 - `polkit/` — privilege policy source (staged by the build)
 - `docs/` — architecture, host requirements, supported APIs
-- `progress/` — shared plan, pinned apps, research history and one Markdown file per task
+- `PROGRESS.md` — project status, proof index, open items, F-track plans
+- `progress/APPS.md` — machine-read APK pin manifest (data, read by tools)
 
 ## Development
 
 There are no automated test suites; verification is UI-only. Build with
 `zig build`, install a pinned APK, launch it as a real window, drive the
-visible task from the [progress index](progress/README.md), and record screenshots,
-logs and exit status in that task's Markdown file. Review the final changes
-and update the task status before reporting completion, as required by the
+visible task from [PROGRESS.md](PROGRESS.md), and record one proof shot
+per claim under `evidence/proof/`. Review the final changes
+before reporting completion, as required by the
 [verification skill](verify-isakai/SKILL.md).
 Its [verification-artifact policy](verify-isakai/SKILL.md#verification-artifact-policy)
 also governs what development files may be created.
 
-- [Project plan, research and progress](progress/README.md): the single entry
-  point; task files own statuses, acceptance gates, evidence and reviews.
+- [Progress, proof index, and plans](PROGRESS.md): the single entry
+  point; status, open items, roadmap, and F-track promotion plans.
 - [Architecture](docs/ARCHITECTURE.md): system map and host interface index.
 - [Host requirements](docs/HOST_REQUIREMENTS.md): dependencies and environment.
 - [API catalog](docs/SUPPORTED_APIS.md): available classes and behavioral limits.

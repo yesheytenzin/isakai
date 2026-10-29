@@ -1,4 +1,0 @@
-LONGPRESS row1 text
-PROBES: ['I/IsakaiProbe: performClick androidx.appcompat.view.menu.ActionMenuItemView id=2131296688', 'I/IsakaiProbe: overlayTouch action=2 x=320.0 y=360.0', 'I/IsakaiProbe: performLongClick android.widget.RelativeLayout id=2131296689', 'I/IsakaiProbe: setPrimaryClip len=1 target=window']
-WL_PASTE:'4'
-close exit: 0

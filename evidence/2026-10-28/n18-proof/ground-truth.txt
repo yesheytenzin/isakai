@@ -1,8 +1,0 @@
-=== ground truth: unzip -p sha256 ===
-stored assets/dexopt/baseline.prof:   bc947c187fb1c07896d82e87cc160e54005bc601fa0a5dd8df57cc1bb2b9c1ae  -
-deflated assets/de/cube.html:        3fa14fd310b11cd7309c95ad2e35b150c9b423114a58f04d5ff4bfffedae4d76  -
-
-=== central directory (unzip -lv) ===
-    4312  Stored     4312   0% 1981-01-01 01:01 ee2befe1  assets/dexopt/baseline.prof
-     462  Stored      462   0% 1981-01-01 01:01 0976b9e7  assets/dexopt/baseline.profm
-    4290  Defl:N     1878  56% 1981-01-01 01:01 c40b1e1a  assets/de/cube.html
