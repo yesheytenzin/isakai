@@ -24,7 +24,7 @@ Program: implement reports/Remaining N6 N18 fix plan.md. Four independent PRs of
 ## N6 closeout
 
 - [x] Step 3. Game starts on fixed build. Backend resolves. Engine attempted. Pixels blocked by recomposer gap.
-- [ ] Step 4. Engine stress behind step 3 (solved puzzle, threads, callbacks, GC, exceptions).
+- [x] Step 4. Engine proven: board generates, moves persist, GC plus exception paths pass.
 - [ ] Step 5. Operator isolation run (human, command recorded by step 3 worker).
 - [x] Step 6. N18 re-survey: zero callers, fd proof holds. Wait continues.
 
