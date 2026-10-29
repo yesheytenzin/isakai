@@ -363,14 +363,16 @@ pub fn findJava(
         gpa.free(p);
     }
     if (!privileged) {
-        // Bare PATH lookup only for unprivileged runs: the dropped child
-        // gets a minimal PATH and couldn't resolve this anyway.
-        const p = try gpa.dupe(u8, "java");
-        errdefer gpa.free(p);
-        if (javaFeature(io, gpa, p)) |f| {
-            if (f >= min_java_feature) return p;
+        // Resolve PATH before spawning: process launch requires a path, and
+        // mise supplies Java through a user-owned PATH entry.
+        var paths = std.mem.splitScalar(u8, env.get("PATH") orelse "", ':');
+        while (paths.next()) |dir| {
+            const p = try std.fmt.allocPrint(gpa, "{s}/java", .{if (dir.len == 0) "." else dir});
+            if (javaFeature(io, gpa, p)) |f| {
+                if (f >= min_java_feature) return p;
+            }
+            gpa.free(p);
         }
-        gpa.free(p);
     }
     // Scan /usr/lib/jvm for the highest valid version.
     var jvm_dir = std.Io.Dir.cwd().openDir(io, "/usr/lib/jvm", .{ .iterate = true }) catch return null;

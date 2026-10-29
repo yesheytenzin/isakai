@@ -132,3 +132,63 @@ One status lives here. Never restate it in body prose anywhere else.
 Verification is real app flows only, per `verify-isakai/SKILL.md`.
 No test files, no test-only probes, no harnesses. Evidence keeps one
 proof shot per claim; per-run logs are not retained.
+
+## Repository organization
+
+- status: done
+- updated: 2026-10-29
+- Documented repository and hidden directory roles, and repaired stale links to
+  the single progress record. Removed three clean, merged worktrees and the
+  obsolete root checklist, then removed generated Python bytecode caches. The
+  storage worktree and its app-run data remain. Removed user-owned Zig cache
+  entries; root-owned entries and the root-owned install stage remain.
+- **Verification evidence:** Checked the edited local Markdown links and APK
+  manifest parsing with the existing Python module; `git diff --check` passed.
+  `git worktree list` confirms the remaining registered worktree. Inspected
+  hidden build, toolchain and app-data paths and their callers before cleanup.
+  `zig-out/bin/isakai --help` still displays CLI usage after cache cleanup.
+  No runtime paths or application code changed, so app flows were not rerun.
+- **Code review:** Self-reviewed the diff and affected references. No material
+  findings remain. No independent review was performed.
+
+## Storage-app launch failures
+
+- status: in_progress
+- updated: 2026-10-29
+- Markor's recorded launch fails on missing `android.webkit.MimeTypeMap`.
+  KeePassDX reports `BadSection` and Amaze reports a JVM `VerifyError`; the
+  precise failing parser check and invalid instruction remain unconfirmed.
+- Added a preliminary `android.webkit.MimeTypeMap` implementation for Markor.
+  Its reverse lookup covers only the included common types; full Android MIME
+  coverage and app behavior remain unverified. KeePassDX and Amaze are open.
+- **Verification evidence:** `zig build --cache-dir /tmp/isakai-storage-build-cache`
+  exited 0. A fresh same-UID Markor install succeeded; launch without JAVA_HOME
+  returned `FileNotFound`. With JAVA_HOME set to the local JDK, fresh and
+  existing-worktree headless launches timed out during translation after 60
+  and 45 seconds respectively. No window or app flow was verified.
+- **Code review:** Self-review only. The MIME mapping is intentionally partial
+  and needs compatibility review and a real app flow before completion.
+
+## Streamlined installation and launch
+
+- status: in_progress
+- updated: 2026-10-29
+- `make install` builds as the invoking user and elevates only the file copy.
+  Make accepts Zig on PATH or an explicit `ZIG` and uses a user-owned cache.
+  `isakai run <apk>` installs and launches, selecting a Wayland window when
+  available. Java discovery resolves PATH entries before starting the JVM.
+- **Verification evidence:** `zig build --cache-dir /tmp/isakai-storage-build-cache`
+  exited 0. `make install DESTDIR=/tmp/isakai-package-check
+  STAGE=/tmp/isakai-package-stage BUILD_CACHE=/tmp/isakai-storage-build-cache`
+  exited 0 with mise Zig on PATH and with the cached standalone Zig supplied as
+  `ZIG`. The staged binary ran the fixture with system Java on PATH and no
+  JAVA_HOME, same UID, headless, exit 0. A fresh fixture installed with `run`,
+  opened a real window under the private Sway compositor with JAVA_HOME unset,
+  and exited 0 after compositor close. Screenshot: `evidence/proof/install-run-fixture.png`.
+  Missing APK and invalid arguments returned 1 and 2 respectively. `git diff
+  --check` passed. System installation via sudo and default-isolated launch
+  were not exercised because passwordless privilege is unavailable.
+- **Code review:** Self-reviewed the CLI dispatch, install result lifetime,
+  Java lookup, Makefile staging/copy paths and caller documentation. Fixed
+  output ordering and propagation of Make variables through sudo. The sudo
+  branch and default isolation remain unverified; no independent review.

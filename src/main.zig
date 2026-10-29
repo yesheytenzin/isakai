@@ -13,6 +13,7 @@ const version = "0.0.1";
 
 const Verb = enum {
     install,
+    run,
     upgrade,
     rollback,
     uninstall,
@@ -26,6 +27,7 @@ const Verb = enum {
 
 fn parseVerb(arg: []const u8) ?Verb {
     if (std.mem.eql(u8, arg, "install")) return .install;
+    if (std.mem.eql(u8, arg, "run")) return .run;
     if (std.mem.eql(u8, arg, "upgrade")) return .upgrade;
     if (std.mem.eql(u8, arg, "rollback")) return .rollback;
     if (std.mem.eql(u8, arg, "uninstall")) return .uninstall;
@@ -47,6 +49,7 @@ fn printHelp(out: *std.Io.Writer) !void {
         \\
         \\verbs:
         \\  install <apk>        verify, stage and register an app
+        \\  run <apk>            install an app and launch it
         \\  upgrade <apk>        verify and switch an installed app to a new build
         \\  rollback <package>   revert an upgrade to the previous build
         \\  uninstall <package>  remove an app and its data
@@ -140,6 +143,7 @@ fn cmdInstall(
     err_writer: *std.Io.Writer,
     work: []const u8,
     apk_path: []const u8,
+    launch_after_install: bool,
 ) !u8 {
     const io = init.io;
     const gpa = init.gpa;
@@ -156,6 +160,10 @@ fn cmdInstall(
     try out.print("installed {s} uid={d}\n  code: {s}\n  data: {s}\n", .{
         result.package, result.uid, result.code_dir, result.data_dir,
     });
+    if (launch_after_install) {
+        try out.flush();
+        return cmdLaunch(init, out, err_writer, work, result.package, "");
+    }
     return 0;
 }
 
@@ -457,7 +465,17 @@ pub fn main(init: std.process.Init) !u8 {
                 try err_writer.writeAll("usage: isakai install <apk>\n");
                 return 2;
             }
-            return cmdInstall(init, out, err_writer, work_dir, rest[0]);
+            return cmdInstall(init, out, err_writer, work_dir, rest[0], false);
+        },
+        .run => {
+            if (rest.len != 1) {
+                try err_writer.writeAll("usage: isakai run <apk>\n");
+                return 2;
+            }
+            if (init.environ_map.get("ISAKAI_WINDOW") == null and init.environ_map.get("WAYLAND_DISPLAY") != null) {
+                try init.environ_map.put("ISAKAI_WINDOW", "1");
+            }
+            return cmdInstall(init, out, err_writer, work_dir, rest[0], true);
         },
         .upgrade => {
             if (rest.len < 1) {

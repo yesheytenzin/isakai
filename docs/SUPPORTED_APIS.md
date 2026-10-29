@@ -3,8 +3,7 @@
 This inventory is maintained by hand alongside framework source paths. Presence here means an API surface exists, not that Android behavior is
 complete. Some classes are shells returning null/empty/false or doing nothing;
 those defaults can still break apps. Current task status and test evidence live
-only in the owning [progress task](../progress/README.md). That folder also
-holds the shared delivery plan and reuse research. This file is an API
+in [PROGRESS.md](../PROGRESS.md). This file is an API
 reference, not a roadmap.
 Maintained by hand alongside framework changes.
 Behavioral limits below are maintained separately from the listed names.

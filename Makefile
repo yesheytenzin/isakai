@@ -2,7 +2,7 @@
 # PREFIX/DESTDIR-aware install to FHS paths.
 #
 #   make build      # ReleaseSafe binaries + framework + policy into zig-out/
-#   sudo make install                  # PREFIX defaults to /usr
+#   make install                       # builds as user, copies with sudo
 #   sudo make install DESTDIR=pkg PREFIX=/usr   # packaging
 #   sudo make uninstall
 #
@@ -17,6 +17,8 @@
 PREFIX ?= /usr
 DESTDIR ?=
 INSTALL_POLICY ?= 1
+ZIG ?= zig
+BUILD_CACHE ?= .cache/isakai/build-cache
 STAGE ?= .stage-install
 
 POLICY_SRC = $(STAGE)/share/polkit-1/actions/id.isakai.policy
@@ -28,7 +30,7 @@ INSTALL_BINS := isakai isakai-dbus-bridge isakai-allocate-uid isakai-remove-uid 
 .PHONY: build install uninstall clean
 
 build:
-	zig build -Doptimize=ReleaseSafe
+	$(ZIG) build --cache-dir $(BUILD_CACHE) -Doptimize=ReleaseSafe
 
 install:
 ifeq ($(INSTALL_POLICY),1)
@@ -37,19 +39,13 @@ ifeq ($(INSTALL_POLICY),1)
 		exit 1; \
 	fi
 endif
-	# DESTDIR belongs to the FHS copy below, not Zig's private staging build.
-	env -u DESTDIR zig build -Doptimize=ReleaseSafe --prefix $(STAGE)
-	for b in $(INSTALL_BINS); do install -D -m755 $(STAGE)/bin/$$b $(DESTDIR)$(PREFIX)/bin/$$b; done
-	mkdir -p $(DESTDIR)$(PREFIX)/share/isakai
-	# Replace (never merge into) the runtime tree: cp -r onto an existing
-	# dir would nest a second framework/ inside it and leave the trusted
-	# runtime stale while the fresh copy sits unused.
-	rm -rf $(DESTDIR)$(PREFIX)/share/isakai/framework
-	cp -r $(STAGE)/framework $(DESTDIR)$(PREFIX)/share/isakai/framework
-ifeq ($(INSTALL_POLICY),1)
-	install -D -m644 $(POLICY_SRC) $(POLICY_DST)
-	rm -f $(DESTDIR)/usr/share/polkit-1/actions/id.isakai.allocate-uid.policy
-endif
+	# Build before elevation so mise-managed tools and the user's cache work.
+	env -u DESTDIR $(ZIG) build --cache-dir $(BUILD_CACHE) -Doptimize=ReleaseSafe --prefix $(STAGE)
+	@if [ "$$(id -u)" -eq 0 ] || [ -n "$(DESTDIR)" ]; then \
+		$(MAKE) install-files; \
+	else \
+		sudo $(MAKE) install-files PREFIX="$(PREFIX)" STAGE="$(STAGE)" INSTALL_POLICY="$(INSTALL_POLICY)"; \
+	fi
 
 # Copy-only install for a prebuilt staging tree (never invokes zig, so it
 # works where the compiler cache is unavailable to root). Build first with:
@@ -71,4 +67,4 @@ uninstall:
 	rm -f $(DESTDIR)/usr/share/polkit-1/actions/id.isakai.policy $(DESTDIR)/usr/share/polkit-1/actions/id.isakai.allocate-uid.policy
 
 clean:
-	rm -rf zig-out .zig-cache $(STAGE)
+	rm -rf zig-out .zig-cache $(BUILD_CACHE) $(STAGE)

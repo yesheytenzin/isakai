@@ -1,8 +1,7 @@
 # Isakai architecture
 
 How the pieces fit. This is an implementation reference.
-[progress/](../progress/README.md) is the sole planning and progress source;
-each task Markdown file owns its status and acceptance evidence.
+[PROGRESS.md](../PROGRESS.md) is the planning and progress source.
 This guide describes implementation mechanisms, not proof of production readiness.
 
 ## Behavioral boundaries
@@ -13,7 +12,7 @@ queue. In-app activity navigation exists as a partial implementation.
 WebView is a history/HTTP HEAD/reflection shell with no rendering engine.
 Sensors and location report unavailable providers by default; synthetic
 readings require explicit test switches. Real host providers are not wired.
-See the [progress index](../progress/README.md) for acceptance evidence and remaining work.
+See the [progress record](../PROGRESS.md) for acceptance evidence and remaining work.
 
 ## Module map
 
@@ -97,7 +96,7 @@ abstract/native/interface flags, and annotations-adjacent attributes
 are preserved so translated classes verify and link.
 
 Translator output is proven through real pinned-app UI flows recorded in
-[task evidence](../progress/C6-translator-framework-failures.md): install a pinned APK, launch it as a real
+[progress record](../PROGRESS.md): install a pinned APK, launch it as a real
 window, drive the visible task, and compare expected vs observed behavior
 with screenshots and logs.
 
@@ -152,7 +151,7 @@ by the helper at install.
 
 This reference replaces the separate interface checklist. It identifies code,
 not completion status; current work and evidence live only in
-the owning [task file](../progress/README.md).
+[PROGRESS.md](../PROGRESS.md).
 
 | Host interface | Implementation location / boundary |
 |---|---|

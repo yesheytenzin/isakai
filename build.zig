@@ -716,6 +716,7 @@ pub fn build(b: *std.Build) void {
     fw.addFileArg(b.path("framework/android/view/translation/ViewTranslationResponse.java"));
     fw.addFileArg(b.path("framework/android/webkit/CookieManager.java"));
     fw.addFileArg(b.path("framework/android/webkit/JavascriptInterface.java"));
+    fw.addFileArg(b.path("framework/android/webkit/MimeTypeMap.java"));
     fw.addFileArg(b.path("framework/android/webkit/ValueCallback.java"));
     fw.addFileArg(b.path("framework/android/webkit/WebResourceError.java"));
     fw.addFileArg(b.path("framework/android/webkit/WebResourceRequest.java"));

@@ -6,10 +6,10 @@ uses the intended FHS layout; `zig build --prefix` alone uses a development
 layout and is not a substitute for package installation.
 
 This is a technical reference; plans, research decisions and progress live
-only in [progress/](../progress/README.md).
+in [PROGRESS.md](../PROGRESS.md).
 Runtime verification commands and host-specific prerequisites are in
 [verify-isakai/SKILL.md](../verify-isakai/SKILL.md); results belong in
-the owning [task file](../progress/README.md).
+[PROGRESS.md](../PROGRESS.md).
 
 ## OS
 
@@ -120,7 +120,7 @@ All `ISAKAI_*` names read anywhere in `src/` + JNI (`grep -rho
 |---|---|---|---|
 | `ISAKAI_WORK` | user | `~/.local/share/isakai` | registry + staged code + app data (`--work` overrides) |
 | `ISAKAI_FRAMEWORK` | user (dev) | `<work>/../framework`, then `/usr/share/isakai/framework` | compiled `android.*` + `libisakai_jni.so` (dev: `zig-out/framework`) |
-| `ISAKAI_WINDOW` | user | unset | `1` = windowed launch, else headless |
+| `ISAKAI_WINDOW` | user | unset | `1` = windowed; `run` defaults to windowed when Wayland is available, otherwise headless |
 | `ISAKAI_NO_PRIVILEGE` | user | unset | `1` = run as self, skip pkexec (dev/test) |
 | `ISAKAI_CONFINEMENT` | user (debug) | unset | `0` = skip Landlock + seccomp in the privileged child (confinement debug opt-out) |
 | `ISAKAI_NONINTERACTIVE` | user | unset | `1` = `sudo -n` instead of pkexec prompts |

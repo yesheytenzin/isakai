@@ -31,11 +31,16 @@ libraries for SQLite collation — plus
 ```sh
 git clone https://github.com/yesheytenzin/isakai && cd isakai
 make build            # ReleaseSafe binaries + framework + policy (zig-out/)
-sudo make install     # /usr/bin/isakai, /usr/bin/isakai-dbus-bridge,
+make install          # builds as user, then uses sudo to install /usr/bin/isakai, /usr/bin/isakai-dbus-bridge,
                       # /usr/share/isakai/framework, polkit policy
-isakai install app.apk
-isakai launch com.example.app
+isakai run app.apk    # install and launch in one command
 ```
+
+The build uses `zig` on PATH, whether provided by mise or installed system-wide.
+Set `ZIG=/path/to/zig` on the `make` command to select another executable.
+`isakai run` installs a new APK and launches its package; use `isakai launch`
+for an app already installed. `run` opens a window when Wayland is available;
+set `ISAKAI_WINDOW=0` to run headless.
 
 Notes:
 
@@ -75,6 +80,7 @@ ISAKAI_WINDOW=1 zig-out/bin/isakai launch org.isakai.fixture  # windowed
 ```
 isakai [--work DIR] [-v|--verbose] [-q|--quiet] <verb> [args]
   install <apk>        verify, stage and register an app
+  run <apk>            install and launch an app
   uninstall <package>  terminate (if running), remove user + data + entry
   launch <package>     translate (if stale), start the app, record exit
   query <package>      show one app's state
@@ -91,7 +97,7 @@ verify failed), 2 usage error. Global `--work` overrides `ISAKAI_WORK`.
 |---|---|---|
 | `ISAKAI_WORK` | `~/.local/share/isakai` | registry + staged code + app data |
 | `ISAKAI_FRAMEWORK` | `<work>/../framework`, then `/usr/share/isakai/framework` | compiled `android.*` + `libisakai_jni.so` (dev: `zig-out/framework`) |
-| `ISAKAI_WINDOW` | unset | `1` = windowed launch, else headless |
+| `ISAKAI_WINDOW` | unset | `1` = windowed; `run` defaults to windowed when Wayland is available, otherwise headless |
 | `ISAKAI_NO_PRIVILEGE` | unset | `1` = run as self, skip pkexec (dev/test) |
 | `ISAKAI_NONINTERACTIVE` | unset | `1` = `sudo -n` instead of pkexec prompts |
 | `ISAKAI_ALLOW_UNSIGNED` | unset | `1` = install unsigned APKs (dev fixtures only) |
@@ -130,6 +136,10 @@ verify failed), 2 usage error. Global `--work` overrides `ISAKAI_WORK`.
 - `docs/` — architecture, host requirements, supported APIs
 - `PROGRESS.md` — project status, proof index, open items, F-track plans
 - `progress/APPS.md` — machine-read APK pin manifest (data, read by tools)
+- `reports/`, `research_notes/` — compatibility plan and supporting research
+- `.github/`, `.vscode/`, `.pi/` — CI, editor settings and local Zig guidance
+- `.claude/worktrees/` — registered Git worktrees; manage with `git worktree`
+- `.cache/`, `.zig-cache/`, `zig-pkg/`, `zig-out/`, `.stage-install/` — ignored caches, dependencies and build or install output; `.cache/` can also contain app data and evidence
 
 ## Development
 
