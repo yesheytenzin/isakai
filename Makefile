@@ -23,7 +23,7 @@ POLICY_SRC = $(STAGE)/share/polkit-1/actions/id.isakai.policy
 POLICY_DST = $(DESTDIR)/usr/share/polkit-1/actions/id.isakai.policy
 
 # One list feeds both install targets so they cannot drift apart.
-INSTALL_BINS := isakai isakai-dbus-bridge isakai-allocate-uid isakai-remove-uid isakai-run-app
+INSTALL_BINS := isakai isakai-dbus-bridge isakai-allocate-uid isakai-remove-uid isakai-run-app isakai-bionic-exec
 
 .PHONY: build install uninstall clean
 

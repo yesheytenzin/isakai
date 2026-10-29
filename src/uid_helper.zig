@@ -945,9 +945,40 @@ fn childMain(uid: u32, data_dir: []const u8, work: []const u8, package: []const 
         @ptrCast(&bridge_buf),
         @ptrCast(&stage_buf),
     };
-    var envp_buf: [10]?[*:0]const u8 = .{ null, null, null, null, null, null, null, null, null, null };
+    var envp_buf: [11]?[*:0]const u8 = .{ null, null, null, null, null, null, null, null, null, null, null };
     for (env_base, 0..) |e, i| envp_buf[i] = e;
     var nenv: usize = env_base.len;
+    // Native exec runner: sibling of this helper (installed tree only),
+    // so confined apps can run Android PIE subprocesses under the bionic
+    // loader. Absent in dev layouts: the shim then fails closed as before.
+    var bionicexec_buf: [4352]u8 = undefined;
+    {
+        var exe_buf: [4096]u8 = undefined;
+        const n = linux.readlink("/proc/self/exe", &exe_buf, exe_buf.len);
+        if (linux.errno(n) == .SUCCESS and n < exe_buf.len) {
+            if (std.fs.path.dirname(exe_buf[0..n])) |bin| {
+                const runner = std.fmt.bufPrint(&bionicexec_buf, "ISAKAI_BIONIC_EXEC={s}/isakai-bionic-exec\x00", .{bin}) catch null;
+                if (runner) |r| {
+                    var check_buf: [4096]u8 = undefined;
+                    const cpath = std.fmt.bufPrint(&check_buf, "{s}/isakai-bionic-exec", .{bin}) catch null;
+                    if (cpath) |cp| {
+                        var zbuf: [4096]u8 = undefined;
+                        if (cp.len + 1 <= zbuf.len) {
+                            @memcpy(zbuf[0..cp.len], cp);
+                            zbuf[cp.len] = 0;
+                            const zpath: [*:0]const u8 = @ptrCast(&zbuf);
+                            const fd = linux.openat(linux.AT.FDCWD, zpath, .{}, 0);
+                            if (linux.errno(fd) == .SUCCESS) {
+                                _ = linux.close(@bitCast(@as(u32, @truncate(fd))));
+                                envp_buf[nenv] = @ptrCast(r.ptr);
+                                nenv += 1;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
     envp_buf[nenv] = @ptrCast(&bionic_path_buf);
     nenv += 1;
     if (wayland_base != null) {
