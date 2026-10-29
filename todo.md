@@ -30,7 +30,7 @@ Program: implement reports/Remaining N6 N18 fix plan.md. Four independent PRs of
 
 ## Compatibility program (parallel workstreams)
 
-- [ ] Stream A. Storage/sharing corpus: pin FOSS apps, drive contract flows, record grades.
+- [x] Stream A. Three apps pinned, all red at distinct layers. Handoffs filed.
 - [x] Stream B. H264 60 frames plus AAC bit-identical PCM. Merged.
 - [x] Stream C. Host Vulkan 1.4 plus GLES 3.2, no framework bindings. Gap list merged.
 - [x] Stream D. Push plus location plus maps plus auth gaps ranked. Merged.
