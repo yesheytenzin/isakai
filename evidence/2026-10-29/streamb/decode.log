@@ -1,0 +1,10 @@
+mp4 tracks=1
+mp4 t0 mime=video/avc w=320 h=240 durUs=2000000
+m4a tracks=1
+m4a t0 mime=audio/mp4a-latm rate=44100 ch=1
+video first dequeue=-2 (expect -2 FORMAT_CHANGED)
+video out mime=video/avc w=320 h=240
+video frames=60 frameBytes=115200 firstPts=0 eos=true
+audio pcmBytes=360448 eos=true
+mediacrypto blocked: drm unavailable: no MediaDrm outside ClearKey
+DRIVE_OK
