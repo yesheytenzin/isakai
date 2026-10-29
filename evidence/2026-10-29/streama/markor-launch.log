@@ -1,0 +1,12 @@
+exited with code 1
+ndroid:appComponentFactory (direct instantiation)
+info: desktop bridge ready at /tmp/isakai-1000-streama/bridge.sock
+isakai: application net.gsantner.markor.ApplicationObject onCreate
+Exception in thread "main" java.lang.NoClassDefFoundError: android/webkit/MimeTypeMap
+	at net.gsantner.markor.model.AppSettings.<init>(Unknown Source)
+	at net.gsantner.markor.ApplicationObject.onCreate(Unknown Source)
+	at org.isakai.runtime.IsakaiMain.main(IsakaiMain.java:67)
+Caused by: java.lang.ClassNotFoundException: android.webkit.MimeTypeMap
+	at java.base/jdk.internal.loader.BuiltinClassLoader.loadClass(BuiltinClassLoader.java:580)
+	at java.base/java.lang.ClassLoader.loadClass(ClassLoader.java:502)
+	... 3 more
