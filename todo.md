@@ -32,8 +32,8 @@ Program: implement reports/Remaining N6 N18 fix plan.md. Four independent PRs of
 
 - [ ] Stream A. Storage/sharing corpus: pin FOSS apps, drive contract flows, record grades.
 - [ ] Stream B. MediaCodec spike: host codec probe plus one-format decode proof.
-- [ ] Stream C. GPU probe: host GL/Vulkan inventory plus GLES serving gap report.
-- [ ] Stream D. Services survey: microG-tier API gaps with file pointers.
+- [x] Stream C. Host Vulkan 1.4 plus GLES 3.2, no framework bindings. Gap list merged.
+- [x] Stream D. Push plus location plus maps plus auth gaps ranked. Merged.
 - [ ] Integrate each landing into PROGRESS.md.
 
 ## Standing orders
