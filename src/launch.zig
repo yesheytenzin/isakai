@@ -1053,6 +1053,19 @@ pub fn launch(
             try child_env.put("BIONIC_LD_LIBRARY_PATH", app_lib_dir);
         }
     }
+    // Native exec: advertise the bionic runner so the shim's execve
+    // interposer can run Android PIE subprocesses (an app's generator
+    // binary) under the bionic loader instead of failing with ENOENT.
+    // Sibling of exe like the bridge; skipped when absent. The path
+    // outlives child_env (freed with the other launch-owned strings).
+    const bionic_helper = if (std.fs.path.dirname(exe)) |dir|
+        try std.fmt.allocPrint(gpa, "{s}/isakai-bionic-exec", .{dir})
+    else
+        try gpa.dupe(u8, "isakai-bionic-exec");
+    defer gpa.free(bionic_helper);
+    if (std.Io.Dir.cwd().access(io, bionic_helper, .{ .execute = true })) |_| {
+        try child_env.put("ISAKAI_BIONIC_EXEC", bionic_helper);
+    } else |_| {}
     // M6a: LD_PRELOAD the bionic shim so NDK app .so files that call
     // bionic-only symbols (__android_log_*, property_*) resolve. The
     // shim lives in framework/lib; only inject when it exists (dev

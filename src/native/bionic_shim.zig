@@ -334,6 +334,43 @@ fn resolveReal() void {
             break;
         }
     }
+    // Spawn functions resolve here too (same once-block): the exec
+    // interposer below runs in fork children where dlvsym could deadlock,
+    // so nothing there may resolve lazily.
+    for (versions) |version| {
+        if (dlvsym(rtld_next, "execve", version)) |p| {
+            real_execve = @ptrCast(@alignCast(p));
+            break;
+        }
+    }
+    for (versions) |version| {
+        if (dlvsym(rtld_next, "posix_spawn", version)) |p| {
+            real_posix_spawn = @ptrCast(@alignCast(p));
+            break;
+        }
+    }
+    for (versions) |version| {
+        if (dlvsym(rtld_next, "posix_spawnp", version)) |p| {
+            real_posix_spawnp = @ptrCast(@alignCast(p));
+            break;
+        }
+    }
+    // Java never execs app subprocesses itself: libjava funnels every
+    // ProcessBuilder spawn through jspawnhelper, which execvps the
+    // target. glibc's execvp calls execve internally (no PLT), so the
+    // execve interposer alone never sees these execs.
+    for (versions) |version| {
+        if (dlvsym(rtld_next, "execvp", version)) |p| {
+            real_execvp = @ptrCast(@alignCast(p));
+            break;
+        }
+    }
+    for (versions) |version| {
+        if (dlvsym(rtld_next, "execvpe", version)) |p| {
+            real_execvpe = @ptrCast(@alignCast(p));
+            break;
+        }
+    }
     const ok = real_dlopen != null and real_dlsym != null and
         real_dlclose != null and real_dlerror != null;
     real_state.store(if (ok) 2 else 3, .release);
@@ -448,6 +485,12 @@ fn initLoader() bool {
         return false;
     }, 0);
     const lib_dir = std.fs.path.dirname(self_path) orelse return false;
+    // Cache for the exec redirect's ISAKAI_BIONIC_LOADER value. Written
+    // once by the init winner before the state store releases it.
+    if (lib_dir.len < shim_dir_buf.len) {
+        @memcpy(shim_dir_buf[0..lib_dir.len], lib_dir);
+        shim_dir_len = lib_dir.len;
+    }
 
     var path_buf: [4096]u8 = undefined;
     // ATL reads XDG_DATA_DIRS and BIONIC_LD_LIBRARY_PATH in libdl_bio's
@@ -600,4 +643,340 @@ export fn dlerror() ?[*:0]u8 {
         return @ptrCast(&err_buf);
     }
     return if (real_dlerror) |f| f() else null;
+}
+
+// --- Native exec passthrough ---
+//
+// The host kernel cannot exec Android NDK PIE binaries: their PT_INTERP
+// names /system/bin/linker64, absent on the host, so the exec fails with
+// ENOENT and apps surface "Cannot run program". When ISAKAI_BIONIC_EXEC
+// names the isakai-bionic-exec runner, redirect such execs there (argv
+// becomes [runner, target, args...] with ISAKAI_BIONIC_LOADER appended to
+// the environment); everything else passes through untouched. Fork-child
+// safe: raw syscalls and stack buffers only, no locks, no allocation.
+
+const ExecveFn = *const fn (
+    [*:0]const u8,
+    [*:null]?[*:0]const u8,
+    [*:null]?[*:0]const u8,
+) callconv(.c) c_int;
+const SpawnFn = *const fn (
+    *std.os.linux.pid_t,
+    [*:0]const u8,
+    ?*const anyopaque,
+    ?*const anyopaque,
+    [*:null]?[*:0]const u8,
+    [*:null]?[*:0]const u8,
+) callconv(.c) c_int;
+const ExecvpFn = *const fn (
+    [*:0]const u8,
+    [*:null]?[*:0]const u8,
+) callconv(.c) c_int;
+const ExecvpeFn = *const fn (
+    [*:0]const u8,
+    [*:null]?[*:0]const u8,
+    [*:null]?[*:0]const u8,
+) callconv(.c) c_int;
+
+var real_execve: ?ExecveFn = null;
+var real_posix_spawn: ?SpawnFn = null;
+var real_posix_spawnp: ?SpawnFn = null;
+var real_execvp: ?ExecvpFn = null;
+var real_execvpe: ?ExecvpeFn = null;
+
+extern var environ: [*:null]?[*:0]const u8;
+
+// Directory holding this shim (i.e. <framework>/lib), cached at loader
+// init for the runner's ISAKAI_BIONIC_LOADER value. Read only once the
+// loader is up; the state store release-pairs with the write below.
+var shim_dir_buf: [4096]u8 = undefined;
+var shim_dir_len: usize = 0;
+
+fn resolveExec() void {
+    resolveReal();
+}
+
+/// True when path is an ELF whose program interpreter is Android's
+/// /system/bin/linker64 (the host kernel would fail the exec with ENOENT).
+fn isAndroidPie(path: [*:0]const u8) bool {
+    const linux = std.os.linux;
+    const fd_rc = linux.openat(linux.AT.FDCWD, path, .{}, 0);
+    if (linux.errno(fd_rc) != .SUCCESS) return false;
+    const fd: linux.fd_t = @intCast(fd_rc);
+    var buf: [4096]u8 = undefined;
+    var len: usize = 0;
+    while (len < buf.len) {
+        const rc = linux.read(fd, buf[len..].ptr, buf.len - len);
+        if (linux.errno(rc) != .SUCCESS) break;
+        if (rc == 0) break;
+        len += rc;
+    }
+    _ = linux.close(fd);
+    if (len < 64) return false;
+    if (buf[0] != 0x7f or buf[1] != 'E' or buf[2] != 'L' or buf[3] != 'F') return false;
+    const phoff = std.mem.readInt(u64, buf[0x20..0x28], .little);
+    const phentsize = std.mem.readInt(u16, buf[0x36..0x38], .little);
+    const phnum = std.mem.readInt(u16, buf[0x38..0x3a], .little);
+    if (phentsize < 56 or phnum == 0 or phnum > 32) return false;
+    const want = "/system/bin/linker64";
+    var i: usize = 0;
+    while (i < phnum) : (i += 1) {
+        const off = phoff + i * phentsize;
+        if (off + 56 > len) return false;
+        if (std.mem.readInt(u32, buf[off..][0..4], .little) != 3) continue; // PT_INTERP
+        const ioff = std.mem.readInt(u64, buf[off..][24..32], .little);
+        const isz = std.mem.readInt(u64, buf[off..][32..40], .little);
+        if (isz != want.len + 1) continue;
+        if (ioff + isz > len) return false;
+        const s = buf[ioff..][0 .. want.len + 1];
+        if (std.mem.eql(u8, s[0..want.len], want) and s[want.len] == 0) return true;
+    }
+    return false;
+}
+
+/// Runner path from the environment, or null to pass the exec through.
+/// Loader init for the exec redirect. Like ensureLoader, but safe to call
+/// from a spawn path: a fork child may observe the initialising state
+/// frozen forever (the parent finishes in its own memory), so the wait
+/// is bounded and failure falls back to passthrough.
+fn execEnsureLoader() bool {
+    var spins: usize = 0;
+    while (true) {
+        const s = loader_state.load(.acquire);
+        if (s == 2) return true;
+        if (s == 3) return false;
+        if (s == 1) {
+            spins += 1;
+            if (spins > 100000) return false;
+            std.atomic.spinLoopHint();
+            continue;
+        }
+        if (loader_state.cmpxchgStrong(0, 1, .acq_rel, .acquire) == null) {
+            const ok = initLoader();
+            loader_state.store(if (ok) 2 else 3, .release);
+            return ok;
+        }
+    }
+}
+
+fn runnerPath() ?[*:0]const u8 {
+    const p = getenv("ISAKAI_BIONIC_EXEC") orelse return null;
+    if (p[0] == 0) return null;
+    return p;
+}
+
+const max_exec_argv: usize = 512;
+const max_exec_envp: usize = 4096;
+
+/// Build the redirect argv/envp on the caller stack and exec the runner.
+/// Returns only when the runner exec itself fails; the caller then falls
+/// back to the original exec so its errno surfaces honestly.
+fn execRunner(
+    real: ExecveFn,
+    helper: [*:0]const u8,
+    path: [*:0]const u8,
+    argv: [*:null]?[*:0]const u8,
+    envp: [*:null]?[*:0]const u8,
+) void {
+    var argc: usize = 0;
+    while (argv[argc] != null) {
+        argc += 1;
+        if (argc > max_exec_argv) {
+            _ = real(path, argv, envp);
+            return;
+        }
+    }
+    var envc: usize = 0;
+    var have_loader = false;
+    const loader_key = "ISAKAI_BIONIC_LOADER=";
+    while (envp[envc] != null) {
+        const e = std.mem.span(envp[envc].?);
+        if (std.mem.startsWith(u8, e, loader_key)) have_loader = true;
+        envc += 1;
+        if (envc > max_exec_envp) {
+            _ = real(path, argv, envp);
+            return;
+        }
+    }
+    // jspawnhelper (Java's spawn broker) never dlopens, so the loader is
+    // still uninitialised when its execvp lands here: initialise it now.
+    // Its process is fresh and single-threaded pre-exec, so the usual
+    // fork-child lock hazard does not apply; the spin below is bounded
+    // because a fork child can observe state==1 frozen forever.
+    if (!execEnsureLoader()) {
+        _ = real(path, argv, envp);
+        return;
+    }
+    // argv: [helper, target, args...] (target keeps its argv[0]).
+    var new_argv: [max_exec_argv + 2]?[*:0]const u8 = undefined;
+    new_argv[0] = helper;
+    var k: usize = 0;
+    while (k <= argc) : (k += 1) new_argv[1 + k] = argv[k];
+    // envp: copy plus ISAKAI_BIONIC_LOADER=<shimdir>/bionic/libdl_bio.so.0.
+    var new_envp: [max_exec_envp + 2]?[*:0]const u8 = undefined;
+    var j: usize = 0;
+    while (j <= envc) : (j += 1) new_envp[j] = envp[j];
+    if (!have_loader) {
+        var lbuf: [4096]u8 = undefined;
+        const suffix = "/bionic/libdl_bio.so.0";
+        if (shim_dir_len == 0 or shim_dir_len + loader_key.len + suffix.len + 1 > lbuf.len) {
+            _ = real(path, argv, envp);
+            return;
+        }
+        @memcpy(lbuf[0..loader_key.len], loader_key);
+        @memcpy(lbuf[loader_key.len..][0..shim_dir_len], shim_dir_buf[0..shim_dir_len]);
+        @memcpy(lbuf[loader_key.len + shim_dir_len ..][0..suffix.len], suffix);
+        lbuf[loader_key.len + shim_dir_len + suffix.len] = 0;
+        new_envp[envc] = @ptrCast(&lbuf);
+        new_envp[envc + 1] = null;
+        _ = real(helper, @ptrCast(&new_argv), @ptrCast(&new_envp));
+        _ = real(path, argv, envp);
+        return;
+    }
+    new_envp[envc] = null;
+    _ = real(helper, @ptrCast(&new_argv), @ptrCast(&new_envp));
+    _ = real(path, argv, envp);
+}
+
+export fn execve(
+    path: ?[*:0]const u8,
+    argv: ?[*:null]?[*:0]const u8,
+    envp: ?[*:null]?[*:0]const u8,
+) c_int {
+    resolveExec();
+    const real = real_execve orelse return -1;
+    const p = path orelse return -1;
+    const av = argv orelse return -1;
+    const ev = envp orelse return -1;
+    const helper = runnerPath() orelse return real(p, av, ev);
+    if (!isAndroidPie(p)) return real(p, av, ev);
+    execRunner(real, helper, p, av, ev);
+    return -1;
+}
+
+fn spawnRedirect(
+    real: ?SpawnFn,
+    pid: *std.os.linux.pid_t,
+    path: [*:0]const u8,
+    actions: ?*const anyopaque,
+    attr: ?*const anyopaque,
+    argv: [*:null]?[*:0]const u8,
+    envp: [*:null]?[*:0]const u8,
+) c_int {
+    const r = real orelse return 38; // ENOSYS without a real spawn
+    const helper = runnerPath() orelse return r(pid, path, actions, attr, argv, envp);
+    if (std.mem.indexOfScalar(u8, std.mem.span(path), '/') == null)
+        return r(pid, path, actions, attr, argv, envp);
+    if (!isAndroidPie(path)) return r(pid, path, actions, attr, argv, envp);
+    // Same redirect shape as execve, through the real spawn so file
+    // actions and attributes still apply.
+    var argc: usize = 0;
+    while (argv[argc] != null) {
+        argc += 1;
+        if (argc > max_exec_argv) return r(pid, path, actions, attr, argv, envp);
+    }
+    var envc: usize = 0;
+    var have_loader = false;
+    const loader_key = "ISAKAI_BIONIC_LOADER=";
+    while (envp[envc] != null) {
+        const e = std.mem.span(envp[envc].?);
+        if (std.mem.startsWith(u8, e, loader_key)) have_loader = true;
+        envc += 1;
+        if (envc > max_exec_envp) return r(pid, path, actions, attr, argv, envp);
+    }
+    if (!execEnsureLoader()) return r(pid, path, actions, attr, argv, envp);
+    var new_argv: [max_exec_argv + 2]?[*:0]const u8 = undefined;
+    new_argv[0] = helper;
+    var k: usize = 0;
+    while (k <= argc) : (k += 1) new_argv[1 + k] = argv[k];
+    var new_envp: [max_exec_envp + 2]?[*:0]const u8 = undefined;
+    var j: usize = 0;
+    while (j <= envc) : (j += 1) new_envp[j] = envp[j];
+    var lbuf: [4096]u8 = undefined;
+    const ev: [*:null]?[*:0]const u8 = @ptrCast(&new_envp);
+    if (!have_loader) {
+        const suffix = "/bionic/libdl_bio.so.0";
+        if (shim_dir_len == 0 or shim_dir_len + loader_key.len + suffix.len + 1 > lbuf.len)
+            return r(pid, path, actions, attr, argv, envp);
+        @memcpy(lbuf[0..loader_key.len], loader_key);
+        @memcpy(lbuf[loader_key.len..][0..shim_dir_len], shim_dir_buf[0..shim_dir_len]);
+        @memcpy(lbuf[loader_key.len + shim_dir_len ..][0..suffix.len], suffix);
+        lbuf[loader_key.len + shim_dir_len + suffix.len] = 0;
+        new_envp[envc] = @ptrCast(&lbuf);
+        new_envp[envc + 1] = null;
+    } else {
+        new_envp[envc] = null;
+    }
+    return r(pid, helper, actions, attr, @ptrCast(&new_argv), ev);
+}
+
+export fn posix_spawn(
+    pid: *std.os.linux.pid_t,
+    path: ?[*:0]const u8,
+    actions: ?*const anyopaque,
+    attr: ?*const anyopaque,
+    argv: ?[*:null]?[*:0]const u8,
+    envp: ?[*:null]?[*:0]const u8,
+) c_int {
+    resolveExec();
+    const p = path orelse return 22; // EINVAL like glibc
+    const av = argv orelse return 22;
+    const ev = envp orelse return 22;
+    return spawnRedirect(real_posix_spawn, pid, p, actions, attr, av, ev);
+}
+
+export fn posix_spawnp(
+    pid: *std.os.linux.pid_t,
+    path: ?[*:0]const u8,
+    actions: ?*const anyopaque,
+    attr: ?*const anyopaque,
+    argv: ?[*:null]?[*:0]const u8,
+    envp: ?[*:null]?[*:0]const u8,
+) c_int {
+    resolveExec();
+    const p = path orelse return 22;
+    const av = argv orelse return 22;
+    const ev = envp orelse return 22;
+    return spawnRedirect(real_posix_spawnp, pid, p, actions, attr, av, ev);
+}
+
+// Bare names stay on the host search path: Android PIEs live in private
+// code dirs, never on PATH, so there is nothing to redirect there.
+// Returns the runner when path names an Android PIE, else null.
+fn vpDecision(path: [*:0]const u8) ?[*:0]const u8 {
+    if (std.mem.indexOfScalar(u8, std.mem.span(path), '/') == null) return null;
+    const helper = runnerPath() orelse return null;
+    if (!isAndroidPie(path)) return null;
+    return helper;
+}
+
+export fn execvp(path: ?[*:0]const u8, argv: ?[*:null]?[*:0]const u8) c_int {
+    resolveExec();
+    const real = real_execve orelse return -1;
+    const p = path orelse return -1;
+    const av = argv orelse return -1;
+    if (vpDecision(p)) |helper| {
+        execRunner(real, helper, p, av, environ);
+        return -1;
+    }
+    const r = real_execvp orelse return -1;
+    return r(p, av);
+}
+
+export fn execvpe(
+    path: ?[*:0]const u8,
+    argv: ?[*:null]?[*:0]const u8,
+    envp: ?[*:null]?[*:0]const u8,
+) c_int {
+    resolveExec();
+    const real = real_execve orelse return -1;
+    const p = path orelse return -1;
+    const av = argv orelse return -1;
+    const ev = envp orelse return -1;
+    if (vpDecision(p)) |helper| {
+        execRunner(real, helper, p, av, ev);
+        return -1;
+    }
+    const r = real_execvpe orelse return -1;
+    return r(p, av, ev);
 }

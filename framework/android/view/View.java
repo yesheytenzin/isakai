@@ -303,6 +303,22 @@ public class View {
     }
 
     /**
+     * AOSP parity: shown means this view and every ancestor View are
+     * VISIBLE. This tree tracks no drawn flag, so visibility is the
+     * whole check; a detached view (null parent) is not shown.
+     */
+    public boolean isShown() {
+        View current = this;
+        do {
+            if (current.getVisibility() != VISIBLE) return false;
+            ViewParent p = current.getParent();
+            if (p == null) return false;
+            if (!(p instanceof View)) return true;
+            current = (View) p;
+        } while (true);
+    }
+
+    /**
      * Isakai renders into a single host window; its visibility follows the
      * host compositor, which is visible whenever the app window is, so report
      * the honest constant rather than inventing a hidden state.

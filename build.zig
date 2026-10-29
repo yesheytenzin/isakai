@@ -94,6 +94,30 @@ pub fn build(b: *std.Build) void {
         .root_module = isakai_mod,
     });
     b.installArtifact(exe);
+    // Native-exec runner: executes Android NDK PIE binaries (which the
+    // host kernel cannot exec directly) under the bionic loader. The
+    // shim's execve interposer redirects such execs here; launch.zig
+    // advertises this sibling path to app processes via ISAKAI_BIONIC_EXEC.
+    // ReleaseSafe even for debug builds: the entry jump is inline asm
+    // whose register clobbers are only honoured under optimisation
+    // (observed: debug emits jmp *%rdx after xor %edx). The clobbers
+    // are load-bearing, so pin the mode here instead of inheriting it.
+    const bionic_exec_mod = b.createModule(.{
+        .root_source_file = b.path("src/bionic_exec.zig"),
+        .target = target,
+        .optimize = .ReleaseSafe,
+        .link_libc = true,
+    });
+    const bionic_exec_exe = b.addExecutable(.{
+        .name = "isakai-bionic-exec",
+        .root_module = bionic_exec_mod,
+    });
+    // The loader finds this binary's bionic___libc_init / __android_log
+    // overrides through the host namespace: they must be dynamically
+    // exported, otherwise the loader silently falls back to libc_bio's
+    // own init (garbage structors) and its stderr chatter.
+    bionic_exec_exe.rdynamic = true;
+    b.installArtifact(bionic_exec_exe);
     const window_mod = b.createModule(.{
         .root_source_file = b.path("src/bridge/window.zig"),
         .target = target,
