@@ -1080,6 +1080,7 @@ pub fn applyRuntimeConfinement(data_dir: []const u8, work: []const u8, package: 
         "/usr/share/fontconfig", "/usr/share/zoneinfo", "/proc/self",                     "/proc/cpuinfo",
         "/proc/meminfo",         "/proc/stat",          "/proc/sys/vm/overcommit_memory", "/sys/devices/system/cpu",
         "/sys/fs/cgroup",        "/usr/bin/ffmpeg",     "/usr/bin/ffprobe",
+        "/usr/bin/isakai-bionic-exec",
     }) |path| {
         rules[count] = .{ .path = path, .optional = true };
         count += 1;
