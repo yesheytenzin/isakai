@@ -130,6 +130,8 @@ pub const allowed_syscalls = [_]linux.SYS{
     linux.SYS.writev,
     linux.SYS.pread64,
     linux.SYS.pwrite64,
+    linux.SYS.preadv,
+    linux.SYS.pwritev,
     linux.SYS.lseek,
     linux.SYS.fstat,
     linux.SYS.stat,
