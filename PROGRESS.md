@@ -78,6 +78,10 @@ dwarfs the rest.
   the `android.opengl` binding surface.
 - XKB reorder and delay stress: excluded by the verification-artifact
   policy. Needs a policy exception plus a minimal churn driver.
+- Storage-phase entry defects: Markor needs `android.webkit.MimeTypeMap`,
+  KeePassDX trips a DEX `BadSection` abort, Amaze hits a translator
+  `VerifyError`. Three apps, three layers, details in
+  `progress/IMPL-streama.md`. No shared-contract trigger yet.
 
 ## Roadmap (scheduled, no action)
 
