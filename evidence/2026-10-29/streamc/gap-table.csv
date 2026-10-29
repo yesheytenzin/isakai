@@ -1,0 +1,12 @@
+id,need,host_status,evidence,component_to_change
+1,Unity GLES 3.1 contexts,BLOCKED - no binding,glxinfo-B.txt shows host GLES 3.2 but framework/android/opengl/ absent; no EGL/GLES JNI,"framework/android/opengl/* (new) + src/bridge/jni.zig (GL entry points)"
+2,Unity GLES 3.2 contexts,BLOCKED - no binding,same as 1; Max GLES[23] profile version 3.2 proves host can serve it once bound,same as 1
+3,Unreal GLES 3.2 contexts,BLOCKED - no binding,same as 1 and 2,same as 1
+4,GL frame presentation,BLOCKED - SHM only,src/bridge/window.zig header: XRGB8888 SHM path only; no EGL/dmabuf/egl_window refs,src/bridge/window.zig (EGLSurface or dmabuf present path)
+5,Unity/Unreal Vulkan 1.1 device,BLOCKED - unreachable,host Vulkan 1.4.354 ANV on Intel TGL GT1 (vulkaninfo-summary.txt) but no guest/VkSystem wiring; Venus N/A (no VM/guest); no framework Vulkan package,framework Vulkan bindings (new) + native Vulkan surface wiring (new)
+6,GLES-on-Vulkan route (ANGLE),ABSENT - not installed,no angle package or libEGL_angle present; host native GLES 3.2 makes this optional here but plan names it for Vulkan-only devices,packaging/vendor lib + EGL driver selection (new)
+7,Zink GL-on-Vulkan fallback,PRESENT host-side only,zink_dri.so ships with mesa and MESA_LOADER_DRIVER_OVERRIDE=zink renders on host Vulkan; nothing in runner selects or reports it,runner GL backend selection (new; uses existing mesa file)
+8,Venus guest Vulkan,N/A by architecture,00-venus-defaults.conf ships but no venus ICD and no virtio-gpu guest (process runner not VM); host ext-memory fd + dma-buf present (vk-extensions.txt),no change; document as not-a-path
+9,gfxstream guest-to-host,N/A by architecture,libgfxstream_backend.so + headers present (qemu dep) but no guest and no stream wired in runner,no change; document as not-a-path
+10,Software GL fallback (Lavapipe/SwiftShader),ABSENT,no libvulkan_lvp.so; only swrast_dri.so (legacy GL) present; GL apps on driverless hosts have no fallback,packaging + runner fallback selection (new)
+11,Feature/GL-version profile for Play filtering + engine detection,BLOCKED - stub,PackageManager.hasSystemFeature() returns false unconditionally; no GLES version query path,framework/android/content/pm/PackageManager.java + ConfigurationInfo wiring
