@@ -1,0 +1,8 @@
+exited with code 1
+ndroid:appComponentFactory (direct instantiation)
+info: desktop bridge ready at /tmp/isakai-1000-streama/bridge.sock
+Exception in thread "main" java.lang.VerifyError: (class: com/amaze/filemanager/application/AppConfig, method: onCreate signature: ()V) Incompatible argument to function
+	at java.base/java.lang.Class.forName0(Native Method)
+	at java.base/java.lang.Class.forName(Class.java:479)
+	at java.base/java.lang.Class.forName(Class.java:469)
+	at org.isakai.runtime.IsakaiMain.main(IsakaiMain.java:60)
