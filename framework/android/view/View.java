@@ -1685,6 +1685,14 @@ public class View {
         return false;
     }
 
+    /** AppCompat probes this reflectively; empty insets need no adjustment. */
+    public void computeFitSystemWindows(android.graphics.Rect inoutInsets, android.graphics.Rect outLocalInsets) {
+        if (inoutInsets != null && outLocalInsets != null) outLocalInsets.set(inoutInsets);
+    }
+
+    /** AppCompat probes this reflectively; nothing optional with empty insets. */
+    public void makeOptionalFitsSystemWindows() {}
+
     public WindowInsets onApplyWindowInsets(WindowInsets insets) {
         return insets;
     }
