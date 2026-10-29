@@ -84,7 +84,8 @@ plan.md`. Six sequenced phases from proven utilities to native games,
 each gated by motivating apps plus a named owner, exiting only on top
 grades across two consecutive runs. Runnable explicitly excludes
 integrity-gated, hardware-DRM, and cheat-guarded apps on any uncertified
-host. Per-track entry gates:
+host. ARM-only native libraries are covered on ARM64 hosts, best-effort
+under QEMU-user on x86_64 with documented GPU and page-size walls. Per-track entry gates:
 
 A track starts only with a motivating pinned app plus a named owner.
 Each plan below is the entry gate, not a backlog.
