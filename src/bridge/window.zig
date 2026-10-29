@@ -475,7 +475,7 @@ pub const Window = struct {
         // the bound version supports it.
         const seat_ver: u32 = @min(self.seat_version, 8);
         if (self.keyboard != 0 and seat_ver >= 3) self.sendWords(self.keyboard, 0, &.{}) catch {};
-        if (self.pointer != 0 and seat_ver >= 3) self.sendWords(self.pointer, 0, &.{}) catch {};
+        if (self.pointer != 0 and seat_ver >= 3) self.sendWords(self.pointer, 1, &.{}) catch {};
         if (self.touch != 0 and seat_ver >= 3) self.sendWords(self.touch, 0, &.{}) catch {};
         if (self.seat != 0 and seat_ver >= 5) self.sendWords(self.seat, 4, &.{}) catch {};
         // Clipboard objects: source.destroy=0 / offer.destroy=2 always
@@ -1003,6 +1003,23 @@ pub const Window = struct {
             const id = self.allocId();
             self.touch = id;
             self.sendWords(self.seat, 2, &.{id}) catch {};
+        }
+        // A seat that loses its last device stops routing events to the
+        // objects bound while devices were present; the re-added devices
+        // only reach freshly bound objects. Release on loss (guarded by
+        // seat version like close()) so re-gain re-creates and re-links.
+        const seat_ver: u32 = @min(self.seat_version, 8);
+        if (!have_kb and self.keyboard != 0) {
+            if (seat_ver >= 3) self.sendWords(self.keyboard, 0, &.{}) catch {};
+            self.keyboard = 0;
+        }
+        if (!have_ptr and self.pointer != 0) {
+            if (seat_ver >= 3) self.sendWords(self.pointer, 1, &.{}) catch {};
+            self.pointer = 0;
+        }
+        if (!have_touch and self.touch != 0) {
+            if (seat_ver >= 3) self.sendWords(self.touch, 0, &.{}) catch {};
+            self.touch = 0;
         }
         self.seat_caps = caps;
     }

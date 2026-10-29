@@ -34,4 +34,22 @@ public class ScrollView extends FrameLayout {
     public int getScrollY() {
         return scrollY;
     }
+
+    /** Scroll just enough to show {@code rectangle} (child coordinates), else no-op. */
+    public boolean requestChildRectangleOnScreen(
+            android.view.View child, android.graphics.Rect rectangle, boolean immediate) {
+        if (child == null || rectangle == null) return false;
+        rectangle.offset(child.getLeft() - getScrollX(), child.getTop() - getScrollY());
+        int screenTop = getScrollY();
+        int screenBottom = screenTop + getHeight();
+        if (rectangle.top < screenTop) {
+            scrollTo(getScrollX(), rectangle.top);
+            return true;
+        }
+        if (rectangle.bottom > screenBottom) {
+            scrollTo(getScrollX(), rectangle.bottom - getHeight());
+            return true;
+        }
+        return false;
+    }
 }

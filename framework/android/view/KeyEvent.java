@@ -396,4 +396,19 @@ public class KeyEvent extends InputEvent {
     public final boolean isCanceled() {
         return (flags & FLAG_CANCELED) != 0;
     }
+
+    /** First entry of {@code chars} equal to this key's Unicode char, else 0. */
+    public char getMatch(char[] chars) {
+        return getMatch(chars, 0);
+    }
+
+    /** First entry of {@code chars} equal to this key's Unicode char under {@code modifiers}, else 0. */
+    public char getMatch(char[] chars, int modifiers) {
+        if (chars == null) return 0;
+        int unicodeChar = getUnicodeChar(modifiers);
+        for (int i = 0; i < chars.length; i++) {
+            if (chars[i] == unicodeChar) return chars[i];
+        }
+        return 0;
+    }
 }
