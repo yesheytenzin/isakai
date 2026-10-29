@@ -86,7 +86,10 @@ grades across two consecutive runs. Runnable explicitly excludes
 integrity-gated, hardware-DRM, and cheat-guarded apps on any uncertified
 host. ARM-only native libraries load directly into the runner on ARM64
 hosts with no emulation layer. QEMU-user on x86_64 stays best-effort
-with documented GPU and page-size walls. Per-track entry gates:
+with documented GPU and page-size walls. Full coverage comes from
+shipping both host architectures with slice-aware install: each host
+runs its own native slice, and ARM code never executes on x86 silicon
+by design rather than by gap. Per-track entry gates:
 
 A track starts only with a motivating pinned app plus a named owner.
 Each plan below is the entry gate, not a backlog.
