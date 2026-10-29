@@ -492,6 +492,8 @@ pub fn build(b: *std.Build) void {
     fw.addFileArg(b.path("framework/android/location/LocationListener.java"));
     fw.addFileArg(b.path("framework/android/location/LocationManager.java"));
     fw.addFileArg(b.path("framework/android/media/AudioManager.java"));
+    fw.addFileArg(b.path("framework/android/media/MediaCodec.java"));
+    fw.addFileArg(b.path("framework/android/media/MediaCrypto.java"));
     fw.addFileArg(b.path("framework/android/media/MediaDataSource.java"));
     fw.addFileArg(b.path("framework/android/media/MediaExtractor.java"));
     fw.addFileArg(b.path("framework/android/media/MediaFormat.java"));
@@ -668,6 +670,7 @@ pub fn build(b: *std.Build) void {
     fw.addFileArg(b.path("framework/android/view/ViewStructure.java"));
     fw.addFileArg(b.path("framework/android/view/ViewStub.java"));
     fw.addFileArg(b.path("framework/android/view/ViewTreeObserver.java"));
+    fw.addFileArg(b.path("framework/android/view/Surface.java"));
     fw.addFileArg(b.path("framework/android/view/Window.java"));
     fw.addFileArg(b.path("framework/android/view/WindowInsets.java"));
     fw.addFileArg(b.path("framework/android/view/WindowInsetsAnimation.java"));

@@ -67,15 +67,25 @@ public final class IsakaiMedia {
      * bytes because ffmpeg reports the failure at the end.
      */
     static Proc run(ProcessBuilder pb, int maxOut, int maxErr, long timeoutMs) throws IOException {
+        return supervise(pb, null, maxOut, maxErr, timeoutMs);
+    }
+
+    /** Same supervisor, but {@code input} is piped to the child stdin first. */
+    static Proc runWithInput(ProcessBuilder pb, byte[] input, int maxOut, int maxErr, long timeoutMs) throws IOException {
+        return supervise(pb, input, maxOut, maxErr, timeoutMs);
+    }
+
+    private static Proc supervise(ProcessBuilder pb, byte[] input, int maxOut, int maxErr, long timeoutMs) throws IOException {
         Process proc;
         try {
             proc = pb.start();
         } catch (IOException e) {
             throw new IOException(pb.command().get(0) + " start failed: " + e.getMessage(), e);
         }
-        // Decoders must never block on a stdin that will not arrive.
         OutputStream stdin = proc.getOutputStream();
         try {
+            // Decoders must never block on a stdin that will not arrive.
+            if (input != null) stdin.write(input);
             stdin.close();
         } catch (IOException ignored) {
         }
@@ -301,6 +311,163 @@ public final class IsakaiMedia {
         } catch (Exception e) {
             return -1;
         }
+    }
+
+    /** One ffprobe stream row. Duration is microseconds, or -1 when unknown. */
+    public static final class Track {
+        public final String mime;
+        public final int width;
+        public final int height;
+        public final int sampleRate;
+        public final int channels;
+        public final long durationUs;
+
+        Track(String mime, int width, int height, int sampleRate, int channels, long durationUs) {
+            this.mime = mime;
+            this.width = width;
+            this.height = height;
+            this.sampleRate = sampleRate;
+            this.channels = channels;
+            this.durationUs = durationUs;
+        }
+    }
+
+    /**
+     * List every stream via ffprobe csv. Empty when ffprobe is absent;
+     * throws on unreadable input so discovery never silently reports zero.
+     */
+    public static java.util.List<Track> probeTracks(String path) throws IOException {
+        java.util.List<Track> out = new java.util.ArrayList<>();
+        if (!hasFfprobe()) return out;
+        File f = new File(path);
+        if (!f.isFile()) throw new IOException("not found: " + path);
+        ProcessBuilder pb = new ProcessBuilder(
+                ffprobeBin(), "-v", "error",
+                "-show_entries", "stream=index,codec_name,codec_type,width,height,sample_rate,channels,duration",
+                "-of", "flat", path);
+        pb.redirectErrorStream(false);
+        Proc proc = run(pb, 64 * 1024, MAX_STDERR_BYTES, 5000);
+        if (proc.exit != 0) throw new IOException(proc.errorText("ffprobe exit " + proc.exit));
+        // flat emits streams.stream.<n>.<key>=<value>; csv is unusable
+        // here because ffprobe drops empty columns instead of aligning them.
+        java.util.Map<Integer, java.util.Map<String, String>> rows = new java.util.TreeMap<>();
+        for (String line : new String(proc.out).split("\n")) {
+            line = line.trim();
+            if (!line.startsWith("streams.stream.")) continue;
+            String rest = line.substring("streams.stream.".length());
+            int dot = rest.indexOf('.');
+            int eq = rest.indexOf('=');
+            if (dot < 0 || eq < 0 || dot > eq) continue;
+            int idx;
+            try {
+                idx = Integer.parseInt(rest.substring(0, dot));
+            } catch (NumberFormatException e) {
+                continue;
+            }
+            String key = rest.substring(dot + 1, eq);
+            String val = rest.substring(eq + 1).replace("\"", "");
+            java.util.Map<String, String> row = rows.get(idx);
+            if (row == null) {
+                row = new java.util.HashMap<>();
+                rows.put(idx, row);
+            }
+            row.put(key, val);
+        }
+        for (java.util.Map<String, String> row : rows.values()) {
+            String type = row.containsKey("codec_type") ? row.get("codec_type") : "";
+            String codec = row.containsKey("codec_name") ? row.get("codec_name") : "";
+            String mime = toMime(type, codec);
+            if (mime == null) continue;
+            out.add(new Track(mime,
+                    num(row.get("width")), num(row.get("height")),
+                    num(row.get("sample_rate")), num(row.get("channels")),
+                    durUs(row.get("duration"))));
+        }
+        return out;
+    }
+
+    private static String toMime(String type, String codec) {
+        if (type.equals("video")) {
+            switch (codec) {
+                case "h264": return "video/avc";
+                case "hevc": return "video/hevc";
+                case "mpeg4": return "video/mp4v-es";
+                case "vp9": return "video/x-vnd.on2.vp9";
+                case "av1": return "video/av01";
+                default: return "video/" + codec;
+            }
+        }
+        if (type.equals("audio")) {
+            switch (codec) {
+                case "aac": return "audio/mp4a-latm";
+                case "mp3": return "audio/mpeg";
+                case "opus": return "audio/opus";
+                case "vorbis": return "audio/vorbis";
+                case "flac": return "audio/flac";
+                default: return "audio/" + codec;
+            }
+        }
+        return null;
+    }
+
+    private static int num(String s) {
+        if (s == null) return 0;
+        try {
+            return Integer.parseInt(s);
+        } catch (NumberFormatException e) {
+            return 0;
+        }
+    }
+
+    private static long durUs(String s) {
+        if (s == null) return -1;
+        try {
+            return (long) (Double.parseDouble(s) * 1_000_000);
+        } catch (NumberFormatException e) {
+            return -1;
+        }
+    }
+
+    /**
+     * Decode one elementary video stream to whole yuv420p frames.
+     * The caller trusts the configured size; a mismatch throws.
+     */
+    public static java.util.List<byte[]> decodeVideoEs(byte[] es, int width, int height) throws IOException {
+        if (!hasFfmpeg()) throw new IOException("ffmpeg not available");
+        if (es.length == 0) throw new IOException("empty elementary stream");
+        ProcessBuilder pb = new ProcessBuilder(
+                ffmpegBin(), "-v", "error", "-i", "pipe:0",
+                "-f", "rawvideo", "-pix_fmt", "yuv420p", "pipe:1");
+        pb.redirectErrorStream(false);
+        Proc proc = runWithInput(pb, es, 256 * 1024 * 1024, MAX_STDERR_BYTES, PROC_TIMEOUT_MS);
+        if (proc.exit != 0) throw new IOException(proc.errorText("ffmpeg exit " + proc.exit));
+        int frameSize = width * height * 3 / 2;
+        if (frameSize <= 0) throw new IOException("bad size " + width + "x" + height);
+        // A trailing partial frame means the configured size was wrong.
+        if (proc.out.length == 0 || proc.out.length % frameSize != 0) {
+            throw new IOException("rawvideo " + proc.out.length + " bytes not a multiple of " + frameSize);
+        }
+        java.util.List<byte[]> frames = new java.util.ArrayList<>(proc.out.length / frameSize);
+        for (int off = 0; off < proc.out.length; off += frameSize) {
+            byte[] frame = new byte[frameSize];
+            System.arraycopy(proc.out, off, frame, 0, frameSize);
+            frames.add(frame);
+        }
+        return frames;
+    }
+
+    /** Decode one elementary audio stream to S16LE stereo 44100 PCM. */
+    public static byte[] decodeAudioEs(byte[] es) throws IOException {
+        if (!hasFfmpeg()) throw new IOException("ffmpeg not available");
+        if (es.length == 0) throw new IOException("empty elementary stream");
+        ProcessBuilder pb = new ProcessBuilder(
+                ffmpegBin(), "-v", "error", "-i", "pipe:0",
+                "-f", "s16le", "-acodec", "pcm_s16le", "-ac", "2", "-ar", "44100", "pipe:1");
+        pb.redirectErrorStream(false);
+        Proc proc = runWithInput(pb, es, MAX_PCM_BYTES, MAX_STDERR_BYTES, PROC_TIMEOUT_MS);
+        if (proc.exit != 0) throw new IOException(proc.errorText("ffmpeg exit " + proc.exit));
+        if (proc.out.length == 0) throw new IOException("ffmpeg produced no audio");
+        return proc.out;
     }
 
     public static String probeMime(String path) {

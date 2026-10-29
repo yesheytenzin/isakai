@@ -22,7 +22,9 @@ public final class MediaFormat {
     public static MediaFormat createAudioFormat(String mime, int sampleRate, int channels) { MediaFormat f = new MediaFormat(); f.setString(KEY_MIME, mime); f.setInteger(KEY_SAMPLE_RATE, sampleRate); f.setInteger(KEY_CHANNEL_COUNT, channels); return f; }
     public String getString(String name) { Object v = map.get(name); return v == null ? null : v.toString(); }
     public int getInteger(String name) { Object v = map.get(name); if (v instanceof Number) return ((Number) v).intValue(); return Integer.parseInt(String.valueOf(v)); }
+    public long getLong(String name) { Object v = map.get(name); if (v instanceof Number) return ((Number) v).longValue(); return Long.parseLong(String.valueOf(v)); }
     public void setString(String name, String value) { map.put(name, value); }
     public void setInteger(String name, int value) { map.put(name, value); }
+    public void setLong(String name, long value) { map.put(name, value); }
     public boolean containsKey(String name) { return map.containsKey(name); }
 }

@@ -1,0 +1,53 @@
+== ffmpeg
+ffmpeg version n9.0.2 Copyright (c) 2000-2026 the FFmpeg developers
+built with gcc 16 (GCC)
+== ffprobe
+ffprobe version n9.0.2 Copyright (c) 2007-2026 the FFmpeg developers
+built with gcc 16 (GCC)
+== gstreamer
+gst-launch-1.0 version 1.28.8
+GStreamer 1.28.8
+https://www.archlinux.org/
+== ffmpeg video decoders (software, relevant)
+ V..... libdav1d             dav1d AV1 decoder by VideoLAN (codec av1)
+ V....D libaom-av1           libaom AV1 (codec av1)
+ V....D av1                  Alliance for Open Media AV1
+ V..... av1_cuvid            Nvidia CUVID AV1 decoder (codec av1)
+ V....D av1_qsv              AV1 video (Intel Quick Sync Video acceleration) (codec av1)
+ V..... av1_amf              AV1 AMD AMF video decoder (codec av1)
+ VFS..D h264                 H.264 / AVC / MPEG-4 AVC / MPEG-4 part 10
+ V..... h264_v4l2m2m         V4L2 mem2mem H.264 decoder wrapper (codec h264)
+ V....D h264_qsv             H264 video (Intel Quick Sync Video acceleration) (codec h264)
+ V..... h264_amf             H264 AMD AMF video decoder (codec h264)
+ V..... h264_cuvid           Nvidia CUVID H264 decoder (codec h264)
+ VFS..D hevc                 HEVC (High Efficiency Video Coding)
+ V....D hevc_qsv             HEVC video (Intel Quick Sync Video acceleration) (codec hevc)
+ V..... hevc_v4l2m2m         V4L2 mem2mem HEVC decoder wrapper (codec hevc)
+ V..... hevc_amf             HEVC AMD AMF video decoder (codec hevc)
+ V..... hevc_cuvid           Nvidia CUVID HEVC decoder (codec hevc)
+ VF..BD mpeg4                MPEG-4 part 2
+ V..... mpeg4_v4l2m2m        V4L2 mem2mem MPEG4 decoder wrapper (codec mpeg4)
+ V..... mpeg4_cuvid          Nvidia CUVID MPEG4 decoder (codec mpeg4)
+ V...BD msmpeg4v1            MPEG-4 part 2 Microsoft variant version 1
+== ffmpeg audio decoders (software, relevant)
+ VF...D cllc                 Canopus Lossless Codec
+ V....D hq_hqa               Canopus HQ/HQA
+ VFS..D hqx                  Canopus HQX
+ A....D aac                  AAC (Advanced Audio Coding)
+ A....D aac_fixed            AAC (Advanced Audio Coding) (codec aac)
+ A....D aac_latm             AAC LATM (Advanced Audio Coding LATM syntax)
+ AF...D flac                 FLAC (Free Lossless Audio Codec)
+ A....D mp3float             MP3 (MPEG audio layer 3) (codec mp3)
+ A....D mp3                  MP3 (MPEG audio layer 3)
+ A....D mp3adufloat          ADU (Application Data Unit) MP3 (MPEG audio layer 3) (codec mp3adu)
+== gstreamer h264/aac elements
+audioparsers:  aacparse: AAC audio stream parser
+closedcaption:  h264ccextractor: H.264 Closed Caption Extractor
+closedcaption:  h264ccinserter: H.264 Closed Caption Inserter
+codec2json:  h2642json: H2642json
+codectimestamper:  h264timestamper: H.264 timestamper
+faac:  faac: AAC audio encoder
+faad:  faad: AAC audio decoder
+fdkaac:  fdkaacdec: FDK AAC audio decoder
+fdkaac:  fdkaacenc: FDK AAC audio encoder
+libav:  avdec_4xm: libav 4X Movie decoder
