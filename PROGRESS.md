@@ -39,6 +39,9 @@ seat re-acquisition, and the fits-windows methods AppCompat probes for.
 
 ## Proof shots
 
+Media decodes through the framework shape: H.264 yields 60 frames,
+AAC yields bit-identical PCM, details in `progress/IMPL-streamb.md`.
+
 - `evidence/proof/calc-settings.png`: Settings with GENERAL header, toggles, checkboxes.
 - `evidence/proof/calc-history.png`: history rows with formulas and results.
 - `evidence/proof/notes-picker.png`: periwinkle rows with text, blue FAB, plus icon.
