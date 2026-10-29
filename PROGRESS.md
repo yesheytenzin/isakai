@@ -66,6 +66,13 @@ Every claim above keeps one shot. Re-verify by re-running the flows in
   an asserted surface.
 - Non-self review: all verdicts to date are self-review plus real-app
   evidence. Needs a human with fresh eyes.
+- Services punch list: push, fused location, maps, and basic auth gaps
+  ranked with file pointers in `progress/IMPL-streamd.md`. Push transport
+dwarfs the rest.
+- GPU gap list: host serves Vulkan 1.4 plus GLES 3.2 natively, yet the
+  framework has no GL bindings, no EGL frame route, and no feature
+  reporting. Ordered gaps in `progress/IMPL-streamc.md`. First fix is
+  the `android.opengl` binding surface.
 - XKB reorder and delay stress: excluded by the verification-artifact
   policy. Needs a policy exception plus a minimal churn driver.
 

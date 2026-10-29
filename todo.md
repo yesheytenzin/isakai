@@ -28,6 +28,14 @@ Program: implement reports/Remaining N6 N18 fix plan.md. Four independent PRs of
 - [x] Step 5. Operator run: uid 200003 confined, chooser plus two games generated. N6 done.
 - [x] Step 6. N18 re-survey: zero callers, fd proof holds. Wait continues.
 
+## Compatibility program (parallel workstreams)
+
+- [ ] Stream A. Storage/sharing corpus: pin FOSS apps, drive contract flows, record grades.
+- [ ] Stream B. MediaCodec spike: host codec probe plus one-format decode proof.
+- [ ] Stream C. GPU probe: host GL/Vulkan inventory plus GLES serving gap report.
+- [ ] Stream D. Services survey: microG-tier API gaps with file pointers.
+- [ ] Integrate each landing into PROGRESS.md.
+
 ## Standing orders
 
 Full program objective: land all four PRs verified on real app surfaces. Verification rule: build green plus affected flows PASS on fresh trees plus regression flows PASS. Root merges. Done when all four are on main with evidence recorded.
